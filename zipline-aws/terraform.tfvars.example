@@ -1,0 +1,46 @@
+# Zipline AWS Production - Example Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+# Required: Unique identifier for your deployment
+customer_name = "mycompany"
+
+# Required: AWS region
+region = "us-west-2"
+
+# Required: Docker Hub token for pulling Zipline images
+# Contact support@zipline.ai for access
+docker_hub_token = "your-docker-hub-token"
+
+# Zipline version to deploy
+zipline_version = "0.9.7"
+
+# Network configuration (optional, defaults shown)
+# vpc_cidr = "172.31.0.0/16"
+
+# IAM groups for access control (optional)
+# personnel_iam_group = "zipline-admins"
+# users_iam_group = "zipline-users"
+
+# EMR configuration (optional, defaults shown)
+# emr_master_instance_type = "m5.xlarge"
+# emr_core_instance_type = "m5.xlarge"
+# emr_autoscaling_min = 1
+# emr_autoscaling_max = 10
+
+# DynamoDB configuration (optional, defaults shown)
+# dynamo_read_capacity = 10
+# dynamo_write_capacity = 10
+
+# EKS configuration (optional, defaults shown)
+# eks_instance_type = "m5.2xlarge"
+# eks_desired_size = 3
+# eks_min_size = 1
+# eks_max_size = 5
+
+# RDS configuration (optional, defaults shown)
+# rds_instance_class = "db.t3.medium"
+# rds_multi_az = false
+
+# Custom domains (optional)
+# hub_domain = "hub.zipline.mycompany.com"
+# ui_domain = "ui.zipline.mycompany.com"

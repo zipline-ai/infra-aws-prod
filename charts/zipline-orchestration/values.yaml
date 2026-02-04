@@ -1,0 +1,106 @@
+# Default values for zipline-orchestration on AWS
+
+global:
+  customer_name: ""
+  artifact_prefix: ""
+  version: ""
+
+# AWS-specific configuration
+aws:
+  region: ""
+  secretsArn: ""
+
+# Database configuration
+database:
+  host: ""
+  name: "execution_info"
+
+# Service account configuration with IRSA
+serviceAccount:
+  create: true
+  name: orchestration-sa
+  annotations:
+    eks.amazonaws.com/role-arn: ""
+
+# Domain configuration
+domains:
+  ziplineUI: ""  # If empty, accessible via load balancer DNS
+  hub: ""        # If empty, accessible via load balancer DNS
+
+# Orchestration services configuration
+orchestration:
+  hub:
+    image: "ziplineai/hub-aws"
+    replicas: 1
+    port: 3903
+    resources:
+      limits:
+        cpu: "6"
+        memory: "28Gi"
+      requests:
+        cpu: "2"
+        memory: "8Gi"
+
+  ui:
+    image: "ziplineai/web-ui"
+    replicas: 1
+    port: 3000
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+
+# Ingress NGINX for UI
+ingress-nginx-ui:
+  enabled: true
+  controller:
+    ingressClassResource:
+      name: nginx-ui
+      enabled: true
+      default: false
+      controllerValue: "k8s.io/ingress-nginx-ui"
+    ingressClass: nginx-ui
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    electionID: ingress-controller-leader-ui
+    namespaceOverride: ingress-nginx-ui
+
+# Ingress NGINX for Hub
+ingress-nginx-hub:
+  enabled: true
+  controller:
+    ingressClassResource:
+      name: nginx-hub
+      enabled: true
+      default: false
+      controllerValue: "k8s.io/ingress-nginx-hub"
+    ingressClass: nginx-hub
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/ping"
+    electionID: ingress-controller-leader-hub
+    namespaceOverride: ingress-nginx-hub
+
+# Ingress configuration
+ingress:
+  ui:
+    className: nginx-ui
+    host: ""
+    annotations: {}
+  hub:
+    className: nginx-hub
+    host: ""
+    annotations:
+      nginx.ingress.kubernetes.io/health-check-path: "/ping"
+      nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+
+# Image pull secrets for Docker Hub
+imagePullSecrets:
+  - name: docker-hub-creds
