@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipline-orchestration-ui
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: zipline-ui
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orchestration.ui.replicas }}
+  selector:
+    matchLabels:
+      app: zipline-ui
+  template:
+    metadata:
+      labels:
+        app: zipline-ui
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web-ui
+          image: "{{ .Values.orchestration.ui.image }}:{{ .Values.global.version }}"
+          imagePullPolicy: Always
+          env:
+            - name: API_BASE_URL
+              value: "http://orchestration-hub-service"
+            - name: DB_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: DB_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: AWS_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: PUBLIC_ORCH_SERVER_NAME
+              value: "{{ .Values.global.customer_name }}-zipline-orchestration"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DATABASE_URL
+              value: "postgres://$(DB_USERNAME)@{{ .Values.database.host }}/{{ .Values.database.name }}?sslmode=require"
+            - name: AWS_EKS_LOG_GROUP
+              value: "/aws/eks/{{ .Values.aws.eksClusterName }}/containers"
+            - name: AWS_EMR_LOG_GROUP
+              value: "/emr/zipline-{{ .Values.global.customer_name }}"
+            - name: ORCH_CONTAINER_NAME
+              value: "orchestration-hub"
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          resources:
+          {{- toYaml .Values.orchestration.ui.resources | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.orchestration.ui.port }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.orchestration.ui.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.orchestration.ui.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestration-ui-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: zipline-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .Values.orchestration.ui.port }}
+      protocol: TCP
+  type: ClusterIP

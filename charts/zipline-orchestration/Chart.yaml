@@ -1,0 +1,31 @@
+apiVersion: v2
+name: zipline-orchestration
+description: A Helm chart for Zipline Orchestration Platform on AWS
+type: application
+version: 0.1.0
+appVersion: "0.9.7"
+
+keywords:
+  - zipline
+  - orchestration
+  - workflow
+  - aws
+  - eks
+
+home: https://zipline.ai
+
+maintainers:
+  - name: Zipline AI
+    email: support@zipline.ai
+
+dependencies:
+  - name: ingress-nginx
+    version: "4.10.0"
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    alias: ingress-nginx-ui
+    condition: ingress-nginx-ui.enabled
+  - name: ingress-nginx
+    version: "4.10.0"
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    alias: ingress-nginx-hub
+    condition: ingress-nginx-hub.enabled

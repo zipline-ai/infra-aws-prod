@@ -13,7 +13,9 @@ resource "aws_subnet" "main" {
   map_public_ip_on_launch = true
   availability_zone       = "${var.region}a"
   tags = {
-    Name = "zipline-${var.customer_name}-subnet-main"
+    Name                              = "zipline-${var.customer_name}-subnet-main"
+    "kubernetes.io/role/elb"          = "1" # Allows internet-facing load balancers
+    "kubernetes.io/role/internal-elb" = "1" # Allows internal load balancers
   }
   lifecycle {
     prevent_destroy = true
@@ -26,7 +28,9 @@ resource "aws_subnet" "secondary" {
   map_public_ip_on_launch = true
   availability_zone       = "${var.region}b"
   tags = {
-    Name = "zipline-${var.customer_name}-subnet-secondary"
+    Name                              = "zipline-${var.customer_name}-subnet-secondary"
+    "kubernetes.io/role/elb"          = "1" # Allows internet-facing load balancers
+    "kubernetes.io/role/internal-elb" = "1" # Allows internal load balancers
   }
   lifecycle {
     prevent_destroy = true
