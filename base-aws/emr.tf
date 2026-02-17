@@ -3,6 +3,8 @@ resource "aws_emr_cluster" "emr_cluster" {
   release_label = "emr-7.12.0"
   applications  = ["Spark", "Flink", "Hadoop", "Hive", "JupyterEnterpriseGateway", "Livy", "Zeppelin"]
 
+  step_concurrency_level = 10
+
   configurations = jsonencode([
     {
       classification = "spark-hive-site"
@@ -14,7 +16,7 @@ resource "aws_emr_cluster" "emr_cluster" {
 
   ec2_attributes {
     subnet_id                         = var.emr_subnetwork != "" ? var.emr_subnetwork : aws_subnet.main.id
-    instance_profile                  = aws_iam_instance_profile.emr_profile.arn
+    instance_profile                  = aws_iam_instance_profile.emr_instance_profile.arn
     emr_managed_master_security_group = aws_security_group.emr_sg.id
     emr_managed_slave_security_group  = aws_security_group.emr_sg.id
   }
@@ -45,12 +47,23 @@ resource "aws_emr_cluster" "emr_cluster" {
   service_role     = aws_iam_role.iam_emr_service_role.arn
   autoscaling_role = aws_iam_role.iam_emr_service_role.arn
   log_uri          = "s3://zipline-warehouse-${var.customer_name}/emr/"
+
+  # TODO: Terraform AWS provider does not yet support monitoring_configuration for aws_emr_cluster.
+  # When creating via CLI, add these flags to enable CloudWatch logging:
+  #   --applications ... Name=AmazonCloudWatchAgent
+  #   --monitoring-configuration '{"CloudWatchLogConfiguration":{"Enabled":true,"LogGroupName":"/emr/zipline-${var.customer_name}"}}'
+  # IAM permissions for CloudWatch Logs are already included in the instance profile policy.
+}
+
+resource "aws_cloudwatch_log_group" "emr_logs" {
+  name              = "/emr/zipline-${var.customer_name}"
+  retention_in_days = 30
 }
 
 resource "aws_emr_managed_scaling_policy" "zipline_scaling" {
   cluster_id = aws_emr_cluster.emr_cluster.id
   compute_limits {
-    maximum_capacity_units = 256
+    maximum_capacity_units = 64
     minimum_capacity_units = 1
     unit_type              = "Instances"
   }
@@ -143,15 +156,15 @@ data "aws_iam_policy_document" "emr_ec2_assume_role" {
   }
 }
 
-resource "aws_iam_role" "iam_emr_profile_role" {
-  name               = "zipline_${var.customer_name}_emr_profile_role"
+resource "aws_iam_role" "iam_emr_role" {
+  name               = "zipline_${var.customer_name}_emr_role"
   assume_role_policy = data.aws_iam_policy_document.emr_ec2_assume_role.json
 }
-resource "aws_iam_instance_profile" "emr_profile" {
-  name = "zipline_${var.customer_name}_emr_profile"
-  role = aws_iam_role.iam_emr_profile_role.name
+resource "aws_iam_instance_profile" "emr_instance_profile" {
+  name = "zipline_${var.customer_name}_emr_instance_profile"
+  role = aws_iam_role.iam_emr_role.name
 }
-data "aws_iam_policy_document" "iam_emr_profile_policy" {
+data "aws_iam_policy_document" "iam_emr_policy" {
   statement {
     effect = "Allow"
     actions = [
@@ -164,6 +177,11 @@ data "aws_iam_policy_document" "iam_emr_profile_policy" {
       "elasticmapreduce:ListSteps",
       // CloudWatch
       "cloudwatch:PutMetricData",
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams",
       // DynamoDB
       "dynamodb:DescribeTable",
       "dynamodb:ListTables",
@@ -207,8 +225,8 @@ data "aws_iam_policy_document" "iam_emr_profile_policy" {
     resources = ["*"]
   }
 }
-resource "aws_iam_role_policy" "iam_emr_profile_policy" {
-  name   = "zipline_${var.customer_name}_emr_profile_policy"
-  role   = aws_iam_role.iam_emr_profile_role.id
-  policy = data.aws_iam_policy_document.iam_emr_profile_policy.json
+resource "aws_iam_role_policy" "iam_emr_policy" {
+  name   = "zipline_${var.customer_name}_emr_policy"
+  role   = aws_iam_role.iam_emr_role.id
+  policy = data.aws_iam_policy_document.iam_emr_policy.json
 }

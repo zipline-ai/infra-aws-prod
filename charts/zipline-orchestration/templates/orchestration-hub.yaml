@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipline-orchestration-hub
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: orchestration-hub
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orchestration.hub.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: orchestration-hub
+  template:
+    metadata:
+      labels:
+        app: orchestration-hub
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: orchestration-hub
+          image: "{{ .Values.orchestration.hub.image }}:{{ .Values.global.version }}"
+          imagePullPolicy: Always
+          env:
+            - name: VERTICLE_CLASS
+              value: "ai.chronon.hub.AWSOrchestrationVerticle,ai.chronon.hub.AWSWorkflowExecutionVerticle"
+            - name: DB_URL
+              value: "jdbc:postgresql://{{ .Values.database.host }}/{{ .Values.database.name }}"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: CUSTOMER_ID
+              value: {{ .Values.global.customer_name | quote }}
+            - name: ARTIFACT_PREFIX
+              value: {{ .Values.global.artifact_prefix | quote }}
+            - name: ORCHESTRATION_PORT
+              value: "{{ .Values.orchestration.hub.port }}"
+            - name: HUB_FRONTEND_URL
+              value: "http://orchestration-ui-service/"
+            - name: AWS_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: CHRONON_METRICS_READER
+              value: "http"
+            - name: AWS_DYNAMODB_TABLE_NAME
+              value: "{{ .Values.aws.dynamodbTableName }}"
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          ports:
+            - containerPort: {{ .Values.orchestration.hub.port }}
+          resources:
+          {{- toYaml .Values.orchestration.hub.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: {{ .Values.orchestration.hub.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: {{ .Values.orchestration.hub.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestration-hub-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: orchestration-hub
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .Values.orchestration.hub.port }}
+      protocol: TCP
+  type: ClusterIP

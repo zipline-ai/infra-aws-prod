@@ -26,7 +26,7 @@ data "aws_iam_policy_document" "zipline_logs_bucket_policy" {
     effect = "Allow"
     principals {
       type        = "AWS"
-      identifiers = ["${aws_iam_role.iam_emr_profile_role.arn}"]
+      identifiers = ["${aws_iam_role.iam_emr_role.arn}"]
     }
     actions = [
       "s3:GetObject",

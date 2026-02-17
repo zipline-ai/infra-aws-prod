@@ -1,33 +1,106 @@
 variable "dockerhub_token" {
-    type        = string
-    description = "Docker Hub access token for ECR Pull Through Cache"
-    default = ""
+  type        = string
+  description = "Docker Hub access token for ECR Pull Through Cache. This should be provided to you by Zipline."
 }
 
 variable "zipline_version" {
-    type        = string
-    description = "The version of Zipline to deploy. This should correspond to a valid Docker image tag in the Zipline repository."
-    default     = "latest"
+  type        = string
+  description = "The version of Zipline to deploy. This should correspond to a valid Docker image tag in the Zipline repository."
+  default     = "latest"
 }
 
-variable "name_prefix" {}
+variable "name_prefix" {
+  description = "Prefix used for naming AWS resources. Typically matches customer_name."
+}
 
 variable "artifact_prefix" {
-    type        = string
-    description = "The s3 prefix where Zipline artifacts are stored."
+  type        = string
+  description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }
 
 variable "security_group_id" {
-    type        = string
-    description = "The security group ID to attach to resources."
+  type        = string
+  description = "The security group ID to attach to resources."
 }
 
 variable "main_subnet_id" {
-    type        = string
-    description = "The subnet ID to deploy resources into."
+  type        = string
+  description = "The primary subnet ID to deploy resources into."
 }
 
 variable "secondary_subnet_id" {
-    type        = string
-    description = "The subnet ID to deploy resources into."
+  type        = string
+  description = "The secondary subnet ID for multi-AZ deployments."
+}
+
+variable "vpc_id" {
+  type        = string
+  description = "The VPC ID where EKS cluster will be deployed."
+}
+
+variable "warehouse_bucket" {
+  type        = string
+  description = "Name of the S3 warehouse bucket for artifacts."
+}
+
+# EKS Configuration
+variable "eks_version" {
+  type        = string
+  description = "Kubernetes version for EKS cluster"
+  default     = "1.29"
+}
+
+variable "eks_instance_type" {
+  type        = string
+  description = "Instance type for EKS node group"
+  default     = "m5.2xlarge"
+}
+
+variable "eks_desired_size" {
+  type        = number
+  description = "Desired number of nodes in EKS node group"
+  default     = 3
+}
+
+variable "eks_min_size" {
+  type        = number
+  description = "Minimum number of nodes in EKS node group"
+  default     = 1
+}
+
+variable "eks_max_size" {
+  type        = number
+  description = "Maximum number of nodes in EKS node group"
+  default     = 5
+}
+
+variable "eks_disk_size" {
+  type        = number
+  description = "Disk size in GB for EKS nodes"
+  default     = 100
+}
+
+# Domain Configuration (optional)
+variable "hub_domain" {
+  type        = string
+  description = "Custom domain for orchestration hub (e.g., zipline-hub.yourcompany.com). Leave empty to use the default load balancer DNS."
+  default     = ""
+}
+
+variable "ui_domain" {
+  type        = string
+  description = "Custom domain for orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."
+  default     = ""
+}
+
+variable "dynamodb_table_name" {
+  type        = string
+  description = "Name of the DynamoDB table for Chronon metadata"
+  default     = "CHRONON_METADATA"
+}
+
+variable "personnel_arns" {
+  type        = list(string)
+  description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster."
+  default     = []
 }
