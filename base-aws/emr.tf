@@ -179,11 +179,14 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "cloudwatch:PutMetricData",
       "logs:CreateLogGroup",
       "logs:CreateLogStream",
+      "logs:PutRetentionPolicy",
       "logs:PutLogEvents",
       "logs:DescribeLogGroups",
       "logs:DescribeLogStreams",
       // DynamoDB
       "dynamodb:DescribeTable",
+      "dynamodb:DescribeImport",
+      "dynamodb:ImportTable",
       "dynamodb:ListTables",
       "dynamodb:Scan",
       "dynamodb:Query",
@@ -194,6 +197,7 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "dynamodb:GetItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
+      "dynamodb:UpdateTimeToLive",
       // Glue
       "glue:BatchCreatePartition",
       "glue:BatchDeletePartition",
@@ -212,9 +216,18 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "glue:GetDatabases",
       "glue:GetDatabase",
       "glue:GetSchema",
+      "glue:GetSchemaVersion",
       "glue:UpdateTable",
       "glue:UpdateDatabase",
       "glue:UpdatePartition",
+      // Kinesis
+      "kinesis:DescribeStream",
+      "kinesis:DescribeStreamSummary",
+      "kinesis:GetRecords",
+      "kinesis:GetShardIterator",
+      "kinesis:ListShards",
+      "kinesis:ListStreams",
+      "kinesis:SubscribeToShard",
       // s3
       "s3:DeleteObject",
       "s3:DeleteObjectVersion",
@@ -229,4 +242,10 @@ resource "aws_iam_role_policy" "iam_emr_policy" {
   name   = "zipline_${var.customer_name}_emr_policy"
   role   = aws_iam_role.iam_emr_role.id
   policy = data.aws_iam_policy_document.iam_emr_policy.json
+}
+
+# SSM access for EMR instances (enables Session Manager shell access without SSH keys)
+resource "aws_iam_role_policy_attachment" "emr_ssm" {
+role       = aws_iam_role.iam_emr_role.name
+policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }

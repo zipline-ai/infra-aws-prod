@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipline-fetcher
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: fetcher
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orchestration.fetcher.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fetcher
+  template:
+    metadata:
+      labels:
+        app: fetcher
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: fetcher
+          image: "{{ .Values.orchestration.fetcher.image }}:{{ .Values.orchestration.fetcher.tag }}"
+          imagePullPolicy: Always
+          env:
+            - name: PROVIDER
+              value: "AWS"
+            - name: FETCHER_PORT
+              value: "{{ .Values.orchestration.fetcher.port }}"
+            - name: AWS_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: AWS_DYNAMODB_TABLE_NAME
+              value: "{{ .Values.aws.dynamodbTableName }}"
+            - name: CHRONON_METRICS_READER
+              value: "http"
+            - name: EXPORTER_OTLP_ENDPOINT
+              value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
+          ports:
+            - containerPort: {{ .Values.orchestration.fetcher.port }}
+          resources:
+          {{- toYaml .Values.orchestration.fetcher.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: {{ .Values.orchestration.fetcher.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: {{ .Values.orchestration.fetcher.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fetcher-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: fetcher
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .Values.orchestration.fetcher.port }}
+      protocol: TCP
+  type: ClusterIP

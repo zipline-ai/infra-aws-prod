@@ -59,3 +59,45 @@ output "kubeconfig_command" {
   description = "Command to update kubeconfig"
   value       = "aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}"
 }
+
+# AWS Managed Prometheus outputs
+output "amp_workspace_id" {
+  description = "ID of the AWS Managed Prometheus workspace"
+  value       = aws_prometheus_workspace.main.id
+}
+
+output "amp_workspace_arn" {
+  description = "ARN of the AWS Managed Prometheus workspace"
+  value       = aws_prometheus_workspace.main.arn
+}
+
+output "amp_workspace_endpoint" {
+  description = "Prometheus endpoint for the workspace (use for remote_write)"
+  value       = aws_prometheus_workspace.main.prometheus_endpoint
+}
+
+output "amp_query_endpoint" {
+  description = "Query endpoint for PromQL queries"
+  value       = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/query"
+}
+
+output "amp_remote_write_endpoint" {
+  description = "Remote write endpoint for Prometheus scrapers"
+  value       = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/remote_write"
+}
+
+# Flink on EKS outputs
+output "flink_job_role_arn" {
+  description = "ARN of the IAM role for Flink job execution with IRSA"
+  value       = aws_iam_role.flink_job_execution.arn
+}
+
+output "flink_service_account_name" {
+  description = "Name of the Kubernetes service account for Flink jobs"
+  value       = kubernetes_service_account_v1.flink_job.metadata[0].name
+}
+
+output "flink_namespace" {
+  description = "Namespace where Flink jobs should be deployed"
+  value       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+}

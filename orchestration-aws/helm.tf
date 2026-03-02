@@ -32,6 +32,183 @@ resource "helm_release" "secrets_store_csi_aws" {
   depends_on = [helm_release.secrets_store_csi]
 }
 
+# Install cert-manager (required by ADOT Operator)
+resource "helm_release" "cert_manager" {
+  name       = "cert-manager"
+  repository = "https://charts.jetstack.io"
+  chart      = "cert-manager"
+  namespace  = "cert-manager"
+  version    = "v1.13.3"
+
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  depends_on = [aws_eks_node_group.default]
+}
+
+# Install OpenTelemetry Operator
+resource "helm_release" "opentelemetry_operator" {
+  name       = "opentelemetry-operator"
+  repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+  chart      = "opentelemetry-operator"
+  namespace  = "opentelemetry-operator-system"
+  version    = "0.47.0"
+
+  create_namespace = true
+
+  depends_on = [
+    helm_release.cert_manager,
+    aws_eks_node_group.default,
+  ]
+}
+
+# Install Flink Kubernetes Operator
+resource "helm_release" "flink_operator" {
+  name       = "flink-kubernetes-operator"
+  repository = "https://archive.apache.org/dist/flink/flink-kubernetes-operator-1.14.0/"
+  chart      = "flink-kubernetes-operator"
+  namespace  = "flink-operator"
+  version    = "1.14.0"
+
+  create_namespace = true
+
+  set {
+    name  = "webhook.create"
+    value = "false"
+  }
+
+  depends_on = [
+    aws_eks_node_group.default,
+  ]
+}
+
+# Service account for ADOT Collector with IRSA annotation
+resource "kubernetes_service_account_v1" "adot_collector" {
+  metadata {
+    name      = "adot-collector"
+    namespace = "opentelemetry-operator-system"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.adot_collector.arn
+    }
+  }
+
+  depends_on = [helm_release.opentelemetry_operator]
+}
+
+# ADOT Collector configuration as OpenTelemetryCollector CRD
+# Using kubectl provider to handle CRD that may not exist during plan
+resource "kubectl_manifest" "adot_collector" {
+  yaml_body = yamlencode({
+    apiVersion = "opentelemetry.io/v1alpha1"
+    kind       = "OpenTelemetryCollector"
+    metadata = {
+      name      = "adot-prometheus"
+      namespace = "opentelemetry-operator-system"
+    }
+    spec = {
+      mode           = "deployment"
+      serviceAccount = "adot-collector"
+      config = yamlencode({
+        receivers = {
+          otlp = {
+            protocols = {
+              http = {
+                endpoint = "0.0.0.0:4318"
+              }
+              grpc = {
+                endpoint = "0.0.0.0:4317"
+              }
+            }
+          }
+        }
+        processors = {
+          batch = {}
+          # Resource processor adds cluster-level attributes
+          resource = {
+            attributes = [
+              {
+                key    = "cluster_name"
+                value  = aws_eks_cluster.main.name
+                action = "insert"
+              },
+              {
+                key    = "region"
+                value  = data.aws_region.current.name
+                action = "insert"
+              },
+              {
+                key    = "namespace"
+                value  = "zipline-system"
+                action = "insert"
+              }
+            ]
+          }
+          # Attributes processor adds labels to metric datapoints
+          # Use upsert to override any app-set labels
+          attributes = {
+            actions = [
+              {
+                key    = "cluster_name"
+                value  = aws_eks_cluster.main.name
+                action = "upsert"
+              },
+              {
+                key    = "aws_region"
+                value  = data.aws_region.current.name
+                action = "upsert"
+              },
+              {
+                key    = "env"
+                value  = var.name_prefix
+                action = "upsert"
+              },
+              {
+                key    = "namespace"
+                value  = "zipline-system"
+                action = "upsert"
+              }
+            ]
+          }
+        }
+        exporters = {
+          prometheusremotewrite = {
+            endpoint = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/remote_write"
+            auth = {
+              authenticator = "sigv4auth"
+            }
+          }
+        }
+        extensions = {
+          sigv4auth = {
+            region = data.aws_region.current.name
+          }
+          health_check = {}
+        }
+        service = {
+          extensions = ["sigv4auth", "health_check"]
+          pipelines = {
+            metrics = {
+              receivers  = ["otlp"]
+              processors = ["attributes", "batch", "resource"]
+              exporters  = ["prometheusremotewrite"]
+            }
+          }
+        }
+      })
+    }
+  })
+
+  depends_on = [
+    helm_release.opentelemetry_operator,
+    kubernetes_service_account_v1.adot_collector,
+    aws_prometheus_workspace.main,
+  ]
+}
+
 # Deploy Zipline Orchestration using Helm
 resource "helm_release" "zipline_orchestration" {
   name             = "zipline-orchestration"
@@ -61,12 +238,17 @@ resource "helm_release" "zipline_orchestration" {
 
       hub_domain          = var.hub_domain
       ui_domain           = var.ui_domain
+      fetcher_domain      = var.fetcher_domain
       dynamodb_table_name = var.dynamodb_table_name
       eks_cluster_name    = aws_eks_cluster.main.name
 
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
-      ui_cert_arn  = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
-      hub_cert_arn = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
+      ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
+      hub_cert_arn     = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
+      fetcher_cert_arn = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
+
+      # Prometheus configuration
+      prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")
     })
   ]
 
@@ -78,5 +260,6 @@ resource "helm_release" "zipline_orchestration" {
     aws_db_instance.zipline,
     aws_acm_certificate.ui_cert,
     aws_acm_certificate.hub_cert,
+    aws_acm_certificate.fetcher_cert,
   ]
 }

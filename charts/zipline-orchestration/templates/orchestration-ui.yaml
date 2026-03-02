@@ -56,6 +56,10 @@ spec:
               value: "/emr/zipline-{{ .Values.global.customer_name }}"
             - name: ORCH_CONTAINER_NAME
               value: "orchestration-hub"
+            - name: PROMETHEUS_QUERY_ENDPOINT
+              value: "{{ .Values.prometheus.queryEndpoint }}"
+            - name: PROMETHEUS_NAMESPACE
+              value: "{{ .Values.prometheus.namespace }}"
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
