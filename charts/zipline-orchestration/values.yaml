@@ -9,6 +9,7 @@ global:
 aws:
   region: ""
   secretsArn: ""
+  databricksSpSecretArn: ""
   eksClusterName: ""
 
 # Database configuration

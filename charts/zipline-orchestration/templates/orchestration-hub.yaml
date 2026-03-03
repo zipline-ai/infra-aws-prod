@@ -60,6 +60,18 @@ spec:
               value: "{{ .Values.aws.dynamodbTableName }}"
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
+            {{- if .Values.aws.databricksSpSecretArn }}
+            - name: DATABRICKS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: databricks-sp-credentials
+                  key: client_id
+            - name: DATABRICKS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: databricks-sp-credentials
+                  key: client_secret
+            {{- end }}
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"

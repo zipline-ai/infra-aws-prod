@@ -110,3 +110,18 @@ variable "personnel_arns" {
   description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster."
   default     = []
 }
+
+# Databricks Unity Catalog integration (optional)
+variable "databricks_client_id" {
+  type        = string
+  description = "Databricks service principal Application ID (UUID) for Unity Catalog OAuth. Leave empty to skip Databricks integration."
+  sensitive   = true
+  default     = ""
+}
+
+variable "databricks_client_secret" {
+  type        = string
+  description = "Databricks service principal client secret for Unity Catalog OAuth. Leave empty to skip Databricks integration."
+  sensitive   = true
+  default     = ""
+}
