@@ -12,6 +12,7 @@ aws:
   secretsArn: "${secrets_arn}"
   dynamodbTableName: "${dynamodb_table_name}"
   eksClusterName: "${eks_cluster_name}"
+  databricksSpSecretArn: "${databricks_sp_secret_arn}"
 
 # Database configuration
 database:

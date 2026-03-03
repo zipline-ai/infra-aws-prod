@@ -247,6 +247,9 @@ resource "helm_release" "zipline_orchestration" {
       hub_cert_arn     = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
       fetcher_cert_arn = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
 
+      # Databricks service principal secret ARN (empty if not configured)
+      databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
+
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")
     })

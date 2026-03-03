@@ -18,4 +18,8 @@ module "orchestration" {
 
   # Personnel access
   personnel_arns = var.personnel_arns
+
+  # Databricks Unity Catalog integration (optional)
+  databricks_client_id     = var.databricks_client_id
+  databricks_client_secret = var.databricks_client_secret
 }

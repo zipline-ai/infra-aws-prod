@@ -34,3 +34,18 @@ variable "fetcher_domain" {
   description = "Custom domain for the Chronon fetcher service (e.g., zipline-fetcher.yourcompany.com). Leave empty to use the default load balancer DNS."
   default = ""
 }
+
+# Databricks Unity Catalog integration (optional)
+variable "databricks_client_id" {
+  type        = string
+  description = "Databricks service principal Application ID (UUID) for Unity Catalog OAuth. Leave empty to skip Databricks integration."
+  sensitive   = true
+  default     = ""
+}
+
+variable "databricks_client_secret" {
+  type        = string
+  description = "Databricks service principal client secret for Unity Catalog OAuth. Leave empty to skip Databricks integration."
+  sensitive   = true
+  default     = ""
+}

@@ -101,3 +101,13 @@ output "flink_namespace" {
   description = "Namespace where Flink jobs should be deployed"
   value       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 }
+
+output "databricks_sp_secret_arn" {
+  description = "ARN of the Databricks service principal credentials secret (empty if not configured)"
+  value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
+}
+
+output "databricks_sp_secret_name" {
+  description = "Name of the Databricks service principal credentials secret (empty if not configured)"
+  value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].name : ""
+}
