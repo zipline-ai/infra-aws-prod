@@ -93,6 +93,12 @@ variable "ui_domain" {
   default     = ""
 }
 
+variable "fetcher_domain" {
+  type        = string
+  description = "Custom domain for Chronon fetcher service (optional)"
+  default     = ""
+}
+
 variable "dynamodb_table_name" {
   type        = string
   description = "Name of the DynamoDB table for Chronon metadata"

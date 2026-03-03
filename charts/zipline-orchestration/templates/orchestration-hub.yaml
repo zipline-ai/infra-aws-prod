@@ -58,6 +58,8 @@ spec:
               value: "http"
             - name: AWS_DYNAMODB_TABLE_NAME
               value: "{{ .Values.aws.dynamodbTableName }}"
+            - name: EXPORTER_OTLP_ENDPOINT
+              value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"

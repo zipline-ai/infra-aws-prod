@@ -12,8 +12,9 @@ module "orchestration" {
   dynamodb_table_name = aws_dynamodb_table.chronon_metadata.name
 
   # Custom domains for HTTPS
-  ui_domain  = var.ui_domain
-  hub_domain = var.hub_domain
+  ui_domain      = var.ui_domain
+  hub_domain     = var.hub_domain
+  fetcher_domain = var.fetcher_domain
 
   # Personnel access
   personnel_arns = var.personnel_arns

@@ -35,6 +35,22 @@ resource "aws_acm_certificate" "hub_cert" {
   }
 }
 
+# Certificate for Fetcher domain (e.g., canary-fetcher-aws.zipline.ai)
+resource "aws_acm_certificate" "fetcher_cert" {
+  count = var.fetcher_domain != "" ? 1 : 0
+
+  domain_name       = var.fetcher_domain
+  validation_method = "DNS"
+
+  tags = {
+    Name = "${var.name_prefix}-fetcher-cert"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # Output the DNS validation records needed
 # You'll need to add these CNAME records to your DNS provider to validate the certificates
 output "ui_cert_validation_records" {
@@ -59,6 +75,17 @@ output "hub_cert_validation_records" {
   ] : []
 }
 
+output "fetcher_cert_validation_records" {
+  description = "DNS records to add for Fetcher certificate validation"
+  value = var.fetcher_domain != "" ? [
+    for dvo in aws_acm_certificate.fetcher_cert[0].domain_validation_options : {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  ] : []
+}
+
 # Output the certificate ARNs (needed by the load balancer)
 output "ui_cert_arn" {
   description = "ARN of the UI certificate"
@@ -68,4 +95,9 @@ output "ui_cert_arn" {
 output "hub_cert_arn" {
   description = "ARN of the Hub certificate"
   value       = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
+}
+
+output "fetcher_cert_arn" {
+  description = "ARN of the Fetcher certificate"
+  value       = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
 }

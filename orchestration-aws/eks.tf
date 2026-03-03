@@ -273,6 +273,15 @@ resource "kubernetes_namespace_v1" "zipline_system" {
   depends_on = [aws_eks_node_group.default]
 }
 
+# Create zipline-flink namespace for Flink jobs
+resource "kubernetes_namespace_v1" "zipline_flink" {
+  metadata {
+    name = "zipline-flink"
+  }
+
+  depends_on = [aws_eks_node_group.default]
+}
+
 # Docker Hub credentials secret for Kubernetes
 resource "kubernetes_secret_v1" "docker_hub_creds" {
   metadata {

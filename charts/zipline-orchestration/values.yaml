@@ -54,6 +54,19 @@ orchestration:
         cpu: "250m"
         memory: "256Mi"
 
+  fetcher:
+    image: "ziplineai/chronon-fetcher"
+    tag: "dev"
+    replicas: 1
+    port: 9000
+    resources:
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+
 # Ingress NGINX for UI
 ingress-nginx-ui:
   enabled: true
@@ -70,6 +83,25 @@ ingress-nginx-ui:
         service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
     electionID: ingress-controller-leader-ui
     namespaceOverride: ingress-nginx-ui
+
+# Ingress NGINX for Fetcher
+ingress-nginx-fetcher:
+  enabled: true
+  fullnameOverride: nginx-fetcher
+  controller:
+    ingressClassResource:
+      name: nginx-fetcher
+      enabled: true
+      default: false
+      controllerValue: "k8s.io/ingress-nginx-fetcher"
+    ingressClass: nginx-fetcher
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/ping"
+    electionID: ingress-controller-leader-fetcher
+    namespaceOverride: ingress-nginx-fetcher
 
 # Ingress NGINX for Hub
 ingress-nginx-hub:
@@ -101,7 +133,17 @@ ingress:
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
       nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+  fetcher:
+    className: nginx-fetcher
+    host: ""
+    annotations:
+      nginx.ingress.kubernetes.io/health-check-path: "/ping"
 
 # Image pull secrets for Docker Hub
 imagePullSecrets:
   - name: docker-hub-creds
+
+# Prometheus configuration
+prometheus:
+  queryEndpoint: ""
+  namespace: "zipline-system"

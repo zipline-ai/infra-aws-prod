@@ -51,6 +51,34 @@ ingress-nginx-ui:
         https: http
     electionID: ingress-controller-leader-ui
 
+# Ingress NGINX Controller for Fetcher
+ingress-nginx-fetcher:
+  enabled: true
+  fullnameOverride: nginx-fetcher
+  controller:
+    ingressClassResource:
+      name: nginx-fetcher
+      enabled: true
+      default: false
+      controllerValue: "k8s.io/ingress-nginx-fetcher"
+    ingressClass: nginx-fetcher
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/ping"
+%{ if fetcher_cert_arn != "" }
+        # TLS termination at NLB - decrypts HTTPS traffic here
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "${fetcher_cert_arn}"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+        # NLB sends plain HTTP to NGINX (TLS already terminated)
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+%{ endif }
+      # When TLS terminates at NLB, forward port 443 to NGINX's HTTP handler
+      targetPorts:
+        https: http
+    electionID: ingress-controller-leader-fetcher
+
 # Ingress NGINX Controller for Hub
 ingress-nginx-hub:
   enabled: true
@@ -104,6 +132,19 @@ orchestration:
         cpu: "250m"
         memory: "256Mi"
 
+  fetcher:
+    image: "ziplineai/chronon-fetcher"
+    tag: "dev"
+    replicas: 1
+    port: 9000
+    resources:
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+
 # Ingress configuration
 ingress:
   ui:
@@ -120,3 +161,15 @@ ingress:
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
       nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+  fetcher:
+    className: nginx-fetcher
+%{ if fetcher_domain != "" }
+    host: "${fetcher_domain}"
+%{ endif }
+    annotations:
+      nginx.ingress.kubernetes.io/health-check-path: "/ping"
+
+# Prometheus configuration
+prometheus:
+  queryEndpoint: "${prometheus_query_endpoint}"
+  namespace: "zipline-system"

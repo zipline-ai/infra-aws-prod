@@ -17,6 +17,10 @@ terraform {
       source  = "hashicorp/tls"
       version = ">= 4.0"
     }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
   }
   backend "s3" {
     bucket = "zipline-ai-opentofu-state-bucket"
@@ -56,6 +60,19 @@ provider "helm" {
   }
 }
 
+# Kubectl provider - for applying CRDs
+provider "kubectl" {
+  host                   = module.base_setup.eks_cluster_endpoint
+  cluster_ca_certificate = base64decode(module.base_setup.eks_cluster_ca_certificate)
+  load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.base_setup.eks_cluster_name, "--region", var.region]
+  }
+}
+
 module "base_setup" {
   source = "../base-aws"
 
@@ -66,6 +83,7 @@ module "base_setup" {
   control_plane_account_id = var.control_plane_account_id
 
   # Custom domains for HTTPS
-  ui_domain  = var.ui_domain
-  hub_domain = var.hub_domain
+  ui_domain      = var.ui_domain
+  hub_domain     = var.hub_domain
+  fetcher_domain = var.fetcher_domain
 }

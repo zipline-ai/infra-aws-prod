@@ -29,3 +29,8 @@ variable "hub_domain" {
   description = "Custom domain for the orchestration Hub API (e.g., zipline-hub.yourcompany.com). Leave empty to use the default load balancer DNS."
   default     = ""
 }
+
+variable "fetcher_domain" {
+  description = "Custom domain for the Chronon fetcher service (e.g., zipline-fetcher.yourcompany.com). Leave empty to use the default load balancer DNS."
+  default = ""
+}

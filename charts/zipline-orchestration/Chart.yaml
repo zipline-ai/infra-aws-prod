@@ -29,3 +29,8 @@ dependencies:
     repository: "https://kubernetes.github.io/ingress-nginx"
     alias: ingress-nginx-hub
     condition: ingress-nginx-hub.enabled
+  - name: ingress-nginx
+    version: "4.10.0"
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    alias: ingress-nginx-fetcher
+    condition: ingress-nginx-fetcher.enabled
