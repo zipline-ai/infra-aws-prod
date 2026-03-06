@@ -179,8 +179,8 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "cloudwatch:PutMetricData",
       "logs:CreateLogGroup",
       "logs:CreateLogStream",
-      "logs:PutRetentionPolicy",
       "logs:PutLogEvents",
+      "logs:PutRetentionPolicy",
       "logs:DescribeLogGroups",
       "logs:DescribeLogStreams",
       // DynamoDB
@@ -246,6 +246,6 @@ resource "aws_iam_role_policy" "iam_emr_policy" {
 
 # SSM access for EMR instances (enables Session Manager shell access without SSH keys)
 resource "aws_iam_role_policy_attachment" "emr_ssm" {
-role       = aws_iam_role.iam_emr_role.name
-policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  role       = aws_iam_role.iam_emr_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }

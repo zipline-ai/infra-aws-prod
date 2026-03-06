@@ -80,6 +80,33 @@ ingress-nginx-fetcher:
         https: http
     electionID: ingress-controller-leader-fetcher
 
+# Ingress NGINX Controller for Eval
+ingress-nginx-eval:
+  enabled: true
+  controller:
+    ingressClassResource:
+      name: nginx-eval
+      enabled: true
+      default: false
+      controllerValue: "k8s.io/ingress-nginx-eval"
+    ingressClass: nginx-eval
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/ping"
+%{ if eval_cert_arn != "" }
+        # TLS termination at NLB - decrypts HTTPS traffic here
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "${eval_cert_arn}"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+        # NLB sends plain HTTP to NGINX (TLS already terminated)
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+%{ endif }
+      # When TLS terminates at NLB, forward port 443 to NGINX's HTTP handler
+      targetPorts:
+        https: http
+    electionID: ingress-controller-leader-eval
+
 # Ingress NGINX Controller for Hub
 ingress-nginx-hub:
   enabled: true
@@ -109,6 +136,18 @@ ingress-nginx-hub:
 
 # Orchestration services configuration
 orchestration:
+  eval:
+    image: "ziplineai/eval-aws"
+    replicas: 1
+    port: 3904
+    resources:
+      limits:
+        cpu: "2"
+        memory: "8Gi"
+      requests:
+        cpu: "500m"
+        memory: "4Gi"
+
   hub:
     image: "ziplineai/hub-aws"
     replicas: 1
@@ -152,6 +191,12 @@ ingress:
     className: nginx-ui
 %{ if ui_domain != "" }
     host: "${ui_domain}"
+%{ endif }
+    annotations: {}
+  eval:
+    className: nginx-eval
+%{ if eval_domain != "" }
+    host: "${eval_domain}"
 %{ endif }
     annotations: {}
   hub:

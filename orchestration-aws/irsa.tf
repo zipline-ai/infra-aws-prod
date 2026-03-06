@@ -54,6 +54,19 @@ data "aws_iam_policy_document" "orchestration_s3_policy" {
       "arn:aws:s3:::${var.warehouse_bucket}/*",
     ]
   }
+
+  # Read access to the shared warehouse bucket (demo/source data for eval)
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket",
+    ]
+    resources = [
+      "arn:aws:s3:::zipline-warehouse",
+      "arn:aws:s3:::zipline-warehouse/*",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "orchestration_s3" {
@@ -396,6 +409,28 @@ resource "aws_iam_role_policy" "flink_dynamodb" {
   name   = "${var.name_prefix}-flink-dynamodb"
   role   = aws_iam_role.flink_job_execution.id
   policy = data.aws_iam_policy_document.flink_dynamodb_policy.json
+}
+
+# Glue Data Catalog access for orchestration pods (staging queries / exports)
+data "aws_iam_policy_document" "orchestration_glue_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetPartition",
+      "glue:GetPartitions",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "orchestration_glue" {
+  name   = "${var.name_prefix}-orchestration-glue"
+  role   = aws_iam_role.orchestration_irsa.id
+  policy = data.aws_iam_policy_document.orchestration_glue_policy.json
 }
 
 # Glue Schema Registry access policy for Flink jobs

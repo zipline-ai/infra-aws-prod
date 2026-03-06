@@ -99,6 +99,12 @@ variable "fetcher_domain" {
   default     = ""
 }
 
+variable "eval_domain" {
+  type        = string
+  description = "Custom domain for eval service (optional)"
+  default     = ""
+}
+
 variable "dynamodb_table_name" {
   type        = string
   description = "Name of the DynamoDB table for Chronon metadata"

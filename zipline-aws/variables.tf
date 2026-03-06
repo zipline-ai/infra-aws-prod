@@ -35,6 +35,11 @@ variable "fetcher_domain" {
   default = ""
 }
 
+variable "eval_domain" {
+  description = "Custom domain for the Chronon eval service (e.g., zipline-eval.yourcompany.com). Leave empty to use the default load balancer DNS."
+  default = ""
+}
+
 # Databricks Unity Catalog integration (optional)
 variable "databricks_client_id" {
   type        = string

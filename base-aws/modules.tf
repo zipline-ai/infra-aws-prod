@@ -15,6 +15,7 @@ module "orchestration" {
   ui_domain      = var.ui_domain
   hub_domain     = var.hub_domain
   fetcher_domain = var.fetcher_domain
+  eval_domain    = var.eval_domain
 
   # Personnel access
   personnel_arns = var.personnel_arns

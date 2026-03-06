@@ -68,6 +68,18 @@ orchestration:
         cpu: "1"
         memory: "2Gi"
 
+  eval:
+    image: "ziplineai/eval-aws"
+    replicas: 1
+    port: 3904
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "4Gi"
+      limits:
+        cpu: "2"
+        memory: "8Gi"
+
 # Ingress NGINX for UI
 ingress-nginx-ui:
   enabled: true
@@ -104,6 +116,24 @@ ingress-nginx-fetcher:
     electionID: ingress-controller-leader-fetcher
     namespaceOverride: ingress-nginx-fetcher
 
+# Ingress NGINX for Eval
+ingress-nginx-eval:
+  enabled: true
+  controller:
+    ingressClassResource:
+      name: nginx-eval
+      enabled: true
+      default: false
+      controllerValue: "k8s.io/ingress-nginx-eval"
+    ingressClass: nginx-eval
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/ping"
+    electionID: ingress-controller-leader-eval
+    namespaceOverride: ingress-nginx-eval
+
 # Ingress NGINX for Hub
 ingress-nginx-hub:
   enabled: true
@@ -139,6 +169,10 @@ ingress:
     host: ""
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
+  eval:
+    className: nginx-eval
+    host: ""
+    annotations: {}
 
 # Image pull secrets for Docker Hub
 imagePullSecrets:

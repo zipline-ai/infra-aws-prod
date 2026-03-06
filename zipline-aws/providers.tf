@@ -86,6 +86,7 @@ module "base_setup" {
   ui_domain      = var.ui_domain
   hub_domain     = var.hub_domain
   fetcher_domain = var.fetcher_domain
+  eval_domain    = var.eval_domain
 
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
