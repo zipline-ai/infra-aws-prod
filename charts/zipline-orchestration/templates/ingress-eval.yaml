@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eval-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.eval.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.eval.className }}
+  rules:
+    {{- if .Values.ingress.eval.host }}
+    - host: {{ .Values.ingress.eval.host }}
+      http:
+    {{- else }}
+    - http:
+    {{- end }}
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eval-service
+                port:
+                  number: 80

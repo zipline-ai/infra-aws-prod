@@ -51,6 +51,22 @@ resource "aws_acm_certificate" "fetcher_cert" {
   }
 }
 
+# Certificate for Eval domain (e.g., canary-eval-aws.zipline.ai)
+resource "aws_acm_certificate" "eval_cert" {
+  count = var.eval_domain != "" ? 1 : 0
+
+  domain_name       = var.eval_domain
+  validation_method = "DNS"
+
+  tags = {
+    Name = "${var.name_prefix}-eval-cert"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # Output the DNS validation records needed
 # You'll need to add these CNAME records to your DNS provider to validate the certificates
 output "ui_cert_validation_records" {
@@ -75,10 +91,10 @@ output "hub_cert_validation_records" {
   ] : []
 }
 
-output "fetcher_cert_validation_records" {
-  description = "DNS records to add for Fetcher certificate validation"
-  value = var.fetcher_domain != "" ? [
-    for dvo in aws_acm_certificate.fetcher_cert[0].domain_validation_options : {
+output "eval_cert_validation_records" {
+  description = "DNS records to add for Eval certificate validation"
+  value = var.eval_domain != "" ? [
+    for dvo in aws_acm_certificate.eval_cert[0].domain_validation_options : {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
       value = dvo.resource_record_value
@@ -97,7 +113,23 @@ output "hub_cert_arn" {
   value       = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
 }
 
+output "fetcher_cert_validation_records" {
+  description = "DNS records to add for Fetcher certificate validation"
+  value = var.fetcher_domain != "" ? [
+    for dvo in aws_acm_certificate.fetcher_cert[0].domain_validation_options : {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  ] : []
+}
+
 output "fetcher_cert_arn" {
   description = "ARN of the Fetcher certificate"
   value       = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
+}
+
+output "eval_cert_arn" {
+  description = "ARN of the Eval certificate"
+  value       = var.eval_domain != "" ? aws_acm_certificate.eval_cert[0].arn : ""
 }

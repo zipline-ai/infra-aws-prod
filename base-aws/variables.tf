@@ -73,3 +73,9 @@ variable "databricks_client_secret" {
   sensitive   = true
   default     = ""
 }
+
+variable "eval_domain" {
+  type        = string
+  description = "Custom domain for eval service"
+  default     = ""
+}

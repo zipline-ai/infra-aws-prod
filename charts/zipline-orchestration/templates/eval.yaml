@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipline-eval
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: eval
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orchestration.eval.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: eval
+  template:
+    metadata:
+      labels:
+        app: eval
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: eval
+          image: "{{ .Values.orchestration.eval.image }}:{{ .Values.global.version }}"
+          imagePullPolicy: Always
+          env:
+            - name: ORCHESTRATION_PORT
+              value: "{{ .Values.orchestration.eval.port }}"
+            - name: DB_URL
+              value: "jdbc:postgresql://{{ .Values.database.host }}/{{ .Values.database.name }}"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: CUSTOMER_ID
+              value: {{ .Values.global.customer_name | quote }}
+            - name: ARTIFACT_PREFIX
+              value: {{ .Values.global.artifact_prefix | quote }}
+            - name: AWS_REGION
+              value: "{{ .Values.aws.region }}"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws.region }}"
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          ports:
+            - containerPort: {{ .Values.orchestration.eval.port }}
+          resources:
+          {{- toYaml .Values.orchestration.eval.resources | nindent 12 }}
+      volumes:
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eval-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: eval
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .Values.orchestration.eval.port }}
+      protocol: TCP
+  type: ClusterIP
