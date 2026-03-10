@@ -207,12 +207,129 @@ data "aws_iam_policy_document" "eks_node_emr_policy" {
       "arn:aws:s3:::${var.warehouse_bucket}/*",
     ]
   }
+
+  # KMS permissions in case encryption is required by organization
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+      "kms:CreateGrant"
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "eks_node_emr" {
   name   = "${var.name_prefix}-eks-node-emr"
   role   = aws_iam_role.eks_node_role.id
   policy = data.aws_iam_policy_document.eks_node_emr_policy.json
+}
+
+# KMS Key for EKS node root volume encryption
+data "aws_iam_policy_document" "eks_node_root_key_policy" {
+  statement {
+    sid    = "Enable IAM User Permissions"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "Allow EKS service to create grants for EBS"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [aws_iam_role.eks_cluster_role.arn]
+    }
+    actions = ["kms:CreateGrant"]
+    resources = ["*"]
+    condition {
+      test     = "Bool"
+      variable = "kms:GrantIsForAWSResource"
+      values   = ["true"]
+    }
+  }
+
+  statement {
+    sid    = "Allow use by the EC2 Auto Scaling service-linked role"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+      "kms:CreateGrant"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "Allow EKS node role to use the key for EBS"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [aws_iam_role.eks_node_role.arn]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_kms_key" "eks_node_root" {
+  description             = "KMS key for EKS node root volume encryption"
+  deletion_window_in_days = 7
+  policy                  = data.aws_iam_policy_document.eks_node_root_key_policy.json
+
+  tags = {
+    Name = "${var.name_prefix}-eks-node-root-key"
+  }
+}
+
+# Launch template for EKS nodes with encrypted root volume
+resource "aws_launch_template" "eks_nodes" {
+  name_prefix = "${var.name_prefix}-eks-nodes"
+  description = "Launch template for EKS nodes with encrypted root volume"
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+
+    ebs {
+      volume_size = var.eks_disk_size
+      volume_type = "gp3"
+      encrypted   = true
+      kms_key_id  = aws_kms_key.eks_node_root.arn
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = {
+      Name = "${var.name_prefix}-eks-node-root-volume"
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # EKS Node Group
@@ -222,7 +339,11 @@ resource "aws_eks_node_group" "default" {
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = [var.main_subnet_id, var.secondary_subnet_id]
   instance_types  = [var.eks_instance_type]
-  disk_size       = var.eks_disk_size
+
+  launch_template {
+    id      = aws_launch_template.eks_nodes.id
+    version = aws_launch_template.eks_nodes.latest_version
+  }
 
   scaling_config {
     desired_size = var.eks_desired_size
@@ -246,6 +367,8 @@ resource "aws_eks_node_group" "default" {
     aws_iam_role_policy_attachment.eks_worker_node_policy,
     aws_iam_role_policy_attachment.eks_cni_policy,
     aws_iam_role_policy_attachment.eks_container_registry,
+    aws_iam_role_policy.eks_node_emr,
+    aws_kms_key.eks_node_root,
   ]
 }
 

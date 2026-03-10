@@ -134,6 +134,12 @@ data "aws_iam_policy_document" "iam_emr_service_policy" {
       "iam:ListInstanceProfiles",
       "iam:ListRolePolicies",
       "iam:PassRole",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+      "kms:CreateGrant",
     ]
     resources = ["*"]
   }
