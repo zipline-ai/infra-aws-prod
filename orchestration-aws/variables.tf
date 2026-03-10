@@ -47,7 +47,7 @@ variable "warehouse_bucket" {
 variable "eks_version" {
   type        = string
   description = "Kubernetes version for EKS cluster"
-  default     = "1.29"
+  default     = "1.30"
 }
 
 variable "eks_instance_type" {
