@@ -8,14 +8,13 @@ variable "customer_name" {
   }
 }
 
-variable "docker_hub_token" {
-  description = "Docker Hub token for pulling Zipline images"
+variable "dockerhub_token" {
+  description = "Docker Hub access token for ECR Pull Through Cache"
   type        = string
   sensitive   = true
 }
 
-variable "zipline_version" {
-  description = "Version of Zipline to deploy"
+variable "control_plane_account_id" {
+  description = "The AWS account ID of the Zipline control plane"
   type        = string
-  default     = "0.9.7"
 }
