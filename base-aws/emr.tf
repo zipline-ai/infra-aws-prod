@@ -60,6 +60,12 @@ resource "aws_cloudwatch_log_group" "emr_logs" {
   retention_in_days = 30
 }
 
+# Service-linked role for EC2 Spot instances
+resource "aws_iam_service_linked_role" "spot" {
+  aws_service_name = "spot.amazonaws.com"
+  description      = "Default EC2 Spot Service Linked Role"
+}
+
 resource "aws_emr_managed_scaling_policy" "zipline_scaling" {
   cluster_id = aws_emr_cluster.emr_cluster.id
   compute_limits {
