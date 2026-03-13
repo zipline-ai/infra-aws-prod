@@ -320,6 +320,15 @@ resource "aws_launch_template" "eks_nodes" {
     }
   }
 
+  # Hop limit >= 2 is required for pods to reach IMDSv2 (extra network hop via VPC CNI).
+  # Without this, daemonsets like fluent-bit cannot obtain IAM credentials for CloudWatch.
+  # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-options.html
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
   tag_specifications {
     resource_type = "volume"
     tags = {
