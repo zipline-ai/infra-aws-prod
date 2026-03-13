@@ -241,7 +241,9 @@ resource "helm_release" "zipline_orchestration" {
       fetcher_domain      = var.fetcher_domain
       eval_domain         = var.eval_domain
       dynamodb_table_name = var.dynamodb_table_name
-      eks_cluster_name    = aws_eks_cluster.main.name
+      eks_cluster_name          = aws_eks_cluster.main.name
+      flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
+      flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
       ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""

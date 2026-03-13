@@ -70,6 +70,13 @@ resource "kubernetes_role_v1" "flink_role" {
     verbs      = ["get", "list", "watch"]
   }
 
+  # Ingress management for Flink UI routing via nginx-hub
+  rule {
+    api_groups = ["networking.k8s.io"]
+    resources  = ["ingresses"]
+    verbs      = ["get", "list", "watch", "create", "delete", "patch", "update"]
+  }
+
   depends_on = [helm_release.flink_operator]
 }
 

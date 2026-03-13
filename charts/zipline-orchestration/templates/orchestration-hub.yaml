@@ -58,6 +58,12 @@ spec:
               value: "http"
             - name: AWS_DYNAMODB_TABLE_NAME
               value: "{{ .Values.aws.dynamodbTableName }}"
+            - name: FLINK_EKS_SERVICE_ACCOUNT
+              value: "{{ .Values.aws.flinkEksServiceAccount }}"
+            - name: FLINK_EKS_NAMESPACE
+              value: "{{ .Values.aws.flinkEksNamespace }}"
+            - name: EKS_CLUSTER_NAME
+              value: "{{ .Values.aws.eksClusterName }}"
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
             {{- if .Values.aws.databricksSpSecretArn }}
