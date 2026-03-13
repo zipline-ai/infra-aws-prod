@@ -392,7 +392,9 @@ data "aws_iam_policy_document" "flink_dynamodb_policy" {
   statement {
     effect = "Allow"
     actions = [
+      "dynamodb:CreateTable",
       "dynamodb:DescribeTable",
+      "dynamodb:UpdateTimeToLive",
       "dynamodb:Scan",
       "dynamodb:Query",
       "dynamodb:GetItem",
