@@ -117,6 +117,22 @@ variable "personnel_arns" {
   default     = []
 }
 
+# EMR Serverless configuration
+variable "emr_serverless_app_id" {
+  type        = string
+  description = "EMR Serverless application ID for Spark job submission"
+}
+
+variable "emr_serverless_execution_role_arn" {
+  type        = string
+  description = "IAM role ARN for EMR Serverless job execution"
+}
+
+variable "emr_log_uri" {
+  type        = string
+  description = "S3 URI for EMR job logs"
+}
+
 # Databricks Unity Catalog integration (optional)
 variable "databricks_client_id" {
   type        = string

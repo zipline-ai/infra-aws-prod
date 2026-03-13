@@ -245,6 +245,11 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
+      # EMR Serverless
+      emr_serverless_app_id             = var.emr_serverless_app_id
+      emr_serverless_execution_role_arn = var.emr_serverless_execution_role_arn
+      emr_log_uri                       = var.emr_log_uri
+
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
       ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
       hub_cert_arn     = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""

@@ -13,6 +13,9 @@ aws:
   eksClusterName: ""
   flinkEksServiceAccount: ""
   flinkEksNamespace: ""
+  emrServerlessAppId: ""
+  emrExecutionRoleArn: ""
+  emrLogUri: ""
 
 # Database configuration
 database:

@@ -30,6 +30,11 @@ variable "emr_bootstrap_actions" {
   default     = {}
 }
 
+variable "emr_log_uri" {
+  type        = string
+  description = "S3 URI for EMR job logs (e.g., s3://your-bucket/emr/)."
+}
+
 variable "control_plane_account_id" {
   description = "The AWS account ID of the Zipline control plane. Provided by Zipline during onboarding."
 }

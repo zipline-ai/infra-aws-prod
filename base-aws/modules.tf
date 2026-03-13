@@ -20,6 +20,11 @@ module "orchestration" {
   # Personnel access
   personnel_arns = var.personnel_arns
 
+  # EMR Serverless
+  emr_serverless_app_id             = aws_emrserverless_application.spark.id
+  emr_serverless_execution_role_arn = aws_iam_role.emr_serverless_role.arn
+  emr_log_uri                       = var.emr_log_uri
+
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret

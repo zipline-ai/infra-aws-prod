@@ -121,7 +121,9 @@ data "aws_iam_policy_document" "orchestration_emr_policy" {
       "emr-serverless:ListJobRuns",       # List job runs
       "emr-serverless:ListApplications",  # Find existing applications
       "emr-serverless:GetApplication",    # Check application readiness
-      "emr-serverless:CreateApplication", # Create application if none exists
+      "emr-serverless:CreateApplication",       # Create application if none exists
+      "emr-serverless:GetDashboardForJobRun",  # Spark UI URL
+      "elasticmapreduce:ListStudios",          # Resolve EMR Studio ID for job URLs
     ]
     resources = ["*"]
   }
