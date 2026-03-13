@@ -12,6 +12,8 @@ aws:
   secretsArn: "${secrets_arn}"
   dynamodbTableName: "${dynamodb_table_name}"
   eksClusterName: "${eks_cluster_name}"
+  flinkEksServiceAccount: "${flink_eks_service_account}"
+  flinkEksNamespace: "${flink_eks_namespace}"
   databricksSpSecretArn: "${databricks_sp_secret_arn}"
 
 # Database configuration

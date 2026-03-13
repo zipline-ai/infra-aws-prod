@@ -11,6 +11,8 @@ aws:
   secretsArn: ""
   databricksSpSecretArn: ""
   eksClusterName: ""
+  flinkEksServiceAccount: ""
+  flinkEksNamespace: ""
 
 # Database configuration
 database:
