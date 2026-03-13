@@ -50,6 +50,10 @@ spec:
               value: "{{ .Values.orchestration.hub.port }}"
             - name: HUB_FRONTEND_URL
               value: "http://orchestration-ui-service/"
+            {{- if .Values.ingress.hub.host }}
+            - name: HUB_BASE_URL
+              value: "https://{{ .Values.ingress.hub.host }}"
+            {{- end }}
             - name: AWS_REGION
               value: "{{ .Values.aws.region }}"
             - name: AWS_DEFAULT_REGION
