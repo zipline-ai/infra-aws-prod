@@ -13,7 +13,6 @@ aws:
   eksClusterName: ""
   flinkEksServiceAccount: ""
   flinkEksNamespace: ""
-  emrServerlessAppId: ""
   emrExecutionRoleArn: ""
   emrLogUri: ""
   emrCloudWatchLogGroup: ""

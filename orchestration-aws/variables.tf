@@ -118,12 +118,6 @@ variable "personnel_arns" {
 }
 
 # EMR Serverless configuration
-variable "emr_serverless_app_id" {
-  type        = string
-  description = "EMR Serverless application ID for Spark job submission. If empty, the submitter auto-discovers by app name."
-  default     = ""
-}
-
 variable "emr_log_uri" {
   type        = string
   description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{name_prefix}/emr/"

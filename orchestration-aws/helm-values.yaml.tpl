@@ -15,7 +15,6 @@ aws:
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"
   databricksSpSecretArn: "${databricks_sp_secret_arn}"
-  emrServerlessAppId: "${emr_serverless_app_id}"
   emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
   emrLogUri: "${emr_log_uri}"
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
