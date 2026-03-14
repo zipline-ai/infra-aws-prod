@@ -88,6 +88,21 @@ resource "aws_main_route_table_association" "a" {
   route_table_id = aws_route_table.r.id
 }
 
+# Gateway VPC endpoints for EMR Serverless (workers don't get public IPs)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.r.id]
+}
+
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.r.id]
+}
+
 output "main_subnet_id" {
   value = aws_subnet.main.id
 }
