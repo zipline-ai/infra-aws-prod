@@ -331,13 +331,6 @@ resource "aws_emrserverless_application" "spark" {
     idle_timeout_minutes = 15
   }
 
-  monitoring_configuration {
-    cloud_watch_logging_configuration {
-      enabled        = true
-      log_group_name = aws_cloudwatch_log_group.emr_logs.name
-    }
-  }
-
   network_configuration {
     subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : aws_subnet.main.id]
     security_group_ids = [aws_security_group.emr_sg.id]
