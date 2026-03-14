@@ -330,4 +330,9 @@ resource "aws_emrserverless_application" "spark" {
     enabled              = true
     idle_timeout_minutes = 15
   }
+
+  network_configuration {
+    subnet_ids         = [aws_subnet.main.id, aws_subnet.secondary.id]
+    security_group_ids = [aws_security_group.emr_sg.id]
+  }
 }
