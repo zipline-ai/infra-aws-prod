@@ -318,7 +318,7 @@ resource "aws_iam_role_policy" "emr_serverless_policy" {
 }
 
 resource "aws_emrserverless_application" "spark" {
-  name          = "zipline-${var.customer_name}-serverless"
+  name          = "zipline-emr-${var.customer_name}"
   type          = "Spark"
   release_label = "emr-7.12.0"
 
@@ -329,6 +329,13 @@ resource "aws_emrserverless_application" "spark" {
   auto_stop_configuration {
     enabled              = true
     idle_timeout_minutes = 15
+  }
+
+  monitoring_configuration {
+    cloud_watch_logging_configuration {
+      enabled        = true
+      log_group_name = aws_cloudwatch_log_group.emr_logs.name
+    }
   }
 
   network_configuration {

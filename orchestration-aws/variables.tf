@@ -120,17 +120,19 @@ variable "personnel_arns" {
 # EMR Serverless configuration
 variable "emr_serverless_app_id" {
   type        = string
-  description = "EMR Serverless application ID for Spark job submission"
-}
-
-variable "emr_serverless_execution_role_arn" {
-  type        = string
-  description = "IAM role ARN for EMR Serverless job execution"
+  description = "EMR Serverless application ID for Spark job submission. If empty, the submitter auto-discovers by app name."
+  default     = ""
 }
 
 variable "emr_log_uri" {
   type        = string
-  description = "S3 URI for EMR job logs"
+  description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{name_prefix}/emr/"
+  default     = ""
+}
+
+variable "emr_cloudwatch_log_group" {
+  type        = string
+  description = "CloudWatch log group name for EMR Serverless job logs"
 }
 
 # Databricks Unity Catalog integration (optional)

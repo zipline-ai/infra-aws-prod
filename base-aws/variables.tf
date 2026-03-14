@@ -32,7 +32,8 @@ variable "emr_bootstrap_actions" {
 
 variable "emr_log_uri" {
   type        = string
-  description = "S3 URI for EMR job logs (e.g., s3://your-bucket/emr/)."
+  description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{customer_name}/emr/"
+  default     = ""
 }
 
 variable "control_plane_account_id" {

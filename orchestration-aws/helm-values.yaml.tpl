@@ -20,6 +20,7 @@ aws:
   emrServerlessAppId: "${emr_serverless_app_id}"
   emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
   emrLogUri: "${emr_log_uri}"
+  emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
 
 # Database configuration
 database:

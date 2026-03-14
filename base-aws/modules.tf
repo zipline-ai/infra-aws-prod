@@ -21,9 +21,9 @@ module "orchestration" {
   personnel_arns = var.personnel_arns
 
   # EMR Serverless
-  emr_serverless_app_id             = aws_emrserverless_application.spark.id
-  emr_serverless_execution_role_arn = aws_iam_role.emr_serverless_role.arn
-  emr_log_uri                       = var.emr_log_uri
+  emr_serverless_app_id    = aws_emrserverless_application.spark.id
+  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.customer_name}/emr/"
+  emr_cloudwatch_log_group = aws_cloudwatch_log_group.emr_logs.name
 
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
