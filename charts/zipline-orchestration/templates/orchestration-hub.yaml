@@ -68,6 +68,12 @@ spec:
               value: "{{ .Values.aws.flinkEksNamespace }}"
             - name: EKS_CLUSTER_NAME
               value: "{{ .Values.aws.eksClusterName }}"
+            - name: EMR_EXECUTION_ROLE_ARN
+              value: "{{ .Values.aws.emrExecutionRoleArn }}"
+            - name: EMR_LOG_URI
+              value: "{{ .Values.aws.emrLogUri }}"
+            - name: EMR_SERVERLESS_APP_ID
+              value: "{{ .Values.aws.emrServerlessAppId }}"
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
             {{- if .Values.aws.databricksSpSecretArn }}

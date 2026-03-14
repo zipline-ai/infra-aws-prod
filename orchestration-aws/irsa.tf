@@ -114,6 +114,16 @@ data "aws_iam_policy_document" "orchestration_emr_policy" {
       "elasticmapreduce:DescribeStep",    # Track job status
       "elasticmapreduce:CancelSteps",     # Kill running jobs
       "elasticmapreduce:ListSteps",       # List steps on cluster
+      # EMR Serverless
+      "emr-serverless:StartJobRun",       # Submit Spark jobs
+      "emr-serverless:GetJobRun",         # Poll job status
+      "emr-serverless:CancelJobRun",      # Kill running jobs
+      "emr-serverless:ListJobRuns",       # List job runs
+      "emr-serverless:ListApplications",  # Find existing applications
+      "emr-serverless:GetApplication",    # Check application readiness
+      "emr-serverless:CreateApplication",       # Create application if none exists
+      "emr-serverless:GetDashboardForJobRun",  # Spark UI URL
+      "elasticmapreduce:ListStudios",          # Resolve EMR Studio ID for job URLs
     ]
     resources = ["*"]
   }
@@ -138,6 +148,7 @@ data "aws_iam_policy_document" "orchestration_emr_policy" {
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_service_role",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_profile_role",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role",
     ]
   }
 }
@@ -456,4 +467,35 @@ resource "aws_iam_role_policy" "flink_glue_schema_registry" {
   name   = "${var.name_prefix}-flink-glue-schema-registry"
   role   = aws_iam_role.flink_job_execution.id
   policy = data.aws_iam_policy_document.flink_glue_schema_registry_policy.json
+}
+
+# ===================================================================
+# Bedrock inference access
+# Grants invokeModel permissions to orchestration pods (online serving
+# via BedrockPlatform) and EMR (batch ModelTransformsJob).
+#
+# NOTE: IAM permissions are necessary but not sufficient. Each foundation
+# model must also be individually enabled once per account/region in the
+# AWS console before it can be invoked:
+#   Bedrock → Model access → Modify model access → select models → Save
+# ===================================================================
+
+data "aws_iam_policy_document" "bedrock_invoke_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+    ]
+    resources = [
+      "arn:aws:bedrock:${data.aws_region.current.name}::foundation-model/*",
+    ]
+  }
+}
+
+# Attach to orchestration IRSA so fetcher pods can call Bedrock at serving time
+resource "aws_iam_role_policy" "orchestration_bedrock" {
+  name   = "${var.name_prefix}-orchestration-bedrock"
+  role   = aws_iam_role.orchestration_irsa.id
+  policy = data.aws_iam_policy_document.bedrock_invoke_policy.json
 }

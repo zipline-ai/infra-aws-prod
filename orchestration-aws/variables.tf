@@ -47,7 +47,7 @@ variable "warehouse_bucket" {
 variable "eks_version" {
   type        = string
   description = "Kubernetes version for EKS cluster"
-  default     = "1.31"
+  default     = "1.34"
 }
 
 variable "eks_instance_type" {
@@ -115,6 +115,24 @@ variable "personnel_arns" {
   type        = list(string)
   description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster."
   default     = []
+}
+
+# EMR Serverless configuration
+variable "emr_serverless_app_id" {
+  type        = string
+  description = "EMR Serverless application ID for Spark job submission. If empty, the submitter auto-discovers by app name."
+  default     = ""
+}
+
+variable "emr_log_uri" {
+  type        = string
+  description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{name_prefix}/emr/"
+  default     = ""
+}
+
+variable "emr_cloudwatch_log_group" {
+  type        = string
+  description = "CloudWatch log group name for EMR Serverless job logs"
 }
 
 # Databricks Unity Catalog integration (optional)
