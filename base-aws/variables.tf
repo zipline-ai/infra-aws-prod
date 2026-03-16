@@ -20,16 +20,6 @@ variable "emr_subnetwork" {
   default     = ""
 }
 
-variable "emr_tags" {
-  description = "Optional tags to apply to the EMR cluster."
-  default     = {}
-}
-
-variable "emr_bootstrap_actions" {
-  description = "Optional map of bootstrap action names to S3 script paths for EMR cluster initialization."
-  default     = {}
-}
-
 variable "emr_log_uri" {
   type        = string
   description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{customer_name}/emr/"

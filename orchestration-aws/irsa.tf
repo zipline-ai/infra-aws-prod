@@ -101,35 +101,27 @@ resource "aws_iam_role_policy" "orchestration_dynamodb" {
   policy = data.aws_iam_policy_document.orchestration_dynamodb_policy.json
 }
 
-# EMR permissions for orchestration pods to submit Spark jobs
+# EMR Serverless permissions for orchestration pods to submit Spark jobs
 data "aws_iam_policy_document" "orchestration_emr_policy" {
-  # EMR cluster and job management
   statement {
     effect = "Allow"
     actions = [
-      "elasticmapreduce:RunJobFlow",      # Create transient clusters
-      "elasticmapreduce:ListClusters",    # Find existing clusters
-      "elasticmapreduce:DescribeCluster", # Get cluster details/status
-      "elasticmapreduce:AddJobFlowSteps", # Submit Spark/Flink jobs
-      "elasticmapreduce:DescribeStep",    # Track job status
-      "elasticmapreduce:CancelSteps",     # Kill running jobs
-      "elasticmapreduce:ListSteps",       # List steps on cluster
-      # EMR Serverless
-      "emr-serverless:StartJobRun",       # Submit Spark jobs
-      "emr-serverless:GetJobRun",         # Poll job status
-      "emr-serverless:CancelJobRun",      # Kill running jobs
-      "emr-serverless:ListJobRuns",       # List job runs
-      "emr-serverless:ListApplications",  # Find existing applications
-      "emr-serverless:GetApplication",    # Check application readiness
-      "emr-serverless:CreateApplication",       # Create application if none exists
-      "emr-serverless:GetDashboardForJobRun",  # Spark UI URL
-      "emr-serverless:TagResource",            # Tag job runs at submission
-      "elasticmapreduce:ListStudios",          # Resolve EMR Studio ID for job URLs
+      "emr-serverless:StartJobRun",
+      "emr-serverless:GetJobRun",
+      "emr-serverless:CancelJobRun",
+      "emr-serverless:ListJobRuns",
+      "emr-serverless:ListApplications",
+      "emr-serverless:GetApplication",
+      "emr-serverless:CreateApplication",
+      "emr-serverless:GetDashboardForJobRun",
+      "emr-serverless:TagResource",
+      "elasticmapreduce:ListStudios",
     ]
     resources = ["*"]
   }
 
   # EC2 permissions for subnet and security group lookups
+  # EmrSubmitter.scala uses these to resolve names to IDs
   statement {
     effect = "Allow"
     actions = [
@@ -139,16 +131,13 @@ data "aws_iam_policy_document" "orchestration_emr_policy" {
     resources = ["*"]
   }
 
-  # IAM PassRole - required to pass EMR service and instance profile roles
-  # when creating clusters via RunJobFlow
+  # IAM PassRole for EMR Serverless execution role
   statement {
     effect = "Allow"
     actions = [
       "iam:PassRole",
     ]
     resources = [
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_service_role",
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_profile_role",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role",
     ]
   }
@@ -468,6 +457,56 @@ resource "aws_iam_role_policy" "flink_glue_schema_registry" {
   name   = "${var.name_prefix}-flink-glue-schema-registry"
   role   = aws_iam_role.flink_job_execution.id
   policy = data.aws_iam_policy_document.flink_glue_schema_registry_policy.json
+}
+
+# MSK access policy for Flink jobs (connect, describe, read/write topics)
+data "aws_iam_policy_document" "flink_msk_policy" {
+  count = var.msk_cluster_arn != "" ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kafka-cluster:Connect",
+      "kafka-cluster:DescribeCluster",
+      "kafka-cluster:AlterCluster",
+      "kafka-cluster:DescribeClusterDynamicConfiguration",
+    ]
+    resources = [var.msk_cluster_arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kafka-cluster:CreateTopic",
+      "kafka-cluster:DescribeTopic",
+      "kafka-cluster:AlterTopic",
+      "kafka-cluster:DeleteTopic",
+      "kafka-cluster:DescribeTopicDynamicConfiguration",
+      "kafka-cluster:AlterTopicDynamicConfiguration",
+    ]
+    resources = ["${var.msk_cluster_arn}/topic/*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kafka-cluster:ReadData",
+      "kafka-cluster:WriteData",
+      "kafka-cluster:DescribeGroup",
+      "kafka-cluster:AlterGroup",
+    ]
+    resources = [
+      "${var.msk_cluster_arn}/topic/*",
+      "${var.msk_cluster_arn}/group/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "flink_msk" {
+  count  = var.msk_cluster_arn != "" ? 1 : 0
+  name   = "${var.name_prefix}-flink-msk"
+  role   = aws_iam_role.flink_job_execution.id
+  policy = data.aws_iam_policy_document.flink_msk_policy[0].json
 }
 
 # ===================================================================

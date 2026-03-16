@@ -111,6 +111,12 @@ variable "dynamodb_table_name" {
   default     = "CHRONON_METADATA"
 }
 
+variable "msk_cluster_arn" {
+  type        = string
+  description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
+  default     = ""
+}
+
 variable "personnel_arns" {
   type        = list(string)
   description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster."
