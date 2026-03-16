@@ -123,6 +123,7 @@ data "aws_iam_policy_document" "orchestration_emr_policy" {
       "emr-serverless:GetApplication",    # Check application readiness
       "emr-serverless:CreateApplication",       # Create application if none exists
       "emr-serverless:GetDashboardForJobRun",  # Spark UI URL
+      "emr-serverless:TagResource",            # Tag job runs at submission
       "elasticmapreduce:ListStudios",          # Resolve EMR Studio ID for job URLs
     ]
     resources = ["*"]

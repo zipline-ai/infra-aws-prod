@@ -246,7 +246,6 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
       # EMR Serverless (execution role ARN derived by naming convention)
-      emr_serverless_app_id             = var.emr_serverless_app_id
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"
       emr_log_uri                       = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.name_prefix}/emr/"
       emr_cloudwatch_log_group          = var.emr_cloudwatch_log_group
