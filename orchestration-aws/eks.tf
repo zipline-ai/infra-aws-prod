@@ -159,19 +159,23 @@ resource "aws_iam_role_policy_attachment" "eks_container_registry" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# EMR permissions for EKS nodes
+# EMR Serverless permissions for EKS nodes
+# Note: IRSA is configured but AWS SDK not picking it up - using node role as workaround
+# TODO: Fix IRSA in EmrSubmitter.scala by adding explicit region to client builders
 data "aws_iam_policy_document" "eks_node_emr_policy" {
   statement {
     effect = "Allow"
     actions = [
-      "elasticmapreduce:RunJobFlow",
-      "elasticmapreduce:ListClusters",
-      "elasticmapreduce:DescribeCluster",
-      "elasticmapreduce:AddJobFlowSteps",
-      "elasticmapreduce:DescribeStep",
-      "elasticmapreduce:CancelSteps",
-      "elasticmapreduce:ListSteps",
-      "elasticmapreduce:TerminateJobFlows",
+      "emr-serverless:StartJobRun",
+      "emr-serverless:GetJobRun",
+      "emr-serverless:CancelJobRun",
+      "emr-serverless:ListJobRuns",
+      "emr-serverless:ListApplications",
+      "emr-serverless:GetApplication",
+      "emr-serverless:CreateApplication",
+      "emr-serverless:GetDashboardForJobRun",
+      "emr-serverless:TagResource",
+      "elasticmapreduce:ListStudios",
     ]
     resources = ["*"]
   }
@@ -189,8 +193,7 @@ data "aws_iam_policy_document" "eks_node_emr_policy" {
     effect = "Allow"
     actions = ["iam:PassRole"]
     resources = [
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_service_role",
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_profile_role",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role",
     ]
   }
 
