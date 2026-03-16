@@ -179,6 +179,7 @@ orchestration:
 
   fetcher:
     image: "ziplineai/chronon-fetcher"
+    tag: "dev"
     replicas: 1
     port: 9000
     resources:
