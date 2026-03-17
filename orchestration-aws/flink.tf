@@ -80,6 +80,48 @@ resource "kubernetes_role_v1" "flink_role" {
   depends_on = [helm_release.flink_operator]
 }
 
+# Role granting orchestration-sa permission to manage FlinkDeployments in zipline-flink.
+# orchestration-sa (zipline-system) is the in-cluster identity used by EksFlinkSubmitter
+# to create/get/delete FlinkDeployment CRs via the Kubernetes API.
+resource "kubernetes_role_v1" "orchestration_flink_role" {
+  metadata {
+    name      = "orchestration-flink-role"
+    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+  }
+
+  rule {
+    api_groups = ["flink.apache.org"]
+    resources  = ["flinkdeployments"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  depends_on = [
+    kubectl_manifest.flinkdeployments_crd,
+    helm_release.flink_operator,
+  ]
+}
+
+resource "kubernetes_role_binding_v1" "orchestration_flink_role_binding" {
+  metadata {
+    name      = "orchestration-flink-role-binding"
+    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role_v1.orchestration_flink_role.metadata[0].name
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "orchestration-sa"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+
+  depends_on = [kubernetes_role_v1.orchestration_flink_role]
+}
+
 # RBAC RoleBinding for Flink service account
 resource "kubernetes_role_binding_v1" "flink_role_binding" {
   metadata {
