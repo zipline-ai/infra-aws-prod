@@ -86,6 +86,11 @@ output "amp_remote_write_endpoint" {
   value       = "${aws_prometheus_workspace.main.prometheus_endpoint}api/v1/remote_write"
 }
 
+output "amp_scraper_arn" {
+  description = "ARN of the AWS managed Prometheus scraper"
+  value       = aws_prometheus_scraper.main.arn
+}
+
 # Flink on EKS outputs
 output "flink_job_role_arn" {
   description = "ARN of the IAM role for Flink job execution with IRSA"
