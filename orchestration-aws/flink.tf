@@ -95,6 +95,13 @@ resource "kubernetes_role_v1" "orchestration_flink_role" {
     verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
   }
 
+  # Ingress management so EksFlinkSubmitter can create/delete per-deployment ingress rules
+  rule {
+    api_groups = ["networking.k8s.io"]
+    resources  = ["ingresses"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
   depends_on = [
     kubectl_manifest.flinkdeployments_crd,
     helm_release.flink_operator,
