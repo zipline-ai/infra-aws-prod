@@ -29,7 +29,6 @@ region                   = "us-west-2"
 customer_name            = "your-company"
 artifact_prefix          = "s3://your-zipline-artifacts"
 dockerhub_token          = "<provided-by-zipline>"
-control_plane_account_id = "<your-aws-account-id>"
 ```
 
 ### 2. Configure the S3 backend
@@ -63,7 +62,6 @@ tofu apply
 | `customer_name` | Your unique company identifier, used as a prefix for AWS resources |
 | `artifact_prefix` | S3 URI where Zipline artifacts are stored (e.g., `s3://your-zipline-artifacts`) |
 | `dockerhub_token` | Docker Hub access token for pulling Zipline images (provided by Zipline) |
-| `control_plane_account_id` | Your AWS account ID where Zipline infrastructure will be deployed |
 
 ### Optional variables
 
