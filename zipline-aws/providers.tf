@@ -80,7 +80,6 @@ module "base_setup" {
   region                 = var.region
   artifact_prefix        = var.artifact_prefix
   dockerhub_token        = var.dockerhub_token
-  control_plane_account_id = var.control_plane_account_id
 
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain

@@ -15,9 +15,6 @@ variable "dockerhub_token" {
   description = "Docker Hub access token for ECR Pull Through Cache. This should be provided to you by Zipline."
 }
 
-variable "control_plane_account_id" {
-  description = "The AWS account ID of the Zipline control plane. Provided by Zipline during onboarding."
-}
 
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
