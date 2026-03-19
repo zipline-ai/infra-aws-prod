@@ -25,7 +25,7 @@ spec:
       {{- end }}
       containers:
         - name: fetcher
-          image: "{{ .Values.orchestration.fetcher.image }}:{{ .Values.orchestration.fetcher.tag }}"
+          image: "{{ .Values.orchestration.fetcher.image }}:{{ .Values.global.version }}"
           imagePullPolicy: Always
           env:
             - name: PROVIDER
