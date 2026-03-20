@@ -1,0 +1,29 @@
+on:
+  push:
+#    branches:
+#      - main
+
+jobs:
+  apply-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Pull Canary Config
+        run: | 
+          cd zipline-aws/
+          bash pull_canary_config.sh
+
+      - name: Tofu Init
+        working-directory: zipline-aws
+        run: |
+          cd zipline-aws/
+          tofu init
+
+      - name: Tofu Plan
+        working-directory: zipline-aws
+        run: |
+          cd zipline-aws
+          tofu plan
