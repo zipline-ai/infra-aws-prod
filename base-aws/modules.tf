@@ -3,6 +3,7 @@ module "orchestration" {
 
   name_prefix         = var.customer_name
   artifact_prefix     = var.artifact_prefix
+  zipline_version     = var.zipline_version
   main_subnet_id      = aws_subnet.main.id
   secondary_subnet_id = aws_subnet.secondary.id
   security_group_id   = aws_security_group.emr_sg.id
@@ -27,4 +28,6 @@ module "orchestration" {
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
+
+  msk_cluster_arn = var.msk_cluster_arn
 }

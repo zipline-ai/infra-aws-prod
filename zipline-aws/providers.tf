@@ -23,8 +23,8 @@ terraform {
     }
   }
   backend "s3" {
-    bucket = "zipline-ai-opentofu-state-bucket"
-    key    = "opentofu-canary-state"
+    bucket = var.terraform_state_bucket
+    key    = var.terraform_state_file
     region = "us-west-1"
   }
 }
@@ -79,7 +79,9 @@ module "base_setup" {
   customer_name          = var.customer_name
   region                 = var.region
   artifact_prefix        = var.artifact_prefix
+  zipline_version        = var.zipline_version
   dockerhub_token        = var.dockerhub_token
+  personnel_arns         = var.personnel_arns
 
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain
@@ -90,4 +92,6 @@ module "base_setup" {
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
+
+  msk_cluster_arn = var.msk_cluster_arn
 }

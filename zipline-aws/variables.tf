@@ -10,9 +10,31 @@ variable "artifact_prefix" {
   description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }
 
+variable "zipline_version" {
+  type        = string
+  description = "The version of Zipline to deploy. This should correspond to a valid Docker image tag in the Zipline repository."
+  default     = "latest"
+}
+
 variable "dockerhub_token" {
   type        = string
   description = "Docker Hub access token for ECR Pull Through Cache. This should be provided to you by Zipline."
+}
+
+variable "terraform_state_bucket" {
+  type        = string
+  description = "S3 bucket to store terraform state"
+}
+
+variable "terraform_state_file" {
+  type        = string
+  description = "S3 key to store terraform state"
+}
+
+variable "personnel_arns" {
+  type        = list(string)
+  description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster and other resources."
+  default     = []
 }
 
 
@@ -49,5 +71,11 @@ variable "databricks_client_secret" {
   type        = string
   description = "Databricks service principal client secret for Unity Catalog OAuth. Leave empty to skip Databricks integration."
   sensitive   = true
+  default     = ""
+}
+
+variable "msk_cluster_arn" {
+  type        = string
+  description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
   default     = ""
 }
