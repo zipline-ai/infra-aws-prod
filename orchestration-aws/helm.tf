@@ -81,12 +81,6 @@ resource "helm_release" "flink_operator" {
     value = "false"
   }
 
-  values = [<<-EOT
-    defaultConfiguration:
-      kubernetes.operator.deployment.readiness.timeout: "15 min"
-  EOT
-  ]
-
   depends_on = [
     aws_eks_node_group.default,
   ]
