@@ -111,6 +111,12 @@ variable "dynamodb_table_name" {
   default     = "CHRONON_METADATA"
 }
 
+variable "glue_schema_registry_name" {
+  type        = string
+  description = "Name of an existing Glue Schema Registry for Flink streaming jobs. Leave empty to create a new one named zipline-{customer_name}."
+  default     = ""
+}
+
 variable "msk_cluster_arn" {
   type        = string
   description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
