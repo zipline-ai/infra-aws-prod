@@ -129,6 +129,11 @@ resource "kubernetes_role_binding_v1" "orchestration_flink_role_binding" {
   depends_on = [kubernetes_role_v1.orchestration_flink_role]
 }
 
+# Glue Schema Registry for Flink streaming job schema lookup
+resource "aws_glue_registry" "zipline" {
+  registry_name = "zipline-${var.name_prefix}"
+}
+
 # RBAC RoleBinding for Flink service account
 resource "kubernetes_role_binding_v1" "flink_role_binding" {
   metadata {
