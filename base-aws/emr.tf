@@ -39,6 +39,7 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
       "dynamodb:CreateTable",
+      "dynamodb:DeleteTable",
       "dynamodb:GetRecords",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
