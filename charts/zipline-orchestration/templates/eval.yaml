@@ -50,6 +50,18 @@ spec:
               value: "{{ .Values.aws.region }}"
             - name: AWS_DEFAULT_REGION
               value: "{{ .Values.aws.region }}"
+            {{- if .Values.aws.databricksSpSecretArn }}
+            - name: DATABRICKS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: databricks-sp-credentials
+                  key: client_id
+            - name: DATABRICKS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: databricks-sp-credentials
+                  key: client_secret
+            {{- end }}
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
