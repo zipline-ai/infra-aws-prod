@@ -24,6 +24,9 @@ module "orchestration" {
   emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.customer_name}/emr/"
   emr_cloudwatch_log_group = aws_cloudwatch_log_group.emr_logs.name
 
+  # Glue Schema Registry (optional)
+  glue_schema_registry_name = var.glue_schema_registry_name
+
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret

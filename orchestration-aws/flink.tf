@@ -1,6 +1,10 @@
 # Flink on EKS Configuration
 # This file contains Kubernetes resources for Flink jobs with IRSA support
 
+locals {
+  glue_registry_name = var.glue_schema_registry_name != "" ? var.glue_schema_registry_name : "zipline-${var.name_prefix}"
+}
+
 # Explicitly manage the FlinkDeployment CRD via kubectl_manifest so that
 # terraform apply recreates it if it is deleted out-of-band.
 # Helm skips CRD reinstallation by design, so this is the only reliable way
@@ -129,9 +133,12 @@ resource "kubernetes_role_binding_v1" "orchestration_flink_role_binding" {
   depends_on = [kubernetes_role_v1.orchestration_flink_role]
 }
 
-# Glue Schema Registry for Flink streaming job schema lookup
+# Glue Schema Registry for Flink streaming job schema lookup.
+# Customers can bring their own by setting glue_schema_registry_name,
+# otherwise we create one named zipline-{customer_name}.
 resource "aws_glue_registry" "zipline" {
-  registry_name = "zipline-${var.name_prefix}"
+  count         = var.glue_schema_registry_name == "" ? 1 : 0
+  registry_name = local.glue_registry_name
 }
 
 # RBAC RoleBinding for Flink service account

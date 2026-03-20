@@ -447,8 +447,8 @@ data "aws_iam_policy_document" "flink_glue_schema_registry_policy" {
       "glue:ListSchemaVersions",
     ]
     resources = [
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:registry/zipline-${var.name_prefix}",
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:schema/zipline-${var.name_prefix}/*",
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:registry/${local.glue_registry_name}",
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:schema/${local.glue_registry_name}/*",
     ]
   }
 }
