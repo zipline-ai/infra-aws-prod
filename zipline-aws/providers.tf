@@ -88,6 +88,9 @@ module "base_setup" {
   fetcher_domain = var.fetcher_domain
   eval_domain    = var.eval_domain
 
+  # Glue Schema Registry (optional)
+  glue_schema_registry_name = var.glue_schema_registry_name
+
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret

@@ -59,6 +59,13 @@ variable "eval_domain" {
   default = ""
 }
 
+# Glue Schema Registry (optional)
+variable "glue_schema_registry_name" {
+  type        = string
+  description = "Name of an existing Glue Schema Registry for Flink streaming jobs. Leave empty to create a new one named zipline-{customer_name}."
+  default     = ""
+}
+
 # Databricks Unity Catalog integration (optional)
 variable "databricks_client_id" {
   type        = string
