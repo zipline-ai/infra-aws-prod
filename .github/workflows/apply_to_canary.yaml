@@ -1,8 +1,8 @@
 name: Apply TF To Canary
 on:
   push:
-#    branches:
-#      - main
+    branches:
+      - main
 
 jobs:
   apply-canary:
