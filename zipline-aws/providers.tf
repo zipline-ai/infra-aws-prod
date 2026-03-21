@@ -31,7 +31,6 @@ terraform {
 
 provider "aws" {
   region  = var.region
-  profile = "default"
 }
 
 # Kubernetes provider - configured after EKS cluster is created
