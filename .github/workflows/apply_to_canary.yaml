@@ -31,6 +31,6 @@ jobs:
         working-directory: zipline-aws
         run: tofu init
 
-      - name: Tofu Plan
+      - name: Tofu Apply
         working-directory: zipline-aws
-        run: tofu plan
+        run: tofu apply -auto-approve
