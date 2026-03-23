@@ -18,6 +18,9 @@ module "orchestration" {
   fetcher_domain = var.fetcher_domain
   eval_domain    = var.eval_domain
 
+  # EKS Configuration
+  eks_version = var.eks_version
+
   # Personnel access
   personnel_arns = var.personnel_arns
 

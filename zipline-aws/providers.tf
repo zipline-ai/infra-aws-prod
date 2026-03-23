@@ -82,6 +82,9 @@ module "base_setup" {
   dockerhub_token        = var.dockerhub_token
   personnel_arns         = var.personnel_arns
 
+  # EKS Configuration
+  eks_version = var.eks_version
+
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain
   hub_domain     = var.hub_domain
