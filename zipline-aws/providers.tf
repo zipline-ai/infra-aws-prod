@@ -25,7 +25,7 @@ terraform {
   backend "s3" {
     bucket = var.terraform_state_bucket
     key    = var.terraform_state_file
-    region = "us-west-1"
+    region = var.terraform_state_region
   }
 }
 

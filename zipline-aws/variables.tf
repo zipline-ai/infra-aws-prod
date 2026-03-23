@@ -31,6 +31,11 @@ variable "terraform_state_file" {
   description = "S3 key to store terraform state"
 }
 
+variable "terraform_state_region" {
+  type        = string
+  description = "AWS region to store terraform state"
+}
+
 variable "personnel_arns" {
   type        = list(string)
   description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster and other resources."
