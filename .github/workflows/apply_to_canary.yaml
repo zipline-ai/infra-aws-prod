@@ -1,0 +1,36 @@
+name: Apply TF To Canary
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  apply-canary:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{secrets.AWS_ACCOUNT_ID}}:role/github_actions
+          aws-region: ${{secrets.AWS_REGION}}
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Pull Canary Config
+        working-directory: zipline-aws
+        run: bash pull_canary_config.sh
+
+      - name: Tofu Init
+        working-directory: zipline-aws
+        run: tofu init
+
+      - name: Tofu Apply
+        working-directory: zipline-aws
+        run: tofu apply -auto-approve

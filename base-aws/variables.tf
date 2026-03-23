@@ -10,6 +10,12 @@ variable "artifact_prefix" {
   description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }
 
+variable "zipline_version" {
+  type        = string
+  description = "The version of Zipline to deploy. This should correspond to a valid Docker image tag in the Zipline repository."
+  default     = "latest"
+}
+
 variable "dockerhub_token" {
   type        = string
   description = "Docker Hub access token for ECR Pull Through Cache. This should be provided to you by Zipline."
@@ -52,6 +58,12 @@ variable "fetcher_domain" {
   default     = ""
 }
 
+variable "eval_domain" {
+  type        = string
+  description = "Custom domain for eval service"
+  default     = ""
+}
+
 # Glue Schema Registry (optional)
 variable "glue_schema_registry_name" {
   type        = string
@@ -74,8 +86,8 @@ variable "databricks_client_secret" {
   default     = ""
 }
 
-variable "eval_domain" {
+variable "msk_cluster_arn" {
   type        = string
-  description = "Custom domain for eval service"
+  description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
   default     = ""
 }
