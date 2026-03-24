@@ -34,3 +34,151 @@ jobs:
       - name: Tofu Apply
         working-directory: zipline-aws
         run: tofu apply -auto-approve
+
+  on_fail_notify_slack:
+    needs: [apply-canary]
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Collect failed job logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/failed-logs
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '.jobs[] | select(.conclusion == "failure" and .name != "on_fail_notify_slack") | "\(.id) \(.name)"' | \
+          while read -r JOB_ID JOB_NAME; do
+            gh api "repos/${{ github.repository }}/actions/jobs/${JOB_ID}/logs" \
+              > "/tmp/failed-logs/${JOB_ID}.log" 2>/dev/null || true
+          done
+          # Save job metadata
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure" and .name != "on_fail_notify_slack") | {id, name, steps: [.steps[] | select(.conclusion == "failure") | .name]}]' \
+            > /tmp/failed-logs/metadata.json 2>/dev/null || echo "[]" > /tmp/failed-logs/metadata.json
+
+      - name: Build notification payload
+        env:
+          APPLY_CANARY_RESULT: ${{ needs.apply-canary.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          python3 << 'PYEOF' > /tmp/slack_payload.json
+          import json, os, re
+
+          run_url = os.environ['RUN_URL']
+          sha = os.environ['COMMIT_SHA']
+          branch = os.environ['BRANCH']
+
+          # Map job env vars to human-readable names
+          jobs = [
+              ('APPLY_CANARY_RESULT', 'Push TF To AWS Canary'),
+          ]
+
+          failed = []
+          skipped = []
+          for env_var, label in jobs:
+              result = os.environ.get(env_var, '')
+              if result == 'failure':
+                  failed.append(label)
+              elif result == 'cancelled':
+                  failed.append(f'{label} (cancelled)')
+              elif result == 'skipped':
+                  skipped.append(label)
+
+          failed_text = '\n'.join(f'• {f}' for f in failed) if failed else '• Unknown'
+
+          blocks = [
+              {
+                  'type': 'section',
+                  'text': {
+                      'type': 'mrkdwn',
+                      'text': f':x: *Zipline CI Pipeline Failed*\n\nCommit: <{run_url}|{sha[:8]}>\nBranch: `{branch}`'
+                  }
+              },
+              {
+                  'type': 'section',
+                  'text': {
+                      'type': 'mrkdwn',
+                      'text': f'*Failed Steps:*\n{failed_text}'
+                  }
+              },
+          ]
+
+          if skipped:
+              skipped_text = '\n'.join(f'• {s}' for s in skipped)
+              blocks.append({
+                  'type': 'section',
+                  'text': {
+                      'type': 'mrkdwn',
+                      'text': f'*Skipped (due to upstream failure):*\n{skipped_text}'
+                  }
+              })
+
+          # Add log excerpts from failed jobs
+          try:
+              with open('/tmp/failed-logs/metadata.json') as f:
+                  metadata = json.load(f)
+          except Exception:
+              metadata = []
+
+          for job in metadata:
+              job_id = job.get('id')
+              job_name = job.get('name', 'Unknown')
+              failed_steps = job.get('steps', [])
+              failed_step_text = ', '.join(failed_steps) if failed_steps else 'unknown step'
+
+              log_file = f'/tmp/failed-logs/{job_id}.log'
+              if not os.path.exists(log_file):
+                  continue
+
+              with open(log_file) as f:
+                  raw = f.read()
+
+              # Strip ANSI escape codes and timestamp prefixes
+              lines = raw.splitlines()
+              cleaned = []
+              for line in lines:
+                  line = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                  line = re.sub(r'^[0-9T:.Z-]+ ', '', line)
+                  cleaned.append(line)
+
+              # Take last 30 lines
+              tail = '\n'.join(cleaned[-30:])
+
+              log_text = f'*{job_name}* (failed step: {failed_step_text})\n```\n{tail}\n```'
+              # Truncate if too long for Slack (section text limit is 3000 chars)
+              if len(log_text) > 2900:
+                  log_text = f'*{job_name}* (failed step: {failed_step_text})\n```\n{tail[-(2900 - len(job_name) - len(failed_step_text) - 50):]}\n...(truncated)```'
+
+              blocks.append({
+                  'type': 'section',
+                  'text': {
+                      'type': 'mrkdwn',
+                      'text': log_text
+                  }
+              })
+
+          blocks.append({
+              'type': 'context',
+              'elements': [{
+                  'type': 'mrkdwn',
+                  'text': f'<{run_url}|View full logs>'
+              }]
+          })
+
+          payload = {
+              'text': 'Zipline CI Pipeline Failed',
+              'blocks': blocks
+          }
+
+          print(json.dumps(payload))
+          PYEOF
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_AWS_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: /tmp/slack_payload.json
