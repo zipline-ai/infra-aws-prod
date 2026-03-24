@@ -612,14 +612,36 @@ resource "helm_release" "fluent_bit" {
 
   values = [<<-EOT
 config:
+  service: |
+    [SERVICE]
+        Flush        1
+        Grace        30
+        Log_Level    warn
+        Daemon       Off
+        HTTP_Server  On
+        HTTP_Listen  0.0.0.0
+        HTTP_Port    2020
+
+  inputs: |
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*.log
+        multiline.parser  docker, cri
+        Tag               kube.*
+        Refresh_Interval  1
+        Mem_Buf_Limit     50MB
+        Skip_Long_Lines   On
+        DB                /var/log/flb_kube.db
+
   outputs: |
     [OUTPUT]
         Name              cloudwatch_logs
-        Match             *
+        Match             kube.*
         region            ${data.aws_region.current.name}
         log_group_name    /aws/eks/${var.name_prefix}-eks/containers
         log_stream_prefix from-fluent-bit-
         auto_create_group true
+        retry_limit       false
 EOT
   ]
 
