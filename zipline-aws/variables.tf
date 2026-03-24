@@ -42,6 +42,12 @@ variable "personnel_arns" {
   default     = []
 }
 
+# EKS Configuration
+variable "eks_version" {
+  type        = string
+  description = "Kubernetes version for EKS cluster"
+  default     = "1.31"
+}
 
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
