@@ -21,4 +21,5 @@ spec:
         - |
           ELB=$(kubectl get svc zipline-orchestration-ingress-nginx-hub-controller -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           kubectl set env deployment/zipline-orchestration-hub HUB_BASE_URL=http://$ELB -n {{ .Release.Namespace }}
+          kubectl patch ingress orchestration-hub-ingress -n {{ .Release.Namespace }} --type json -p "[{\"op\":\"add\",\"path\":\"/spec/rules/0/host\",\"value\":\"$ELB\"}]"
 {{- end }}

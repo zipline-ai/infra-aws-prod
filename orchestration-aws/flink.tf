@@ -164,6 +164,12 @@ resource "kubernetes_role_v1" "orchestration_hub_role" {
     verbs      = ["get", "patch"]
   }
 
+  rule {
+    api_groups = ["networking.k8s.io"]
+    resources  = ["ingresses"]
+    verbs      = ["get", "patch"]
+  }
+
   depends_on = [helm_release.zipline_orchestration]
 }
 
