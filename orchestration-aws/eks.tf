@@ -669,3 +669,481 @@ resource "helm_release" "aws_load_balancer_controller" {
     aws_iam_role_policy.aws_lb_controller_policy,
   ]
 }
+
+# ============================================================================
+# Karpenter Configuration
+# ============================================================================
+
+# IAM Role for Karpenter Controller (IRSA)
+data "aws_iam_policy_document" "karpenter_controller_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:karpenter"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "karpenter_controller" {
+  name               = "${var.name_prefix}-karpenter-controller"
+  assume_role_policy = data.aws_iam_policy_document.karpenter_controller_assume_role.json
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-controller"
+  }
+}
+
+# Karpenter Controller Policy
+data "aws_iam_policy_document" "karpenter_controller" {
+  statement {
+    sid    = "AllowScopedEC2InstanceActions"
+    effect = "Allow"
+    actions = [
+      "ec2:RunInstances",
+      "ec2:CreateFleet"
+    ]
+    resources = [
+      "arn:aws:ec2:${data.aws_region.current.name}::image/*",
+      "arn:aws:ec2:${data.aws_region.current.name}::snapshot/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:security-group/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:subnet/*",
+    ]
+  }
+
+  statement {
+    sid    = "AllowScopedEC2InstanceActionsWithTags"
+    effect = "Allow"
+    actions = [
+      "ec2:RunInstances",
+      "ec2:CreateFleet"
+    ]
+    resources = [
+      "arn:aws:ec2:${data.aws_region.current.name}:*:instance/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:volume/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:network-interface/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:launch-template/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:spot-instances-request/*",
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.name]
+    }
+  }
+
+  statement {
+    sid    = "AllowScopedResourceCreationTagging"
+    effect = "Allow"
+    actions = ["ec2:CreateTags"]
+    resources = [
+      "arn:aws:ec2:${data.aws_region.current.name}:*:instance/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:volume/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:network-interface/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:launch-template/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:spot-instances-request/*",
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:CreateAction"
+      values = [
+        "RunInstances",
+        "CreateFleet",
+      ]
+    }
+  }
+
+  statement {
+    sid    = "AllowMachineMigrationTagging"
+    effect = "Allow"
+    actions = ["ec2:CreateTags"]
+    resources = ["arn:aws:ec2:${data.aws_region.current.name}:*:instance/*"]
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/karpenter.sh/nodepool"
+      values   = ["*"]
+    }
+  }
+
+  statement {
+    sid    = "AllowScopedDeletion"
+    effect = "Allow"
+    actions = [
+      "ec2:TerminateInstances",
+      "ec2:DeleteLaunchTemplate"
+    ]
+    resources = [
+      "arn:aws:ec2:${data.aws_region.current.name}:*:instance/*",
+      "arn:aws:ec2:${data.aws_region.current.name}:*:launch-template/*"
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/karpenter.sh/nodepool"
+      values   = ["*"]
+    }
+  }
+
+  statement {
+    sid    = "AllowRegionalReadActions"
+    effect = "Allow"
+    actions = [
+      "ec2:DescribeAvailabilityZones",
+      "ec2:DescribeImages",
+      "ec2:DescribeInstances",
+      "ec2:DescribeInstanceTypeOfferings",
+      "ec2:DescribeInstanceTypes",
+      "ec2:DescribeLaunchTemplates",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSpotPriceHistory",
+      "ec2:DescribeSubnets"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.name]
+    }
+  }
+
+  statement {
+    sid       = "AllowSSMReadActions"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${data.aws_region.current.name}::parameter/aws/service/*"]
+  }
+
+  statement {
+    sid       = "AllowPricingReadActions"
+    effect    = "Allow"
+    actions   = ["pricing:GetProducts"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowInterruptionQueueActions"
+    effect = "Allow"
+    actions = [
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ReceiveMessage"
+    ]
+    resources = [aws_sqs_queue.karpenter_interruption.arn]
+  }
+
+  statement {
+    sid       = "AllowPassingInstanceRole"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = [aws_iam_role.karpenter_node.arn]
+  }
+
+  statement {
+    sid    = "AllowScopedInstanceProfileCreationActions"
+    effect = "Allow"
+    actions = ["iam:CreateInstanceProfile"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass"
+      values   = ["*"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/eks:eks-cluster-name"
+      values   = [aws_eks_cluster.main.name]
+    }
+  }
+
+  statement {
+    sid    = "AllowScopedInstanceProfileTagActions"
+    effect = "Allow"
+    actions = ["iam:TagInstanceProfile"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass"
+      values   = ["*"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/eks:eks-cluster-name"
+      values   = [aws_eks_cluster.main.name]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass"
+      values   = ["*"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/eks:eks-cluster-name"
+      values   = [aws_eks_cluster.main.name]
+    }
+  }
+
+  statement {
+    sid    = "AllowScopedInstanceProfileActions"
+    effect = "Allow"
+    actions = [
+      "iam:AddRoleToInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:DeleteInstanceProfile"
+    ]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass"
+      values   = ["*"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/eks:eks-cluster-name"
+      values   = [aws_eks_cluster.main.name]
+    }
+  }
+
+  statement {
+    sid       = "AllowInstanceProfileReadActions"
+    effect    = "Allow"
+    actions   = ["iam:GetInstanceProfile"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "karpenter_controller" {
+  name   = "${var.name_prefix}-karpenter-controller"
+  role   = aws_iam_role.karpenter_controller.id
+  policy = data.aws_iam_policy_document.karpenter_controller.json
+}
+
+# IAM Role for Karpenter Nodes
+resource "aws_iam_role" "karpenter_node" {
+  name               = "${var.name_prefix}-karpenter-node"
+  assume_role_policy = data.aws_iam_policy_document.eks_node_assume_role.json
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-node"
+  }
+}
+
+# Attach standard EKS node policies to Karpenter nodes
+resource "aws_iam_role_policy_attachment" "karpenter_node_worker_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.karpenter_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "karpenter_node_cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.karpenter_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "karpenter_node_container_registry" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.karpenter_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "karpenter_node_ssm_managed_instance" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  role       = aws_iam_role.karpenter_node.name
+}
+
+# Attach EMR policy to Karpenter nodes as well
+resource "aws_iam_role_policy" "karpenter_node_emr" {
+  name   = "${var.name_prefix}-karpenter-node-emr"
+  role   = aws_iam_role.karpenter_node.id
+  policy = data.aws_iam_policy_document.eks_node_emr_policy.json
+}
+
+# Attach CloudWatch policy to Karpenter nodes
+resource "aws_iam_role_policy" "karpenter_node_cloudwatch" {
+  name   = "${var.name_prefix}-karpenter-node-cloudwatch"
+  role   = aws_iam_role.karpenter_node.id
+  policy = data.aws_iam_policy_document.fluent_bit_cloudwatch.json
+}
+
+# SQS Queue for Spot Instance Interruption Handling
+resource "aws_sqs_queue" "karpenter_interruption" {
+  name                      = "${var.name_prefix}-karpenter-interruption"
+  message_retention_seconds = 300
+  sqs_managed_sse_enabled   = true
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-interruption"
+  }
+}
+
+data "aws_iam_policy_document" "karpenter_interruption_queue" {
+  statement {
+    sid    = "AllowEC2InterruptionEvents"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com", "sqs.amazonaws.com"]
+    }
+    actions   = ["sqs:SendMessage"]
+    resources = [aws_sqs_queue.karpenter_interruption.arn]
+  }
+}
+
+resource "aws_sqs_queue_policy" "karpenter_interruption" {
+  queue_url = aws_sqs_queue.karpenter_interruption.url
+  policy    = data.aws_iam_policy_document.karpenter_interruption_queue.json
+}
+
+# EventBridge Rules for Spot Interruptions
+resource "aws_cloudwatch_event_rule" "karpenter_spot_interruption" {
+  name        = "${var.name_prefix}-karpenter-spot-interruption"
+  description = "Capture EC2 Spot Instance interruption warnings"
+
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Spot Instance Interruption Warning"]
+  })
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-spot-interruption"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "karpenter_spot_interruption" {
+  rule      = aws_cloudwatch_event_rule.karpenter_spot_interruption.name
+  target_id = "KarpenterInterruptionQueue"
+  arn       = aws_sqs_queue.karpenter_interruption.arn
+}
+
+resource "aws_cloudwatch_event_rule" "karpenter_rebalance" {
+  name        = "${var.name_prefix}-karpenter-rebalance"
+  description = "Capture EC2 Instance Rebalance Recommendations"
+
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Instance Rebalance Recommendation"]
+  })
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-rebalance"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "karpenter_rebalance" {
+  rule      = aws_cloudwatch_event_rule.karpenter_rebalance.name
+  target_id = "KarpenterInterruptionQueue"
+  arn       = aws_sqs_queue.karpenter_interruption.arn
+}
+
+resource "aws_cloudwatch_event_rule" "karpenter_instance_state_change" {
+  name        = "${var.name_prefix}-karpenter-instance-state-change"
+  description = "Capture EC2 Instance State-change Notifications"
+
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Instance State-change Notification"]
+  })
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-instance-state-change"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "karpenter_instance_state_change" {
+  rule      = aws_cloudwatch_event_rule.karpenter_instance_state_change.name
+  target_id = "KarpenterInterruptionQueue"
+  arn       = aws_sqs_queue.karpenter_interruption.arn
+}
+
+resource "aws_cloudwatch_event_rule" "karpenter_scheduled_change" {
+  name        = "${var.name_prefix}-karpenter-scheduled-change"
+  description = "Capture AWS Health Events for EC2 Scheduled Changes"
+
+  event_pattern = jsonencode({
+    source      = ["aws.health"]
+    detail-type = ["AWS Health Event"]
+  })
+
+  tags = {
+    Name = "${var.name_prefix}-karpenter-scheduled-change"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "karpenter_scheduled_change" {
+  rule      = aws_cloudwatch_event_rule.karpenter_scheduled_change.name
+  target_id = "KarpenterInterruptionQueue"
+  arn       = aws_sqs_queue.karpenter_interruption.arn
+}
+
+# Install Karpenter via Helm
+resource "helm_release" "karpenter" {
+  name       = "karpenter"
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter"
+  namespace  = "kube-system"
+  version    = "1.1.1"
+
+  set {
+    name  = "settings.clusterName"
+    value = aws_eks_cluster.main.name
+  }
+
+  set {
+    name  = "settings.clusterEndpoint"
+    value = aws_eks_cluster.main.endpoint
+  }
+
+  set {
+    name  = "settings.interruptionQueue"
+    value = aws_sqs_queue.karpenter_interruption.name
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "karpenter"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.karpenter_controller.arn
+  }
+
+  set {
+    name  = "controller.resources.requests.cpu"
+    value = "1"
+  }
+
+  set {
+    name  = "controller.resources.requests.memory"
+    value = "1Gi"
+  }
+
+  set {
+    name  = "controller.resources.limits.cpu"
+    value = "1"
+  }
+
+  set {
+    name  = "controller.resources.limits.memory"
+    value = "1Gi"
+  }
+
+  depends_on = [
+    aws_eks_node_group.default,
+    aws_iam_role_policy.karpenter_controller,
+    aws_sqs_queue_policy.karpenter_interruption,
+  ]
+}
