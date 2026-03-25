@@ -1,0 +1,24 @@
+{{- if not .Values.ingress.hub.host }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: set-hub-base-url
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      restartPolicy: Never
+      containers:
+      - name: set-hub-url
+        image: bitnami/kubectl
+        command:
+        - /bin/sh
+        - -c
+        - |
+          ELB=$(kubectl get svc zipline-orchestration-ingress-nginx-hub-controller -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          kubectl set env deployment/zipline-orchestration-hub HUB_BASE_URL=http://$ELB -n {{ .Release.Namespace }}
+{{- end }}
