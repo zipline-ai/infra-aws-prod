@@ -116,3 +116,24 @@ output "databricks_sp_secret_name" {
   description = "Name of the Databricks service principal credentials secret (empty if not configured)"
   value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].name : ""
 }
+
+# Karpenter outputs
+output "karpenter_controller_role_arn" {
+  description = "ARN of the IAM role for Karpenter controller"
+  value       = aws_iam_role.karpenter_controller.arn
+}
+
+output "karpenter_node_role_arn" {
+  description = "ARN of the IAM role for Karpenter-provisioned nodes"
+  value       = aws_iam_role.karpenter_node.arn
+}
+
+output "karpenter_interruption_queue_name" {
+  description = "Name of the SQS queue for Karpenter interruption handling"
+  value       = aws_sqs_queue.karpenter_interruption.name
+}
+
+output "karpenter_interruption_queue_url" {
+  description = "URL of the SQS queue for Karpenter interruption handling"
+  value       = aws_sqs_queue.karpenter_interruption.url
+}
