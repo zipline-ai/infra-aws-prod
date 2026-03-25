@@ -101,6 +101,35 @@ resource "aws_eks_cluster" "main" {
   ]
 }
 
+resource "aws_eks_cluster" "main2" {
+  name     = "${var.name_prefix}-eks-2"
+  role_arn = aws_iam_role.eks_cluster_role.arn
+  version  = var.eks_version
+
+  vpc_config {
+    subnet_ids              = [var.main_subnet_id, var.secondary_subnet_id]
+    endpoint_private_access = true
+    endpoint_public_access  = true
+    security_group_ids      = [aws_security_group.eks_cluster.id]
+  }
+
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+  tags = {
+    Name = "${var.name_prefix}-eks"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_policy,
+    aws_iam_role_policy_attachment.eks_vpc_resource_controller,
+  ]
+}
+
 # EKS Access Entries for personnel
 resource "aws_eks_access_entry" "personnel" {
   for_each = toset(var.personnel_arns)
@@ -380,6 +409,44 @@ resource "aws_eks_node_group" "default" {
     aws_kms_key.eks_node_root,
   ]
 }
+resource "aws_eks_node_group" "default2" {
+  cluster_name    = aws_eks_cluster.main2.name
+  node_group_name = "${var.name_prefix}-default-2"
+  node_role_arn   = aws_iam_role.eks_node_role.arn
+  subnet_ids      = [var.main_subnet_id, var.secondary_subnet_id]
+  instance_types  = [var.eks_instance_type]
+
+  launch_template {
+    id      = aws_launch_template.eks_nodes.id
+    version = aws_launch_template.eks_nodes.latest_version
+  }
+
+  scaling_config {
+    desired_size = var.eks_desired_size
+    max_size     = var.eks_max_size
+    min_size     = var.eks_min_size
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  labels = {
+    role = "zipline-workload"
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-eks-node"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_container_registry,
+    aws_iam_role_policy.eks_node_emr,
+    aws_kms_key.eks_node_root,
+  ]
+}
 
 # OIDC Provider for IRSA
 data "tls_certificate" "eks" {
@@ -412,6 +479,15 @@ resource "kubernetes_namespace_v1" "zipline_flink" {
   }
 
   depends_on = [aws_eks_node_group.default]
+}
+
+# Create zipline-flink namespace for Flink jobs
+resource "kubernetes_namespace_v1" "zipline_flink2" {
+  metadata {
+    name = "zipline-flink2"
+  }
+
+  depends_on = [aws_eks_node_group.default2]
 }
 
 # Docker Hub credentials secret for Kubernetes
