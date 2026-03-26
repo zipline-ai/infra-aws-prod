@@ -58,6 +58,12 @@ variable "hub_domain" {
   default     = ""
 }
 
+variable "hub_external_url" {
+  type        = string
+  description = "Override HUB_BASE_URL directly (e.g., http://my-hub-foo). Use when a custom ALB or proxy sits in front of the nginx ELB and hub_domain is not set."
+  default     = ""
+}
+
 variable "fetcher_domain" {
   type        = string
   description = "Custom domain for the Chronon fetcher service (e.g., zipline-fetcher.yourcompany.com). Leave empty to use the default load balancer DNS."

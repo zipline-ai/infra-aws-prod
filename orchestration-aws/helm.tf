@@ -237,6 +237,7 @@ resource "helm_release" "zipline_orchestration" {
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name
 
       hub_domain          = var.hub_domain
+      hub_external_url    = var.hub_external_url
       ui_domain           = var.ui_domain
       fetcher_domain      = var.fetcher_domain
       eval_domain         = var.eval_domain

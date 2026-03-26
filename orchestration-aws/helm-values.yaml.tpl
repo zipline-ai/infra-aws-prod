@@ -209,6 +209,9 @@ ingress:
 %{ if hub_domain != "" }
     host: "${hub_domain}"
 %{ endif }
+%{ if hub_external_url != "" }
+    externalUrl: "${hub_external_url}"
+%{ endif }
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
       nginx.ingress.kubernetes.io/proxy-body-size: "20m"

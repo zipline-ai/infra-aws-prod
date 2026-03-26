@@ -141,6 +141,61 @@ resource "aws_glue_registry" "zipline" {
   registry_name = local.glue_registry_name
 }
 
+# Role granting orchestration-sa permission to look up the hub NLB hostname and patch
+# the hub deployment with HUB_BASE_URL — only needed when hub_domain is not set,
+# since the Helm post-install Job handles this case.
+resource "kubernetes_role_v1" "orchestration_hub_role" {
+  count = var.hub_domain == "" ? 1 : 0
+
+  metadata {
+    name      = "orchestration-hub-role"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["services"]
+    verbs      = ["get"]
+  }
+
+  rule {
+    api_groups = ["apps"]
+    resources  = ["deployments"]
+    verbs      = ["get", "patch"]
+  }
+
+  rule {
+    api_groups = ["networking.k8s.io"]
+    resources  = ["ingresses"]
+    verbs      = ["get", "patch"]
+  }
+
+  depends_on = [kubernetes_namespace_v1.zipline_system]
+}
+
+resource "kubernetes_role_binding_v1" "orchestration_hub_role_binding" {
+  count = var.hub_domain == "" ? 1 : 0
+
+  metadata {
+    name      = "orchestration-hub-role-binding"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role_v1.orchestration_hub_role[0].metadata[0].name
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "orchestration-sa"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+
+  depends_on = [kubernetes_role_v1.orchestration_hub_role]
+}
+
 # RBAC RoleBinding for Flink service account
 resource "kubernetes_role_binding_v1" "flink_role_binding" {
   metadata {
