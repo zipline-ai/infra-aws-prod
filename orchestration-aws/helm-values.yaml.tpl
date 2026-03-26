@@ -229,16 +229,16 @@ prometheus:
   namespace: "zipline-system"
 
 auth:
-  enabled: ${zipline_auth_enabled}
+  enabled: "${zipline_auth_enabled}"
   url: "${zipline_auth_url}"
-  secret: "${zipline_auth_secret}"
+  secret: '${zipline_auth_secret}'
   jwksUrl: "${zipline_auth_jwksUrl}"
   google_oauth_client_id: "${google_oauth_client_id}"
   google_oauth_client_secret: "${google_oauth_client_secret}"
   github_oauth_client_id: "${github_oauth_client_id}"
   github_oauth_client_secret: "${github_oauth_client_secret}"
   microsoft_entra_tenant_id: "${microsoft_entra_tenant_id}"
-  microsoft_entra_client_id: "${microsoft_entra_client_id}"
+  microsoft_entra_oauth_client_id: "${microsoft_entra_oauth_client_id}"
   microsoft_entra_oauth_client_secret: "${microsoft_entra_oauth_client_secret}"
   sso_provider_id: "${sso_provider_id}"
   sso_domain: "${sso_domain}"

@@ -108,7 +108,7 @@ module "base_setup" {
   github_oauth_client_id = var.github_oauth_client_id
   github_oauth_client_secret = var.github_oauth_client_secret
   microsoft_entra_tenant_id = var.microsoft_entra_tenant_id
-  microsoft_entra_client_id = var.microsoft_entra_client_id
+  microsoft_entra_oauth_client_id = var.microsoft_entra_oauth_client_id
   microsoft_entra_oauth_client_secret = var.microsoft_entra_oauth_client_secret
   sso_provider_id = var.sso_provider_id
   sso_domain = var.sso_domain

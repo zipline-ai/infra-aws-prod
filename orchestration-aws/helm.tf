@@ -265,14 +265,14 @@ resource "helm_release" "zipline_orchestration" {
 
       zipline_auth_enabled = var.zipline_auth_enabled
       zipline_auth_url     = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
-      zipline_auth_secret  = aws_secretsmanager_secret_version.zipline_auth.secret_string
-      zipline_auth_jwksUrl = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000/api/auth/jwks"}"
+      zipline_auth_secret  = random_password.zipline_auth.result
+      zipline_auth_jwksUrl = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
       google_oauth_client_id = var.google_oauth_client_id
       google_oauth_client_secret = var.google_oauth_client_secret
       github_oauth_client_id = var.github_oauth_client_id
       github_oauth_client_secret = var.github_oauth_client_secret
       microsoft_entra_tenant_id = var.microsoft_entra_tenant_id
-      microsoft_entra_client_id = var.microsoft_entra_client_id
+      microsoft_entra_oauth_client_id = var.microsoft_entra_oauth_client_id
       microsoft_entra_oauth_client_secret = var.microsoft_entra_oauth_client_secret
       sso_provider_id = var.sso_provider_id
       sso_domain = var.sso_domain

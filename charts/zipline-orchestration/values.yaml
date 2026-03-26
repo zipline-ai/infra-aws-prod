@@ -198,7 +198,7 @@ auth:
   github_oauth_client_id: ""
   github_oauth_client_secret: ""
   microsoft_entra_tenant_id: ""
-  microsoft_entra_client_id: ""
+  microsoft_entra_oauth_client_id: ""
   microsoft_entra_oauth_client_secret: ""
   sso_provider_id: ""
   sso_domain: ""

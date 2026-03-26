@@ -61,7 +61,7 @@ spec:
             - name: PROMETHEUS_NAMESPACE
               value: "{{ .Values.prometheus.namespace }}"
             - name: AUTH_ENABLED
-              value: {{ .Values.auth.enabled }}
+              value: "{{ .Values.auth.enabled }}"
             - name: AUTH_URL
               value: "{{ .Values.auth.url }}"
             - name: AUTH_SECRET
@@ -77,7 +77,7 @@ spec:
             - name: MICROSOFT_ENTRA_TENANT_ID
               value: "{{ .Values.auth.microsoft_entra_tenant_id }}"
             - name: MICROSOFT_ENTRA_OAUTH_CLIENT_ID
-              value: "{{ .Values.auth.microsoft_entra_client_id }}"
+              value: "{{ .Values.auth.microsoft_entra_oauth_client_id }}"
             - name: MICROSOFT_ENTRA_OAUTH_CLIENT_SECRET
               value: "{{ .Values.auth.microsoft_entra_oauth_client_secret }}"
             - name: SSO_PROVIDER_ID

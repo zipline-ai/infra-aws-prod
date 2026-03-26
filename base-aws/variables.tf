@@ -141,7 +141,7 @@ variable "microsoft_entra_tenant_id" {
   default     = ""
 }
 
-variable "microsoft_entra_client_id" {
+variable "microsoft_entra_oauth_client_id" {
   type        = string
   description = "Optional for use Microsoft Entra id with zipline authentication"
   default     = ""
