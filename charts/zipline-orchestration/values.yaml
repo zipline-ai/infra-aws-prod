@@ -165,6 +165,7 @@ ingress:
   hub:
     className: nginx-hub
     host: ""
+    externalUrl: ""  # Override HUB_BASE_URL directly (e.g. http://my-hub-foo). Use when a custom ALB/proxy sits in front of the nginx ELB.
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
       nginx.ingress.kubernetes.io/proxy-body-size: "20m"

@@ -50,7 +50,10 @@ spec:
               value: "{{ .Values.orchestration.hub.port }}"
             - name: HUB_FRONTEND_URL
               value: "http://orchestration-ui-service/"
-            {{- if .Values.ingress.hub.host }}
+            {{- if .Values.ingress.hub.externalUrl }}
+            - name: HUB_BASE_URL
+              value: {{ .Values.ingress.hub.externalUrl | quote }}
+            {{- else if .Values.ingress.hub.host }}
             - name: HUB_BASE_URL
               value: "https://{{ .Values.ingress.hub.host }}"
             {{- end }}

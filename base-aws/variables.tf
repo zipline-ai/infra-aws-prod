@@ -39,6 +39,12 @@ variable "personnel_arns" {
   default     = []
 }
 
+# EKS Configuration
+variable "eks_version" {
+  type        = string
+  description = "Kubernetes version for EKS cluster"
+}
+
 # Custom domain configuration for HTTPS
 variable "ui_domain" {
   type        = string
@@ -49,6 +55,12 @@ variable "ui_domain" {
 variable "hub_domain" {
   type        = string
   description = "Custom domain for the orchestration Hub API (e.g., zipline-hub.yourcompany.com). Leave empty to use the default load balancer DNS."
+  default     = ""
+}
+
+variable "hub_external_url" {
+  type        = string
+  description = "Override HUB_BASE_URL directly (e.g., http://my-hub-foo). Use when a custom ALB or proxy sits in front of the nginx ELB and hub_domain is not set."
   default     = ""
 }
 

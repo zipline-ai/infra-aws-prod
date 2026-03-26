@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
   annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
     {{- with .Values.ingress.hub.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

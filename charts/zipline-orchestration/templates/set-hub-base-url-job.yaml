@@ -1,0 +1,33 @@
+{{- if and (not .Values.ingress.hub.host) (not .Values.ingress.hub.externalUrl) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: set-hub-base-url
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      restartPolicy: Never
+      containers:
+      - name: set-hub-url
+        image: alpine/k8s:1.28.3
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Waiting for hub NLB hostname..."
+          until [ -n "$ELB" ]; do
+            ELB=$(kubectl get svc zipline-orchestration-ingress-nginx-hub-controller -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+            if [ -z "$ELB" ]; then
+              echo "ELB hostname not yet available, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          echo "ELB hostname: $ELB"
+          kubectl set env deployment/zipline-orchestration-hub HUB_BASE_URL=http://$ELB -n {{ .Release.Namespace }}
+          kubectl patch ingress orchestration-hub-ingress -n {{ .Release.Namespace }} --type json -p "[{\"op\":\"replace\",\"path\":\"/spec/rules/0/host\",\"value\":\"$ELB\"}]" 2>/dev/null || kubectl patch ingress orchestration-hub-ingress -n {{ .Release.Namespace }} --type json -p "[{\"op\":\"add\",\"path\":\"/spec/rules/0/host\",\"value\":\"$ELB\"}]"
+{{- end }}
