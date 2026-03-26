@@ -87,7 +87,8 @@ module "base_setup" {
 
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain
-  hub_domain     = var.hub_domain
+  hub_domain       = var.hub_domain
+  hub_external_url = var.hub_external_url
   fetcher_domain = var.fetcher_domain
   eval_domain    = var.eval_domain
 

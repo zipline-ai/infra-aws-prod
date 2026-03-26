@@ -69,6 +69,7 @@ tofu apply
 |----------|---------|-------------|
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
+| `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
 | `fetcher_domain` | `""` | Custom domain for the Chronon fetcher service |
 | `eval_domain` | `""` | Custom domain for the eval service |
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |
@@ -133,6 +134,30 @@ Add CNAME records in your DNS provider pointing each custom domain to its NLB ho
 | CNAME | `zipline-eval` | `<eval-nlb-hostname>.elb.<region>.amazonaws.com` |
 
 Both sets of DNS records (ACM validation and traffic routing) can be added at the same time — they are independent of each other.
+
+## Hub URL configuration
+
+The hub needs to know its own external URL (`HUB_BASE_URL`) to generate correct Flink UI links. There are three supported configurations:
+
+### Option 1: Custom domain (recommended for production)
+
+Set `hub_domain` to your custom hostname. Terraform creates an ACM certificate, configures TLS termination at the NLB, and sets `HUB_BASE_URL=https://<hub_domain>` automatically.
+
+```hcl
+hub_domain = "zipline-hub.yourcompany.com"
+```
+
+### Option 2: Custom ALB or proxy in front of the nginx ELB
+
+If you have your own load balancer or proxy in front of the hub nginx ELB and don't want Terraform to manage a cert for it, set `hub_external_url` directly. No ACM certificate is created.
+
+```hcl
+hub_external_url = "http://my-hub-foo"
+```
+
+### Option 3: No custom domain (ELB hostname only)
+
+If neither `hub_domain` nor `hub_external_url` is set, a Helm post-install/upgrade Job automatically looks up the hub NLB hostname and sets `HUB_BASE_URL=http://<elb-hostname>`. No extra configuration needed.
 
 ## Databricks Unity Catalog integration (optional)
 

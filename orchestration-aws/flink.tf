@@ -170,7 +170,7 @@ resource "kubernetes_role_v1" "orchestration_hub_role" {
     verbs      = ["get", "patch"]
   }
 
-  depends_on = [helm_release.zipline_orchestration]
+  depends_on = [kubernetes_namespace_v1.zipline_system]
 }
 
 resource "kubernetes_role_binding_v1" "orchestration_hub_role_binding" {
