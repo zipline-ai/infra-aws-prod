@@ -314,12 +314,3 @@ resource "aws_secretsmanager_secret_version" "zipline_auth" {
     auth-secret = random_password.zipline_auth.result
   })
 }
-
-# data "kubernetes_service" "ui_ingress" {
-#   metadata {
-#     # The name is usually [release-name]-[chart-name]-controller
-#     name      = "zipline-orchestration-ingress-nginx-ui-controller"
-#     namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
-#   }
-#   depends_on = [helm_release.zipline_orchestration]
-# }
