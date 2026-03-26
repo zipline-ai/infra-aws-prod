@@ -60,6 +60,37 @@ spec:
               value: "{{ .Values.prometheus.queryEndpoint }}"
             - name: PROMETHEUS_NAMESPACE
               value: "{{ .Values.prometheus.namespace }}"
+            - name: AUTH_ENABLED
+              value: {{ .Values.auth.enabled }}
+            - name: AUTH_URL
+              value: "{{ .Values.auth.url }}"
+            - name: AUTH_SECRET
+              value: "{{ .Values.auth.secret }}"
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              value: "{{ .Values.auth.google_oauth_client_id }}"
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              value: "{{ .Values.auth.google_oauth_client_secret }}"
+            - name: GITHUB_OAUTH_CLIENT_ID
+              value: "{{ .Values.auth.github_oauth_client_id }}"
+            - name: GITHUB_OAUTH_CLIENT_SECRET
+              value: "{{ .Values.auth.github_oauth_client_secret }}"
+            - name: MICROSOFT_ENTRA_TENANT_ID
+              value: "{{ .Values.auth.microsoft_entra_tenant_id }}"
+            - name: MICROSOFT_ENTRA_OAUTH_CLIENT_ID
+              value: "{{ .Values.auth.microsoft_entra_client_id }}"
+            - name: MICROSOFT_ENTRA_OAUTH_CLIENT_SECRET
+              value: "{{ .Values.auth.microsoft_entra_oauth_client_secret }}"
+            - name: SSO_PROVIDER_ID
+              value: "{{ .Values.auth.sso_provider_id }}"
+            - name: SSO_DOMAIN
+              value: "{{ .Values.auth.sso_domain }}"
+            - name: SSO_ISSUER
+              value: "{{ .Values.auth.sso_issuer }}"
+            - name: SSO_CLIENT_ID
+              value: "{{ .Values.auth.sso_client_id }}"
+            - name: SSO_CLIENT_SECRET
+              value: "{{ .Values.auth.sso_client_secret }}"
+
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
