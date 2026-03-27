@@ -10,7 +10,7 @@ module "orchestration" {
   vpc_id              = aws_vpc.main.id
   dockerhub_token     = var.dockerhub_token
   warehouse_bucket    = aws_s3_bucket.zipline_warehouse_bucket.id
-  dynamodb_table_name = aws_dynamodb_table.chronon_metadata.name
+  dynamodb_table_name = module.dynamodb_tables.chronon_metadata_table_name
 
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain

@@ -1,29 +1,7 @@
-resource "aws_dynamodb_table" "chronon_metadata" {
-  name           = "CHRONON_METADATA"
-  read_capacity  = 10
-  write_capacity = 10
-  attribute {
-    name = "keyBytes"
-    type = "B"
-  }
-  hash_key = "keyBytes"
-  ttl {
-    attribute_name = "ttl"
-    enabled        = true
-  }
-}
+module "dynamodb_tables" {
+  source = "./modules/dynamodb-tables"
 
-resource "aws_dynamodb_table" "table_partitions" {
-  name           = "TABLE_PARTITIONS"
-  read_capacity  = 10
-  write_capacity = 10
-  attribute {
-    name = "keyBytes"
-    type = "B"
-  }
-  hash_key = "keyBytes"
-  ttl {
-    attribute_name = "ttl"
-    enabled        = true
-  }
+  table_prefix   = var.dynamodb_table_prefix
+  read_capacity  = var.dynamodb_read_capacity
+  write_capacity = var.dynamodb_write_capacity
 }

@@ -100,4 +100,9 @@ module "base_setup" {
   databricks_client_secret = var.databricks_client_secret
 
   msk_cluster_arn = var.msk_cluster_arn
+
+  # DynamoDB Configuration
+  dynamodb_table_prefix    = var.dynamodb_table_prefix
+  dynamodb_read_capacity   = var.dynamodb_read_capacity
+  dynamodb_write_capacity  = var.dynamodb_write_capacity
 }
