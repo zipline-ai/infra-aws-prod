@@ -60,6 +60,16 @@ output "kubeconfig_command" {
   value       = "aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}"
 }
 
+output "chronon_metadata_table_name" {
+  description = "Name of the Chronon metadata DynamoDB table"
+  value       = module.dynamodb_tables.chronon_metadata_table_name
+}
+
+output "table_partitions_table_name" {
+  description = "Name of the table partitions DynamoDB table"
+  value       = module.dynamodb_tables.table_partitions_table_name
+}
+
 # AWS Managed Prometheus outputs
 output "amp_workspace_id" {
   description = "ID of the AWS Managed Prometheus workspace"

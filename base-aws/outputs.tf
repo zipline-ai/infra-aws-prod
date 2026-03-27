@@ -27,10 +27,10 @@ output "kubeconfig_command" {
 
 output "chronon_metadata_table_name" {
   description = "Name of the Chronon metadata DynamoDB table"
-  value       = module.dynamodb_tables.chronon_metadata_table_name
+  value       = module.orchestration.chronon_metadata_table_name
 }
 
 output "table_partitions_table_name" {
   description = "Name of the table partitions DynamoDB table"
-  value       = module.dynamodb_tables.table_partitions_table_name
+  value       = module.orchestration.table_partitions_table_name
 }

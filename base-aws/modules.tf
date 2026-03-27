@@ -9,8 +9,12 @@ module "orchestration" {
   security_group_id   = aws_security_group.emr_sg.id
   vpc_id              = aws_vpc.main.id
   dockerhub_token     = var.dockerhub_token
-  warehouse_bucket    = aws_s3_bucket.zipline_warehouse_bucket.id
-  dynamodb_table_name = module.dynamodb_tables.chronon_metadata_table_name
+  warehouse_bucket = aws_s3_bucket.zipline_warehouse_bucket.id
+
+  # DynamoDB Configuration
+  dynamodb_table_prefix   = var.dynamodb_table_prefix
+  dynamodb_read_capacity  = var.dynamodb_read_capacity
+  dynamodb_write_capacity = var.dynamodb_write_capacity
 
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain
