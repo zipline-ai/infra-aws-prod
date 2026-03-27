@@ -4,8 +4,8 @@ This module creates the DynamoDB tables required for Chronon metadata storage.
 
 ## Tables Created
 
-1. **CHRONON_METADATA** (or `{prefix}_CHRONON_METADATA` if prefix is set)
-2. **TABLE_PARTITIONS** (or `{prefix}_TABLE_PARTITIONS` if prefix is set)
+1. **CHRONON_METADATA** (or `{prefix}CHRONON_METADATA` if prefix is set)
+2. **TABLE_PARTITIONS** (or `{prefix}TABLE_PARTITIONS` if prefix is set)
 
 Both tables are configured with:
 - Binary hash key: `keyBytes`
