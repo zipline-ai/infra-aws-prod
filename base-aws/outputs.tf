@@ -26,11 +26,21 @@ output "kubeconfig_command" {
 }
 
 output "chronon_metadata_table_name" {
-  description = "Name of the Chronon metadata DynamoDB table"
+  description = "Full name of the Chronon metadata DynamoDB table (with prefix)"
   value       = module.orchestration.chronon_metadata_table_name
 }
 
+output "chronon_metadata_base_name" {
+  description = "Base name of the Chronon metadata table (without prefix)"
+  value       = module.orchestration.chronon_metadata_base_name
+}
+
 output "table_partitions_table_name" {
-  description = "Name of the table partitions DynamoDB table"
+  description = "Full name of the table partitions DynamoDB table (with prefix)"
   value       = module.orchestration.table_partitions_table_name
+}
+
+output "table_partitions_base_name" {
+  description = "Base name of the table partitions table (without prefix)"
+  value       = module.orchestration.table_partitions_base_name
 }

@@ -241,7 +241,8 @@ resource "helm_release" "zipline_orchestration" {
       ui_domain           = var.ui_domain
       fetcher_domain      = var.fetcher_domain
       eval_domain         = var.eval_domain
-      dynamodb_table_name = module.dynamodb_tables.chronon_metadata_table_name
+      dynamodb_table_name = module.dynamodb_tables.chronon_metadata_base_name
+      kv_table_prefix     = module.dynamodb_tables.table_prefix
       eks_cluster_name          = aws_eks_cluster.main.name
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
