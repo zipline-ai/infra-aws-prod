@@ -11,6 +11,7 @@ aws:
   region: "${aws_region}"
   secretsArn: "${secrets_arn}"
   dynamodbTableName: "${dynamodb_table_name}"
+  kvTablePrefix: "${kv_table_prefix}"
   eksClusterName: "${eks_cluster_name}"
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"
@@ -145,9 +146,6 @@ orchestration:
     image: "ziplineai/eval-aws"
     replicas: 1
     port: 3904
-    env:
-      - name: KV_TABLE_PREFIX
-        value: "${kv_table_prefix}"
     resources:
       limits:
         cpu: "2"
@@ -160,9 +158,6 @@ orchestration:
     image: "ziplineai/hub-aws"
     replicas: 1
     port: 3903
-    env:
-      - name: KV_TABLE_PREFIX
-        value: "${kv_table_prefix}"
     resources:
       limits:
         cpu: "6"
@@ -188,9 +183,6 @@ orchestration:
     tag: "dev"
     replicas: 1
     port: 9000
-    env:
-      - name: KV_TABLE_PREFIX
-        value: "${kv_table_prefix}"
     resources:
       limits:
         cpu: "4"
