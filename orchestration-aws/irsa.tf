@@ -93,6 +93,14 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
       "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*",
     ]
   }
+
+  statement {
+    effect  = "Allow"
+    actions = ["dynamodb:CreateTable"]
+    resources = [
+      "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/DATA_QUALITY_METRICS_BATCH",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "orchestration_dynamodb" {
