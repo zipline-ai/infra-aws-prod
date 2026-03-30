@@ -18,7 +18,7 @@ Both tables are configured with:
 module "dynamodb_tables" {
   source = "./modules/dynamodb-tables"
 
-  table_prefix   = "mycompany"  # Optional: results in "mycompany_CHRONON_METADATA"
+  table_prefix   = "mycompany_"  # Optional: results in "mycompany_CHRONON_METADATA"
   read_capacity  = 10           # Optional: defaults to 10
   write_capacity = 10           # Optional: defaults to 10
 }

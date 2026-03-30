@@ -90,8 +90,7 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
       "dynamodb:BatchWriteItem",
     ]
     resources = [
-      module.dynamodb_tables.chronon_metadata_table_arn,
-      module.dynamodb_tables.table_partitions_table_arn,
+      "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*",
     ]
   }
 }
@@ -405,12 +404,7 @@ data "aws_iam_policy_document" "flink_dynamodb_policy" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
     ]
-    resources = [
-      module.dynamodb_tables.chronon_metadata_table_arn,
-      module.dynamodb_tables.table_partitions_table_arn,
-      # Allow Flink to create its own operational tables (checkpointing, etc.)
-      "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/flink-*",
-    ]
+    resources = ["*"]
   }
 }
 
