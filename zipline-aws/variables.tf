@@ -102,3 +102,22 @@ variable "msk_cluster_arn" {
   description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
   default     = ""
 }
+
+# DynamoDB Configuration
+variable "dynamodb_table_prefix" {
+  type        = string
+  description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."
+  default     = ""
+}
+
+variable "dynamodb_read_capacity" {
+  type        = number
+  description = "Read capacity units for DynamoDB tables"
+  default     = 10
+}
+
+variable "dynamodb_write_capacity" {
+  type        = number
+  description = "Write capacity units for DynamoDB tables"
+  default     = 10
+}

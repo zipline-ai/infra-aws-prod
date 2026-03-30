@@ -50,6 +50,8 @@ spec:
               value: "{{ .Values.aws.region }}"
             - name: AWS_DEFAULT_REGION
               value: "{{ .Values.aws.region }}"
+            - name: KV_TABLE_PREFIX
+              value: "{{ .Values.aws.kvTablePrefix }}"
             {{- if .Values.aws.databricksSpSecretArn }}
             - name: DATABRICKS_CLIENT_ID
               valueFrom:

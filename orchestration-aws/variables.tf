@@ -110,10 +110,22 @@ variable "eval_domain" {
   default     = ""
 }
 
-variable "dynamodb_table_name" {
+variable "dynamodb_table_prefix" {
   type        = string
-  description = "Name of the DynamoDB table for Chronon metadata"
-  default     = "CHRONON_METADATA"
+  description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."
+  default     = ""
+}
+
+variable "dynamodb_read_capacity" {
+  type        = number
+  description = "Read capacity units for DynamoDB tables"
+  default     = 10
+}
+
+variable "dynamodb_write_capacity" {
+  type        = number
+  description = "Write capacity units for DynamoDB tables"
+  default     = 10
 }
 
 variable "glue_schema_registry_name" {

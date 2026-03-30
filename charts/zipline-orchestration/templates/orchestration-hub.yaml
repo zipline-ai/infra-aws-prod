@@ -65,6 +65,8 @@ spec:
               value: "http"
             - name: AWS_DYNAMODB_TABLE_NAME
               value: "{{ .Values.aws.dynamodbTableName }}"
+            - name: KV_TABLE_PREFIX
+              value: "{{ .Values.aws.kvTablePrefix }}"
             - name: FLINK_EKS_SERVICE_ACCOUNT
               value: "{{ .Values.aws.flinkEksServiceAccount }}"
             - name: FLINK_EKS_NAMESPACE
