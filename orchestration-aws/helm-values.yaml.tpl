@@ -11,6 +11,7 @@ aws:
   region: "${aws_region}"
   secretsArn: "${secrets_arn}"
   dynamodbTableName: "${dynamodb_table_name}"
+  kvTablePrefix: "${kv_table_prefix}"
   eksClusterName: "${eks_cluster_name}"
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"

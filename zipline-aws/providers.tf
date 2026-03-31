@@ -101,6 +101,11 @@ module "base_setup" {
 
   msk_cluster_arn = var.msk_cluster_arn
 
+  # DynamoDB Configuration
+  dynamodb_table_prefix    = var.dynamodb_table_prefix
+  dynamodb_read_capacity   = var.dynamodb_read_capacity
+  dynamodb_write_capacity  = var.dynamodb_write_capacity
+
   # Zipline Authentication
   zipline_auth_enabled = var.zipline_auth_enabled
   google_oauth_client_id = var.google_oauth_client_id
