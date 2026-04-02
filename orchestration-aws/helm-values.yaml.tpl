@@ -230,7 +230,7 @@ prometheus:
   namespace: "zipline-system"
 
 auth:
-  enabled: "${zipline_auth_enabled}"
+  enabled: ${zipline_auth_enabled}
   url: "${zipline_auth_url}"
   secrets_arn: "${auth_secrets_arn}"
   jwksUrl: "${zipline_auth_jwksUrl}"
