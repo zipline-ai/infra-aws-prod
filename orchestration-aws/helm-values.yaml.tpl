@@ -232,7 +232,7 @@ prometheus:
 auth:
   enabled: "${zipline_auth_enabled}"
   url: "${zipline_auth_url}"
-  secret: '${zipline_auth_secret}'
+  secrets_arn: "${auth_secrets_arn}"
   jwksUrl: "${zipline_auth_jwksUrl}"
   google_oauth_client_id: "${google_oauth_client_id}"
   google_oauth_client_secret: "${google_oauth_client_secret}"
