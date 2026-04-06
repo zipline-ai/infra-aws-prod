@@ -17,7 +17,7 @@ resource "aws_dynamodb_table" "chronon_metadata" {
 
   ttl {
     attribute_name = "ttl"
-    enabled        = true
+    enabled        = false
   }
 }
 
@@ -35,6 +35,6 @@ resource "aws_dynamodb_table" "table_partitions" {
 
   ttl {
     attribute_name = "ttl"
-    enabled        = true
+    enabled        = false
   }
 }
