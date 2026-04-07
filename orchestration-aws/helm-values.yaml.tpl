@@ -181,15 +181,15 @@ orchestration:
   fetcher:
     image: "ziplineai/chronon-fetcher"
     tag: "dev"
-    replicas: 1
+    replicas: ${fetcher_replicas}
     port: 9000
     resources:
       limits:
-        cpu: "4"
-        memory: "8Gi"
+        cpu: "8"
+        memory: "32Gi"
       requests:
-        cpu: "1"
-        memory: "2Gi"
+        cpu: "8"
+        memory: "32Gi"
 
 # Ingress configuration
 ingress:

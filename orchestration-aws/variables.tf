@@ -52,7 +52,13 @@ variable "eks_version" {
 variable "eks_instance_type" {
   type        = string
   description = "Instance type for EKS node group"
-  default     = "m5.2xlarge"
+  default     = "m8a.4xlarge"
+}
+
+variable "fetcher_replicas" {
+  type        = number
+  description = "Number of fetcher replicas"
+  default     = 3
 }
 
 variable "eks_desired_size" {
@@ -64,13 +70,13 @@ variable "eks_desired_size" {
 variable "eks_min_size" {
   type        = number
   description = "Minimum number of nodes in EKS node group"
-  default     = 1
+  default     = 3
 }
 
 variable "eks_max_size" {
   type        = number
   description = "Maximum number of nodes in EKS node group"
-  default     = 5
+  default     = 8
 }
 
 variable "eks_disk_size" {
