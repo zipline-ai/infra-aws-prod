@@ -36,8 +36,6 @@ spec:
               value: "{{ .Values.aws.region }}"
             - name: AWS_DEFAULT_REGION
               value: "{{ .Values.aws.region }}"
-            - name: AWS_DYNAMODB_TABLE_NAME
-              value: "{{ .Values.aws.dynamodbTableName }}"
             - name: KV_TABLE_PREFIX
               value: "{{ .Values.aws.kvTablePrefix }}"
             - name: CHRONON_METRICS_READER
