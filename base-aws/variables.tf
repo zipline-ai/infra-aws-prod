@@ -40,6 +40,12 @@ variable "personnel_arns" {
 }
 
 # EKS Configuration
+variable "fetcher_replicas" {
+  type        = number
+  description = "Number of fetcher replicas"
+  default     = 3
+}
+
 variable "eks_version" {
   type        = string
   description = "Kubernetes version for EKS cluster"

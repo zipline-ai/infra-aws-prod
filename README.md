@@ -70,6 +70,7 @@ tofu apply
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
 | `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
+| `fetcher_replicas` | `3` | Number of fetcher pod replicas |
 | `fetcher_domain` | `""` | Custom domain for the Chronon fetcher service |
 | `eval_domain` | `""` | Custom domain for the eval service |
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |

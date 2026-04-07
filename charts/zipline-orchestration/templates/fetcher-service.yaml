@@ -44,6 +44,8 @@ spec:
               value: "http"
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
+            - name: USE_ZGC
+              value: "true"
           ports:
             - containerPort: {{ .Values.orchestration.fetcher.port }}
           resources:

@@ -223,6 +223,7 @@ resource "helm_release" "zipline_orchestration" {
 
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
+      fetcher_replicas = var.fetcher_replicas
       customer_name   = var.name_prefix
       aws_region      = data.aws_region.current.name
       artifact_prefix = var.artifact_prefix

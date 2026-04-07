@@ -83,7 +83,8 @@ module "base_setup" {
   personnel_arns         = var.personnel_arns
 
   # EKS Configuration
-  eks_version = var.eks_version
+  eks_version      = var.eks_version
+  fetcher_replicas = var.fetcher_replicas
 
   # Custom domains for HTTPS
   ui_domain      = var.ui_domain
