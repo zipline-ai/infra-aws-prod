@@ -80,6 +80,9 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
   statement {
     effect = "Allow"
     actions = [
+      "dynamodb:CreateTable",
+      "dynamodb:DescribeTable",
+      "dynamodb:UpdateTimeToLive",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
