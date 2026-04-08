@@ -191,7 +191,7 @@ prometheus:
 auth:
   enabled: false
   url: ""
-  secret: ""
+  secrets_arn: ""
   jwksUrl: ""
   google_oauth_client_id: ""
   google_oauth_client_secret: ""

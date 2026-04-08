@@ -266,7 +266,7 @@ resource "helm_release" "zipline_orchestration" {
 
       zipline_auth_enabled = var.zipline_auth_enabled
       zipline_auth_url     = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
-      zipline_auth_secret  = random_password.zipline_auth.result
+      auth_secrets_arn = var.zipline_auth_enabled ? aws_secretsmanager_secret.zipline_auth[0].arn : ""
       zipline_auth_jwksUrl = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
       google_oauth_client_id = var.google_oauth_client_id
       google_oauth_client_secret = var.google_oauth_client_secret
@@ -298,6 +298,7 @@ resource "helm_release" "zipline_orchestration" {
 }
 
 resource "random_password" "zipline_auth" {
+  count            = var.zipline_auth_enabled ? 1 : 0
   length           = 32
   special          = true
   override_special = "!@#$%^&*"
@@ -306,12 +307,14 @@ resource "random_password" "zipline_auth" {
 }
 
 resource "aws_secretsmanager_secret" "zipline_auth" {
-  name = "zipline-auth-secret"
+  count = var.zipline_auth_enabled ? 1 : 0
+  name  = "zipline-auth-secret"
 }
 
 resource "aws_secretsmanager_secret_version" "zipline_auth" {
-  secret_id = aws_secretsmanager_secret.zipline_auth.id
+  count         = var.zipline_auth_enabled ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.zipline_auth[0].id
   secret_string = jsonencode({
-    auth-secret = random_password.zipline_auth.result
+    auth-secret = random_password.zipline_auth[0].result
   })
 }
