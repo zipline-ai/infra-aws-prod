@@ -207,3 +207,30 @@ variable "sso_client_secret" {
   description = "Optional for use SSO with zipline authentication"
   default     = ""
 }
+
+# Optional VPC Import
+# If used, S3 and DynamoDB Gateway endpoints are required for EMR Serverless workers (they lack public IPs).
+# Users providing an existing VPC must ensure these endpoints exist.
+
+variable "existing_vpc_id" {
+  type        = string
+  description = "Optional. ID to existing vpc to attach the resources to"
+  default     = ""
+
+  validation {
+    condition     = var.existing_vpc_id == "" || (var.existing_vpc_primary_subnet_id != "" && var.existing_vpc_secondary_subnet_id != "")
+    error_message = "When existing_vpc_id is provided, both existing_vpc_primary_subnet_id and existing_vpc_secondary_subnet_id must also be provided."
+  }
+}
+
+variable "existing_vpc_primary_subnet_id" {
+  type        = string
+  description = "Optional. ID to existing primary subnet to attach the resources to"
+  default     = ""
+}
+
+variable "existing_vpc_secondary_subnet_id" {
+  type        = string
+  description = "Optional. ID to existing secondary subnet to attach the resources to"
+  default     = ""
+}

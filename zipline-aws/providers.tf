@@ -122,4 +122,9 @@ module "base_setup" {
   sso_client_id = var.sso_client_id
   sso_client_secret = var.sso_client_secret
 
+  # Optional VPC Import
+  existing_vpc_id                = var.existing_vpc_id
+  existing_vpc_primary_subnet_id = var.existing_vpc_primary_subnet_id
+  existing_vpc_secondary_subnet_id = var.existing_vpc_secondary_subnet_id
+
 }
