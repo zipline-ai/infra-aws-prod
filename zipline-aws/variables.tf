@@ -207,3 +207,15 @@ variable "sso_client_secret" {
   description = "Optional for use SSO with zipline authentication"
   default     = ""
 }
+
+variable "idp_role_mapping" {
+  type        = string
+  description = "Optional comma separated list of role mappings for zipline authentication"
+  default     = ""
+}
+
+variable "idp_group_claim" {
+  type        = string
+  description = "Optional group claims configured for zipline authentication"
+  default     = ""
+}
