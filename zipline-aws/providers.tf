@@ -121,5 +121,7 @@ module "base_setup" {
   sso_issuer = var.sso_issuer
   sso_client_id = var.sso_client_id
   sso_client_secret = var.sso_client_secret
+  idp_role_mapping = var.idp_role_mapping
+  idp_group_claim = var.idp_group_claim
 
 }

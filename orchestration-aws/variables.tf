@@ -188,73 +188,89 @@ variable "zipline_auth_enabled" {
 
 variable "google_oauth_client_id" {
   type        = string
-  description = "Optional for use google oauth with zipline authentication"
+  description = "Optional for using google oauth with zipline authentication"
   default     = ""
 }
 
 variable "google_oauth_client_secret" {
   type        = string
-  description = "Optional for use google oauth with zipline authentication"
+  description = "Optional for using google oauth with zipline authentication"
   default     = ""
+  sensitive   = true
 }
 
 variable "github_oauth_client_id" {
   type        = string
-  description = "Optional for use github oauth with zipline authentication"
+  description = "Optional for using github oauth with zipline authentication"
   default     = ""
 }
 
 variable "github_oauth_client_secret" {
   type        = string
-  description = "Optional for use github oauth with zipline authentication"
+  description = "Optional for using github oauth with zipline authentication"
   default     = ""
+  sensitive   = true
 }
 
 variable "microsoft_entra_tenant_id" {
   type        = string
-  description = "Optional for use Microsoft Entra id with zipline authentication"
+  description = "Optional for using Microsoft Entra id with zipline authentication"
   default     = ""
 }
 
 variable "microsoft_entra_oauth_client_id" {
   type        = string
-  description = "Optional for use Microsoft Entra id with zipline authentication"
+  description = "Optional for using Microsoft Entra id with zipline authentication"
   default     = ""
 }
 
 
 variable "microsoft_entra_oauth_client_secret" {
   type        = string
-  description = "Optional for use microsoft Entra ID with zipline authentication"
+  description = "Optional for using microsoft Entra ID with zipline authentication"
   default     = ""
+  sensitive   = true
 }
 
 variable "sso_provider_id" {
   type        = string
-  description = "Optional for use SSO with zipline authentication"
+  description = "Optional for using SSO with zipline authentication"
   default     = ""
 }
 
 variable "sso_domain" {
   type        = string
-  description = "Optional for use SSO with zipline authentication"
+  description = "Optional for using SSO with zipline authentication"
   default     = ""
 }
 
 variable "sso_issuer" {
   type        = string
-  description = "Optional for use SSO with zipline authentication"
+  description = "Optional for using SSO with zipline authentication"
   default     = ""
 }
 
 variable "sso_client_id" {
   type        = string
-  description = "Optional for use SSO with zipline authentication"
+  description = "Optional for using SSO with zipline authentication"
   default     = ""
 }
 
 variable "sso_client_secret" {
   type        = string
-  description = "Optional for use SSO with zipline authentication"
+  description = "Optional for using SSO with zipline authentication"
+  default     = ""
+  sensitive   = true
+}
+
+variable "idp_role_mapping" {
+  type        = string
+  description = "Optional comma separated list of role mappings for zipline authentication"
+  default     = ""
+}
+
+variable "idp_group_claim" {
+  type        = string
+  description = "Optional group claims configured for zipline authentication"
   default     = ""
 }

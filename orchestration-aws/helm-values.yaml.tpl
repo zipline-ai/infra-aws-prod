@@ -245,3 +245,5 @@ auth:
   sso_issuer: "${sso_issuer}"
   sso_client_id: "${sso_client_id}"
   sso_client_secret: "${sso_client_secret}"
+  idp_role_mapping: "${idp_role_mapping}"
+  idp_group_claim: "${idp_group_claim}"
