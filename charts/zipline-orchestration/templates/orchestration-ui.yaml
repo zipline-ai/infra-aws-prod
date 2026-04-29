@@ -71,7 +71,7 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             - name: AUTH_ALLOWED_HOSTS
-              value: "$(POD_IP):3000"
+              value: "$(POD_IP):{{ .Values.orchestration.ui.port }}"
             - name: GOOGLE_OAUTH_CLIENT_ID
               value: "{{ .Values.auth.google_oauth_client_id }}"
             - name: GOOGLE_OAUTH_CLIENT_SECRET
