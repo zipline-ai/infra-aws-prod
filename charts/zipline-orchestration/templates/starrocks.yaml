@@ -1,0 +1,325 @@
+# StarRocks deployment for querying Iceberg tables via JDBC catalog
+  # Combines FE (frontend) and BE (backend) in a single pod
+  # Requires StarRocks >= 3.5.12 for JDBC Iceberg catalog support
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: starrocks-init-catalog
+  namespace: chronon
+data:
+  init-catalog.sql: |
+    -- Create Iceberg external catalog pointing to the JDBC catalog in PostgreSQL
+    -- This allows StarRocks to query Iceberg tables managed by Spark/Chronon
+    CREATE EXTERNAL CATALOG IF NOT EXISTS iceberg
+    PROPERTIES (
+        "type" = "iceberg",
+        "iceberg.catalog.type" = "jdbc",
+        "iceberg.catalog.uri" = "jdbc:postgresql://postgres:5432/iceberg_catalog",
+        "iceberg.catalog.warehouse" = "s3a://warehouse/",
+        "iceberg.catalog.jdbc.user" = "chronon",
+        "iceberg.catalog.jdbc.password" = "chronon",
+        -- StarRocks S3 properties
+        "aws.s3.endpoint" = "http://minio:9000",
+        "aws.s3.access_key" = "minioadmin",
+        "aws.s3.secret_key" = "minioadmin",
+        "aws.s3.region" = "us-east-1",
+        "aws.s3.enable_ssl" = "false",
+        "aws.s3.enable_path_style_access" = "true",
+        -- Iceberg S3FileIO properties (required for MinIO compatibility)
+        "s3.endpoint" = "http://minio:9000",
+        "s3.access-key-id" = "minioadmin",
+        "s3.secret-access-key" = "minioadmin",
+        "s3.path-style-access" = "true",
+        "client.region" = "us-east-1"
+    );
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: starrocks-config
+  namespace: chronon
+data:
+  fe.conf: |
+    # StarRocks FE configuration for local development
+    LOG_DIR = ${STARROCKS_HOME}/log
+    DATE = "$(date +%Y%m%d-%H%M%S)"
+    JAVA_OPTS="-Dlog4j2.formatMsgNoLookups=true -Xmx4096m -XX:+UseG1GC -Xlog:gc*:${LOG_DIR}/fe.gc.log.$DATE:time"
+    http_port = 8030
+    rpc_port = 9020
+    query_port = 9030
+    edit_log_port = 9010
+    mysql_service_nio_enabled = true
+    sys_log_level = INFO
+    # For local dev - relax some constraints
+    tablet_create_timeout_second = 60
+    # Enable external catalog
+    enable_experimental_mv = true
+  be.conf: |
+    # StarRocks BE configuration for local development
+    LOG_DIR = ${STARROCKS_HOME}/log
+    sys_log_level = INFO
+    be_port = 9060
+    webserver_port = 8040
+    heartbeat_service_port = 9050
+    brpc_port = 8060
+    # Storage configuration
+    storage_root_path = ${STARROCKS_HOME}/storage
+    # For local dev - smaller memory footprint
+    mem_limit = 70%
+    # S3/MinIO configuration for Iceberg data access
+    object_storage_access_key_id = minioadmin
+    object_storage_secret_access_key = minioadmin
+    object_storage_endpoint = http://minio:9000
+    object_storage_endpoint_use_https = false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: starrocks-data
+  namespace: chronon
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: starrocks-jdbc-drivers
+  namespace: chronon
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: starrocks
+  namespace: chronon
+  labels:
+    app: starrocks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: starrocks
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: starrocks
+    spec:
+      initContainers:
+        # Download PostgreSQL JDBC driver (cached in PVC across restarts)
+        - name: download-jdbc-driver
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              if [ -f /jdbc-drivers/postgresql-42.7.4.jar ]; then
+                echo "JDBC driver already cached, skipping download"
+              else
+                echo "Downloading PostgreSQL JDBC driver..."
+                wget -T 30 -O /jdbc-drivers/postgresql-42.7.4.jar \
+                  "https://jdbc.postgresql.org/download/postgresql-42.7.4.jar"
+                echo "JDBC driver downloaded successfully"
+              fi
+              ls -la /jdbc-drivers/
+          volumeMounts:
+            - name: jdbc-drivers
+              mountPath: /jdbc-drivers
+      containers:
+        # Combined FE + BE container using StarRocks allin1 image
+        - name: starrocks
+          image: starrocks/allin1-ubuntu:3.5.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9030
+              name: mysql
+            - containerPort: 8030
+              name: fe-http
+            - containerPort: 8040
+              name: be-http
+          env:
+            - name: STARROCKS_HOME
+              value: /opt/starrocks
+            # S3/MinIO credentials for data access
+            - name: AWS_ACCESS_KEY_ID
+              value: "minioadmin"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "minioadmin"
+            - name: AWS_REGION
+              value: "us-east-1"
+          volumeMounts:
+            - name: data
+              mountPath: /opt/starrocks/fe/meta
+              subPath: fe-meta
+            - name: data
+              mountPath: /opt/starrocks/be/storage
+              subPath: be-storage
+            - name: jdbc-drivers
+              mountPath: /opt/starrocks/fe/lib/postgresql-42.7.4.jar
+              subPath: postgresql-42.7.4.jar
+            - name: jdbc-drivers
+              mountPath: /opt/starrocks/be/lib/jni-packages/postgresql-42.7.4.jar
+              subPath: postgresql-42.7.4.jar
+            - name: config
+              mountPath: /opt/starrocks/fe/conf/fe.conf
+              subPath: fe.conf
+            - name: config
+              mountPath: /opt/starrocks/be/conf/be.conf
+              subPath: be.conf
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          startupProbe:
+            tcpSocket:
+              port: 9030
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 9030
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 9030
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: starrocks-data
+        - name: jdbc-drivers
+          persistentVolumeClaim:
+            claimName: starrocks-jdbc-drivers
+        - name: config
+          configMap:
+            name: starrocks-config
+        - name: init-sql
+          configMap:
+            name: starrocks-init-catalog
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: starrocks
+  namespace: chronon
+spec:
+  selector:
+    app: starrocks
+  ports:
+    - name: mysql
+      port: 9030
+      targetPort: 9030
+    - name: fe-http
+      port: 8030
+      targetPort: 8030
+    - name: be-http
+      port: 8040
+      targetPort: 8040
+---
+# NodePort service for local access
+apiVersion: v1
+kind: Service
+metadata:
+  name: starrocks-nodeport
+  namespace: chronon
+spec:
+  type: NodePort
+  selector:
+    app: starrocks
+  ports:
+    - name: mysql
+      port: 9030
+      targetPort: 9030
+      nodePort: 30930
+    - name: fe-http
+      port: 8030
+      targetPort: 8030
+      nodePort: 30830
+---
+# Job to initialize the Iceberg catalog after StarRocks is ready
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: starrocks-init-catalog
+  namespace: chronon
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        # Wait for StarRocks to actually accept queries (not just TCP)
+        - name: wait-for-starrocks
+          image: mysql:8.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for StarRocks to accept queries..."
+              for i in $(seq 1 60); do
+                if mysql -h starrocks -P 9030 -u root -e "SELECT 1" >/dev/null 2>&1; then
+                  echo "StarRocks is ready and accepting queries"
+                  exit 0
+                fi
+                echo "Attempt $i/60: StarRocks not ready, waiting..."
+                sleep 3
+              done
+              echo "Timeout waiting for StarRocks"
+              exit 1
+        # Wait for PostgreSQL (Iceberg catalog backend)
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              for i in $(seq 1 30); do
+                if nc -z postgres 5432 2>/dev/null; then
+                  echo "PostgreSQL is ready"
+                  exit 0
+                fi
+                sleep 2
+              done
+              exit 1
+      containers:
+        - name: init-catalog
+          image: mysql:8.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "Creating Iceberg external catalog in StarRocks..."
+              # Read the SQL file and execute it
+              mysql -h starrocks -P 9030 -u root < /init-sql/init-catalog.sql
+
+              # Verify catalog was created
+              echo ""
+              echo "Verifying catalog creation..."
+              mysql -h starrocks -P 9030 -u root -e "SHOW CATALOGS;"
+
+              echo ""
+              echo "Iceberg catalog initialized successfully!"
+              echo "You can now query Iceberg tables using: SET CATALOG iceberg;"
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init-sql
+      volumes:
+        - name: init-sql
+          configMap:
+            name: starrocks-init-catalog
