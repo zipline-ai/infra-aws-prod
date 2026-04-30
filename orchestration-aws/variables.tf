@@ -146,6 +146,12 @@ variable "msk_cluster_arn" {
   default     = ""
 }
 
+variable "additional_flink_s3_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the Flink job execution role read/write access to. Useful for cross-account artifact prefixes that aren't covered by warehouse_bucket or artifact_prefix."
+  default     = []
+}
+
 variable "personnel_arns" {
   type        = list(string)
   description = "List of IAM principal ARNs (users or roles) who should have admin access to the EKS cluster."

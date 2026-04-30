@@ -110,6 +110,12 @@ variable "msk_cluster_arn" {
   default     = ""
 }
 
+variable "additional_flink_s3_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the Flink job execution role read/write access to. Useful for cross-account artifact prefixes that aren't covered by warehouse_bucket or artifact_prefix."
+  default     = []
+}
+
 variable "dynamodb_table_prefix" {
   type        = string
   description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."
