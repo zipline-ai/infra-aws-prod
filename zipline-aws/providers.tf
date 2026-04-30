@@ -127,3 +127,23 @@ module "base_setup" {
   idp_group_claim                     = var.idp_group_claim
 
 }
+
+output "ui_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.ui_domain"
+  value       = module.base_setup.ui_cname_setup_instructions
+}
+
+output "hub_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.hub_domain"
+  value       = module.base_setup.hub_cname_setup_instructions
+}
+
+output "fetcher_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.fetcher_domain"
+  value       = module.base_setup.fetcher_cname_setup_instructions
+}
+
+output "eval_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.eval_domain"
+  value       = module.base_setup.eval_cname_setup_instructions
+}

@@ -24,3 +24,23 @@ output "kubeconfig_command" {
   description = "Command to update kubeconfig"
   value       = module.orchestration.kubeconfig_command
 }
+
+output "ui_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.ui_domain"
+  value       = module.orchestration.ui_cname_setup_instructions
+}
+
+output "hub_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.hub_domain"
+  value       = module.orchestration.hub_cname_setup_instructions
+}
+
+output "fetcher_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.fetcher_domain"
+  value       = module.orchestration.fetcher_cname_setup_instructions
+}
+
+output "eval_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.eval_domain"
+  value       = module.orchestration.eval_cname_setup_instructions
+}
