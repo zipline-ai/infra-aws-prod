@@ -65,6 +65,8 @@ spec:
               value: "http"
             - name: KV_TABLE_PREFIX
               value: "{{ .Values.aws.kvTablePrefix }}"
+            - name: KV_ENABLE_TTL
+              value: "{{ .Values.aws.kvEnableTtl }}"
             - name: FLINK_EKS_SERVICE_ACCOUNT
               value: "{{ .Values.aws.flinkEksServiceAccount }}"
             - name: FLINK_EKS_NAMESPACE

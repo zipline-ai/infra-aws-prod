@@ -122,6 +122,12 @@ variable "dynamodb_table_prefix" {
   default     = ""
 }
 
+variable "dynamodb_enable_ttl" {
+  type        = bool
+  description = "Enable TTL on DynamoDB KV store tables and batch-imported tables. Set to false to disable TTL-based data expiry."
+  default     = true
+}
+
 variable "dynamodb_read_capacity" {
   type        = number
   description = "Read capacity units for DynamoDB tables"

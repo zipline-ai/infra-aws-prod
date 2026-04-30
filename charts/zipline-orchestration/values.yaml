@@ -9,6 +9,7 @@ global:
 aws:
   region: ""
   secretsArn: ""
+  kvEnableTtl: "true"
   databricksSpSecretArn: ""
   eksClusterName: ""
   flinkEksServiceAccount: ""
