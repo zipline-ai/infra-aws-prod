@@ -141,3 +141,99 @@ output "databricks_sp_secret_name" {
   description = "Name of the Databricks service principal credentials secret (empty if not configured)"
   value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].name : ""
 }
+
+data "kubernetes_service" "ingress_nginx_ui_service" {
+  count = var.ui_domain != "" ? 1 : 0
+  metadata {
+    name      = "zipline-orchestration-ingress-nginx-ui-controller"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+}
+
+output "ui_nlb_hostname" {
+  description = "The hostname of the Network Load Balancer for the UI Ingress Controller"
+  value       = var.ui_domain != "" ? data.kubernetes_service.ingress_nginx_ui_service[0].status[0].load_balancer[0].ingress[0].hostname : null
+}
+
+output "ui_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.ui_domain"
+  value = var.ui_domain != "" ? (<<EOT
+To make var.ui_domain work, create a CNAME record with your DNS provider.
+Point your desired domain (e.g., ${var.ui_domain}) to the following hostname:
+  ${data.kubernetes_service.ingress_nginx_ui_service[0].status[0].load_balancer[0].ingress[0].hostname}
+If you are using AWS Route 53, you can create an ALIAS record instead, pointing to the same hostname.
+EOT
+) : null
+}
+
+data "kubernetes_service" "ingress_nginx_hub_service" {
+  count = var.hub_domain != "" ? 1 : 0
+  metadata {
+    name      = "zipline-orchestration-ingress-nginx-hub-controller"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+}
+
+output "hub_nlb_hostname" {
+  description = "The hostname of the Network Load Balancer for the Hub Ingress Controller"
+  value       = var.hub_domain != "" ? data.kubernetes_service.ingress_nginx_hub_service[0].status[0].load_balancer[0].ingress[0].hostname : null
+}
+
+output "hub_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.hub_domain"
+  value = var.hub_domain != "" ? (<<EOT
+To make var.hub_domain work, create a CNAME record with your DNS provider.
+Point your desired domain (e.g., ${var.hub_domain}) to the following hostname:
+  ${data.kubernetes_service.ingress_nginx_hub_service[0].status[0].load_balancer[0].ingress[0].hostname}
+If you are using AWS Route 53, you can create an ALIAS record instead, pointing to the same hostname.
+EOT
+) : null
+}
+
+data "kubernetes_service" "ingress_nginx_fetcher_service" {
+  count = var.fetcher_domain != "" ? 1 : 0
+  metadata {
+    name      = "nginx-fetcher-controller"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+}
+
+output "fetcher_nlb_hostname" {
+  description = "The hostname of the Network Load Balancer for the Fetcher Ingress Controller"
+  value       = var.fetcher_domain != "" ? data.kubernetes_service.ingress_nginx_fetcher_service[0].status[0].load_balancer[0].ingress[0].hostname : null
+}
+
+output "fetcher_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.fetcher_domain"
+  value = var.fetcher_domain != "" ? (<<EOT
+To make var.fetcher_domain work, create a CNAME record with your DNS provider.
+Point your desired domain (e.g., ${var.fetcher_domain}) to the following hostname:
+  ${data.kubernetes_service.ingress_nginx_fetcher_service[0].status[0].load_balancer[0].ingress[0].hostname}
+If you are using AWS Route 53, you can create an ALIAS record instead, pointing to the same hostname.
+EOT
+) : null
+}
+
+data "kubernetes_service" "ingress_nginx_eval_service" {
+  count = var.eval_domain != "" ? 1 : 0
+  metadata {
+    name      = "zipline-orchestration-ingress-nginx-eval-controller"
+    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
+  }
+}
+
+output "eval_nlb_hostname" {
+  description = "The hostname of the Network Load Balancer for the Eval Ingress Controller"
+  value       = var.eval_domain != "" ? data.kubernetes_service.ingress_nginx_eval_service[0].status[0].load_balancer[0].ingress[0].hostname : null
+}
+
+output "eval_cname_setup_instructions" {
+  description = "Instructions for setting up the CNAME record for var.eval_domain"
+  value = var.eval_domain != "" ? (<<EOT
+To make var.eval_domain work, create a CNAME record with your DNS provider.
+Point your desired domain (e.g., ${var.eval_domain}) to the following hostname:
+  ${data.kubernetes_service.ingress_nginx_eval_service[0].status[0].load_balancer[0].ingress[0].hostname}
+If you are using AWS Route 53, you can create an ALIAS record instead, pointing to the same hostname.
+EOT
+) : null
+}
