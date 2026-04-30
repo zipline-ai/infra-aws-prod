@@ -75,6 +75,7 @@ tofu apply
 | `eval_domain` | `""` | Custom domain for the eval service |
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |
 | `databricks_client_secret` | `""` | Databricks service principal client secret for Unity Catalog (optional) |
+| `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 
 ## Custom domains (HTTPS)
 
