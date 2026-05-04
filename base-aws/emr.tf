@@ -43,7 +43,10 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "dynamodb:GetItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
+      "dynamodb:UpdateTable",
+      "dynamodb:CreateTableReplica",
       "dynamodb:UpdateTimeToLive",
+      "dynamodb:DeleteItem",
       "dynamodb:DeleteTable",
       // Glue
       "glue:BatchCreatePartition",
@@ -84,6 +87,7 @@ data "aws_iam_policy_document" "iam_emr_policy" {
     ]
     resources = ["*"]
   }
+
 }
 
 # Bedrock inference access for EMR Serverless batch jobs (ModelTransformsJob)

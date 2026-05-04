@@ -134,6 +134,12 @@ variable "dynamodb_write_capacity" {
   default     = 10
 }
 
+variable "dynamodb_replica_regions" {
+  type        = list(string)
+  description = "Additional AWS regions to replicate DynamoDB tables to using Global Tables v2. Empty disables replication."
+  default     = []
+}
+
 # Zipline Authentication
 variable "zipline_auth_enabled" {
   type        = bool
