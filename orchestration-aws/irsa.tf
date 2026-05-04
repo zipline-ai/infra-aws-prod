@@ -317,14 +317,22 @@ data "aws_iam_policy_document" "flink_s3_policy" {
       "s3:DeleteObject",
       "s3:ListBucket",
     ]
-    resources = [
-      "arn:aws:s3:::${var.warehouse_bucket}",
-      "arn:aws:s3:::${var.warehouse_bucket}/*",
-      "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}",
-      "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}/*",
-      "arn:aws:s3:::zipline-spark-libs",
-      "arn:aws:s3:::zipline-spark-libs/*",
-    ]
+    resources = concat(
+      [
+        "arn:aws:s3:::${var.warehouse_bucket}",
+        "arn:aws:s3:::${var.warehouse_bucket}/*",
+        "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}",
+        "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}/*",
+        "arn:aws:s3:::zipline-spark-libs",
+        "arn:aws:s3:::zipline-spark-libs/*",
+      ],
+      flatten([
+        for bucket in var.additional_flink_s3_buckets : [
+          "arn:aws:s3:::${bucket}",
+          "arn:aws:s3:::${bucket}/*",
+        ]
+      ]),
+    )
   }
 }
 
