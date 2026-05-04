@@ -44,6 +44,7 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
       "dynamodb:UpdateTimeToLive",
+      "dynamodb:DeleteTable",
       // Glue
       "glue:BatchCreatePartition",
       "glue:BatchDeletePartition",

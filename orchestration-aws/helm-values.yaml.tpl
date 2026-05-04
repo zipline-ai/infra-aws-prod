@@ -11,6 +11,7 @@ aws:
   region: "${aws_region}"
   secretsArn: "${secrets_arn}"
   kvTablePrefix: "${kv_table_prefix}"
+  kvEnableTtl: "${kv_enable_ttl}"
   eksClusterName: "${eks_cluster_name}"
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"
@@ -245,3 +246,5 @@ auth:
   sso_issuer: "${sso_issuer}"
   sso_client_id: "${sso_client_id}"
   sso_client_secret: "${sso_client_secret}"
+  idp_role_mapping: "${idp_role_mapping}"
+  idp_group_claim: "${idp_group_claim}"

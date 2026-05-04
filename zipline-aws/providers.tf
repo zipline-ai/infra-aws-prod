@@ -30,7 +30,7 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.region
+  region = var.region
 }
 
 # Kubernetes provider - configured after EKS cluster is created
@@ -75,23 +75,23 @@ provider "kubectl" {
 module "base_setup" {
   source = "../base-aws"
 
-  customer_name          = var.customer_name
-  region                 = var.region
-  artifact_prefix        = var.artifact_prefix
-  zipline_version        = var.zipline_version
-  dockerhub_token        = var.dockerhub_token
-  personnel_arns         = var.personnel_arns
+  customer_name   = var.customer_name
+  region          = var.region
+  artifact_prefix = var.artifact_prefix
+  zipline_version = var.zipline_version
+  dockerhub_token = var.dockerhub_token
+  personnel_arns  = var.personnel_arns
 
   # EKS Configuration
   eks_version      = var.eks_version
   fetcher_replicas = var.fetcher_replicas
 
   # Custom domains for HTTPS
-  ui_domain      = var.ui_domain
+  ui_domain        = var.ui_domain
   hub_domain       = var.hub_domain
   hub_external_url = var.hub_external_url
-  fetcher_domain = var.fetcher_domain
-  eval_domain    = var.eval_domain
+  fetcher_domain   = var.fetcher_domain
+  eval_domain      = var.eval_domain
 
   # Glue Schema Registry (optional)
   glue_schema_registry_name = var.glue_schema_registry_name
@@ -102,25 +102,29 @@ module "base_setup" {
 
   msk_cluster_arn = var.msk_cluster_arn
 
+  additional_flink_s3_buckets = var.additional_flink_s3_buckets
+
   # DynamoDB Configuration
-  dynamodb_table_prefix    = var.dynamodb_table_prefix
-  dynamodb_read_capacity   = var.dynamodb_read_capacity
-  dynamodb_write_capacity  = var.dynamodb_write_capacity
+  dynamodb_table_prefix   = var.dynamodb_table_prefix
+  dynamodb_read_capacity  = var.dynamodb_read_capacity
+  dynamodb_write_capacity = var.dynamodb_write_capacity
 
   # Zipline Authentication
-  zipline_auth_enabled = var.zipline_auth_enabled
-  google_oauth_client_id = var.google_oauth_client_id
-  google_oauth_client_secret = var.google_oauth_client_secret
-  github_oauth_client_id = var.github_oauth_client_id
-  github_oauth_client_secret = var.github_oauth_client_secret
-  microsoft_entra_tenant_id = var.microsoft_entra_tenant_id
-  microsoft_entra_oauth_client_id = var.microsoft_entra_oauth_client_id
+  zipline_auth_enabled                = var.zipline_auth_enabled
+  google_oauth_client_id              = var.google_oauth_client_id
+  google_oauth_client_secret          = var.google_oauth_client_secret
+  github_oauth_client_id              = var.github_oauth_client_id
+  github_oauth_client_secret          = var.github_oauth_client_secret
+  microsoft_entra_tenant_id           = var.microsoft_entra_tenant_id
+  microsoft_entra_oauth_client_id     = var.microsoft_entra_oauth_client_id
   microsoft_entra_oauth_client_secret = var.microsoft_entra_oauth_client_secret
-  sso_provider_id = var.sso_provider_id
-  sso_domain = var.sso_domain
-  sso_issuer = var.sso_issuer
-  sso_client_id = var.sso_client_id
-  sso_client_secret = var.sso_client_secret
+  sso_provider_id                     = var.sso_provider_id
+  sso_domain                          = var.sso_domain
+  sso_issuer                          = var.sso_issuer
+  sso_client_id                       = var.sso_client_id
+  sso_client_secret                   = var.sso_client_secret
+  idp_role_mapping                    = var.idp_role_mapping
+  idp_group_claim                     = var.idp_group_claim
 
   # Optional VPC Import
   existing_vpc_id                = var.existing_vpc_id

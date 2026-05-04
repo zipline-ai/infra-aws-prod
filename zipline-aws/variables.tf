@@ -73,12 +73,12 @@ variable "hub_external_url" {
 
 variable "fetcher_domain" {
   description = "Custom domain for the Chronon fetcher service (e.g., zipline-fetcher.yourcompany.com). Leave empty to use the default load balancer DNS."
-  default = ""
+  default     = ""
 }
 
 variable "eval_domain" {
   description = "Custom domain for the Chronon eval service (e.g., zipline-eval.yourcompany.com). Leave empty to use the default load balancer DNS."
-  default = ""
+  default     = ""
 }
 
 # Glue Schema Registry (optional)
@@ -107,6 +107,12 @@ variable "msk_cluster_arn" {
   type        = string
   description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
   default     = ""
+}
+
+variable "additional_flink_s3_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the Flink job execution role read/write access to. Useful for cross-account artifact prefixes that aren't covered by warehouse_bucket or artifact_prefix."
+  default     = []
 }
 
 # DynamoDB Configuration
@@ -205,6 +211,18 @@ variable "sso_client_id" {
 variable "sso_client_secret" {
   type        = string
   description = "Optional for use SSO with zipline authentication"
+  default     = ""
+}
+
+variable "idp_role_mapping" {
+  type        = string
+  description = "Optional comma separated list of role mappings for zipline authentication"
+  default     = ""
+}
+
+variable "idp_group_claim" {
+  type        = string
+  description = "Optional group claims configured for zipline authentication"
   default     = ""
 }
 
