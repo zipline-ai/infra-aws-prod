@@ -10,9 +10,10 @@ This module creates the DynamoDB tables required for Chronon metadata storage.
 Both tables are configured with:
 - Binary hash key: `keyBytes`
 - TTL enabled on attribute: `ttl`
-- Configurable read/write capacity units
 
-When `replica_regions` is non-empty, `CHRONON_METADATA` has DynamoDB Streams enabled (`NEW_AND_OLD_IMAGES`) and is replicated to the specified regions using Global Tables v2.
+**CHRONON_METADATA** uses on-demand (pay-per-request) billing; the `read_capacity` and `write_capacity` variables do not apply to it. When `replica_regions` is non-empty, Streams are enabled (`NEW_AND_OLD_IMAGES`) and the table is replicated to the specified regions using Global Tables v2.
+
+**TABLE_PARTITIONS** uses provisioned billing with configurable read/write capacity units.
 
 ## Usage
 

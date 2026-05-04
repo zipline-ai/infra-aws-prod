@@ -138,6 +138,11 @@ variable "dynamodb_replica_regions" {
   type        = list(string)
   description = "Additional AWS regions to replicate DynamoDB tables to using Global Tables v2. Empty disables replication."
   default     = []
+
+  validation {
+    condition     = length(var.dynamodb_replica_regions) == length(distinct(var.dynamodb_replica_regions)) && alltrue([for r in var.dynamodb_replica_regions : r != ""])
+    error_message = "dynamodb_replica_regions must contain only unique, non-empty region strings."
+  }
 }
 
 # Zipline Authentication
