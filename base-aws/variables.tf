@@ -225,3 +225,22 @@ variable "idp_group_claim" {
   description = "Optional group claims configured for zipline authentication"
   default     = ""
 }
+
+# Optional VPC Import
+variable "existing_vpc_id" {
+  type        = string
+  description = "Optional. ID to existing vpc to attach the resources to"
+  default     = ""
+}
+
+variable "existing_vpc_primary_subnet_id" {
+  type        = string
+  description = "Optional. ID to existing primary subnet to attach the resources to"
+  default     = ""
+}
+
+variable "existing_vpc_secondary_subnet_id" {
+  type        = string
+  description = "Optional. ID to existing secondary subnet to attach the resources to"
+  default     = ""
+}

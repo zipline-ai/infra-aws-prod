@@ -1,5 +1,6 @@
 // Provider configuration
 terraform {
+  required_version = ">= 1.9.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -125,5 +126,10 @@ module "base_setup" {
   sso_client_secret                   = var.sso_client_secret
   idp_role_mapping                    = var.idp_role_mapping
   idp_group_claim                     = var.idp_group_claim
+
+  # Optional VPC Import
+  existing_vpc_id                = var.existing_vpc_id
+  existing_vpc_primary_subnet_id = var.existing_vpc_primary_subnet_id
+  existing_vpc_secondary_subnet_id = var.existing_vpc_secondary_subnet_id
 
 }
