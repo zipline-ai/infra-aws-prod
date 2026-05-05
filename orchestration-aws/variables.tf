@@ -128,6 +128,12 @@ variable "dynamodb_enable_ttl" {
   default     = true
 }
 
+variable "dynamodb_replica_regions" {
+  type        = list(string)
+  description = "Additional AWS regions to replicate DynamoDB tables to using Global Tables v2. Empty disables replication."
+  default     = []
+}
+
 variable "dynamodb_read_capacity" {
   type        = number
   description = "Read capacity units for DynamoDB tables"
