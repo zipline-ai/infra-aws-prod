@@ -10,6 +10,7 @@ imagePullSecrets:
 aws:
   region: "${aws_region}"
   secretsArn: "${secrets_arn}"
+  warehouseBucket: "${warehouse_bucket}"
   kvTablePrefix: "${kv_table_prefix}"
   kvEnableTtl: "${kv_enable_ttl}"
   eksClusterName: "${eks_cluster_name}"

@@ -224,26 +224,27 @@ resource "helm_release" "zipline_orchestration" {
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
       fetcher_replicas = var.fetcher_replicas
-      customer_name   = var.name_prefix
-      aws_region      = data.aws_region.current.name
-      artifact_prefix = var.artifact_prefix
-      version         = var.zipline_version
+      customer_name    = var.name_prefix
+      aws_region       = data.aws_region.current.name
+      artifact_prefix  = var.artifact_prefix
+      version          = var.zipline_version
 
       # RDS instance + self-managed secret
-      db_host     = aws_db_instance.zipline.endpoint
-      db_name     = aws_db_instance.zipline.db_name
-      secrets_arn = aws_secretsmanager_secret.db_credentials.arn
+      db_host          = aws_db_instance.zipline.endpoint
+      db_name          = aws_db_instance.zipline.db_name
+      secrets_arn      = aws_secretsmanager_secret.db_credentials.arn
+      warehouse_bucket = var.warehouse_bucket
 
       irsa_role_arn     = aws_iam_role.orchestration_irsa.arn
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name
 
-      hub_domain          = var.hub_domain
-      hub_external_url    = var.hub_external_url
-      ui_domain           = var.ui_domain
-      fetcher_domain      = var.fetcher_domain
-      eval_domain         = var.eval_domain
-      kv_table_prefix     = module.dynamodb_tables.table_prefix
-      kv_enable_ttl       = var.dynamodb_enable_ttl
+      hub_domain                = var.hub_domain
+      hub_external_url          = var.hub_external_url
+      ui_domain                 = var.ui_domain
+      fetcher_domain            = var.fetcher_domain
+      eval_domain               = var.eval_domain
+      kv_table_prefix           = module.dynamodb_tables.table_prefix
+      kv_enable_ttl             = var.dynamodb_enable_ttl
       eks_cluster_name          = aws_eks_cluster.main.name
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
@@ -265,24 +266,24 @@ resource "helm_release" "zipline_orchestration" {
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")
 
-      zipline_auth_enabled = var.zipline_auth_enabled
-      zipline_auth_url     = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
-      zipline_auth_secret  = random_password.zipline_auth.result
-      zipline_auth_jwksUrl = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
-      google_oauth_client_id = var.google_oauth_client_id
-      google_oauth_client_secret = var.google_oauth_client_secret
-      github_oauth_client_id = var.github_oauth_client_id
-      github_oauth_client_secret = var.github_oauth_client_secret
-      microsoft_entra_tenant_id = var.microsoft_entra_tenant_id
-      microsoft_entra_oauth_client_id = var.microsoft_entra_oauth_client_id
+      zipline_auth_enabled                = var.zipline_auth_enabled
+      zipline_auth_url                    = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
+      zipline_auth_secret                 = random_password.zipline_auth.result
+      zipline_auth_jwksUrl                = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
+      google_oauth_client_id              = var.google_oauth_client_id
+      google_oauth_client_secret          = var.google_oauth_client_secret
+      github_oauth_client_id              = var.github_oauth_client_id
+      github_oauth_client_secret          = var.github_oauth_client_secret
+      microsoft_entra_tenant_id           = var.microsoft_entra_tenant_id
+      microsoft_entra_oauth_client_id     = var.microsoft_entra_oauth_client_id
       microsoft_entra_oauth_client_secret = var.microsoft_entra_oauth_client_secret
-      sso_provider_id = var.sso_provider_id
-      sso_domain = var.sso_domain
-      sso_issuer = var.sso_issuer
-      sso_client_id = var.sso_client_id
-      sso_client_secret = var.sso_client_secret
-      idp_role_mapping = var.idp_role_mapping
-      idp_group_claim = var.idp_group_claim
+      sso_provider_id                     = var.sso_provider_id
+      sso_domain                          = var.sso_domain
+      sso_issuer                          = var.sso_issuer
+      sso_client_id                       = var.sso_client_id
+      sso_client_secret                   = var.sso_client_secret
+      idp_role_mapping                    = var.idp_role_mapping
+      idp_group_claim                     = var.idp_group_claim
 
     })
   ]

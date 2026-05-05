@@ -9,6 +9,7 @@ global:
 aws:
   region: ""
   secretsArn: ""
+  warehouseBucket: ""
   kvEnableTtl: "true"
   databricksSpSecretArn: ""
   eksClusterName: ""

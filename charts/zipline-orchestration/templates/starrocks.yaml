@@ -1,47 +1,21 @@
 # StarRocks deployment for querying Iceberg tables via JDBC catalog
   # Combines FE (frontend) and BE (backend) in a single pod
   # Requires StarRocks >= 3.5.12 for JDBC Iceberg catalog support
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: starrocks-init-catalog
-  namespace: chronon
-data:
-  init-catalog.sql: |
-    -- Create Iceberg external catalog pointing to the JDBC catalog in PostgreSQL
-    -- This allows StarRocks to query Iceberg tables managed by Spark/Chronon
-    CREATE EXTERNAL CATALOG IF NOT EXISTS iceberg
-    PROPERTIES (
-        "type" = "iceberg",
-        "iceberg.catalog.type" = "jdbc",
-        "iceberg.catalog.uri" = "jdbc:postgresql://postgres:5432/iceberg_catalog",
-        "iceberg.catalog.warehouse" = "s3a://warehouse/",
-        "iceberg.catalog.jdbc.user" = "chronon",
-        "iceberg.catalog.jdbc.password" = "chronon",
-        -- StarRocks S3 properties
-        "aws.s3.endpoint" = "http://minio:9000",
-        "aws.s3.access_key" = "minioadmin",
-        "aws.s3.secret_key" = "minioadmin",
-        "aws.s3.region" = "us-east-1",
-        "aws.s3.enable_ssl" = "false",
-        "aws.s3.enable_path_style_access" = "true",
-        -- Iceberg S3FileIO properties (required for MinIO compatibility)
-        "s3.endpoint" = "http://minio:9000",
-        "s3.access-key-id" = "minioadmin",
-        "s3.secret-access-key" = "minioadmin",
-        "s3.path-style-access" = "true",
-        "client.region" = "us-east-1"
-    );
+{{- $dbHostParts := splitList ":" .Values.database.host }}
+{{- $dbHost := index $dbHostParts 0 }}
+{{- $dbPort := "5432" }}
+{{- if gt (len $dbHostParts) 1 }}
+{{- $dbPort = index $dbHostParts 1 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: starrocks-config
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
 data:
   fe.conf: |
-    # StarRocks FE configuration for local development
+    # StarRocks FE configuration
     LOG_DIR = ${STARROCKS_HOME}/log
     DATE = "$(date +%Y%m%d-%H%M%S)"
     JAVA_OPTS="-Dlog4j2.formatMsgNoLookups=true -Xmx4096m -XX:+UseG1GC -Xlog:gc*:${LOG_DIR}/fe.gc.log.$DATE:time"
@@ -51,12 +25,11 @@ data:
     edit_log_port = 9010
     mysql_service_nio_enabled = true
     sys_log_level = INFO
-    # For local dev - relax some constraints
     tablet_create_timeout_second = 60
     # Enable external catalog
     enable_experimental_mv = true
   be.conf: |
-    # StarRocks BE configuration for local development
+    # StarRocks BE configuration
     LOG_DIR = ${STARROCKS_HOME}/log
     sys_log_level = INFO
     be_port = 9060
@@ -65,19 +38,13 @@ data:
     brpc_port = 8060
     # Storage configuration
     storage_root_path = ${STARROCKS_HOME}/storage
-    # For local dev - smaller memory footprint
     mem_limit = 70%
-    # S3/MinIO configuration for Iceberg data access
-    object_storage_access_key_id = minioadmin
-    object_storage_secret_access_key = minioadmin
-    object_storage_endpoint = http://minio:9000
-    object_storage_endpoint_use_https = false
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: starrocks-data
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -89,7 +56,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: starrocks-jdbc-drivers
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -101,7 +68,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: starrocks
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
   labels:
     app: starrocks
 spec:
@@ -116,6 +83,11 @@ spec:
       labels:
         app: starrocks
     spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         # Download PostgreSQL JDBC driver (cached in PVC across restarts)
         - name: download-jdbc-driver
@@ -151,13 +123,10 @@ spec:
           env:
             - name: STARROCKS_HOME
               value: /opt/starrocks
-            # S3/MinIO credentials for data access
-            - name: AWS_ACCESS_KEY_ID
-              value: "minioadmin"
-            - name: AWS_SECRET_ACCESS_KEY
-              value: "minioadmin"
             - name: AWS_REGION
-              value: "us-east-1"
+              value: "{{ .Values.aws.region }}"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws.region }}"
           volumeMounts:
             - name: data
               mountPath: /opt/starrocks/fe/meta
@@ -208,15 +177,12 @@ spec:
         - name: config
           configMap:
             name: starrocks-config
-        - name: init-sql
-          configMap:
-            name: starrocks-init-catalog
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: starrocks
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     app: starrocks
@@ -236,7 +202,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: starrocks-nodeport
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
 spec:
   type: NodePort
   selector:
@@ -256,11 +222,12 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: starrocks-init-catalog
-  namespace: chronon
+  namespace: {{ .Release.Namespace }}
 spec:
   ttlSecondsAfterFinished: 300
   template:
     spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       restartPolicy: OnFailure
       initContainers:
         # Wait for StarRocks to actually accept queries (not just TCP)
@@ -290,7 +257,7 @@ spec:
             - |
               echo "Waiting for PostgreSQL..."
               for i in $(seq 1 30); do
-                if nc -z postgres 5432 2>/dev/null; then
+                if nc -z {{ $dbHost | quote }} {{ $dbPort | quote }} 2>/dev/null; then
                   echo "PostgreSQL is ready"
                   exit 0
                 fi
@@ -305,8 +272,34 @@ spec:
             - -c
             - |
               echo "Creating Iceberg external catalog in StarRocks..."
-              # Read the SQL file and execute it
-              mysql -h starrocks -P 9030 -u root < /init-sql/init-catalog.sql
+              DB_USERNAME="$(cat /mnt/secrets-store/username)"
+              DB_PASSWORD="$(cat /mnt/secrets-store/password)"
+
+              sql_escape() {
+                printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+              }
+
+              DB_USERNAME_ESCAPED="$(sql_escape "$DB_USERNAME")"
+              DB_PASSWORD_ESCAPED="$(sql_escape "$DB_PASSWORD")"
+
+              cat > /tmp/init-catalog.sql <<EOF
+              -- Create Iceberg external catalog pointing to the Terraform-managed RDS PostgreSQL instance.
+              CREATE EXTERNAL CATALOG IF NOT EXISTS iceberg
+              PROPERTIES (
+                  "type" = "iceberg",
+                  "iceberg.catalog.type" = "jdbc",
+                  "iceberg.catalog.uri" = "jdbc:postgresql://{{ .Values.database.host }}/{{ .Values.database.name }}",
+                  "iceberg.catalog.warehouse" = "s3://{{ .Values.aws.warehouseBucket }}/",
+                  "iceberg.catalog.jdbc.user" = "${DB_USERNAME_ESCAPED}",
+                  "iceberg.catalog.jdbc.password" = "${DB_PASSWORD_ESCAPED}",
+                  "iceberg.catalog.jdbc.init-catalog-tables" = "true",
+                  "aws.s3.use_instance_profile" = "true",
+                  "aws.s3.region" = "{{ .Values.aws.region }}",
+                  "client.region" = "{{ .Values.aws.region }}"
+              );
+              EOF
+
+              mysql -h starrocks -P 9030 -u root < /tmp/init-catalog.sql
 
               # Verify catalog was created
               echo ""
@@ -317,9 +310,13 @@ spec:
               echo "Iceberg catalog initialized successfully!"
               echo "You can now query Iceberg tables using: SET CATALOG iceberg;"
           volumeMounts:
-            - name: init-sql
-              mountPath: /init-sql
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
       volumes:
-        - name: init-sql
-          configMap:
-            name: starrocks-init-catalog
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
