@@ -96,6 +96,7 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
       "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*",
     ]
   }
+
 }
 
 resource "aws_iam_role_policy" "orchestration_dynamodb" {
@@ -406,12 +407,15 @@ data "aws_iam_policy_document" "flink_dynamodb_policy" {
     actions = [
       "dynamodb:CreateTable",
       "dynamodb:DescribeTable",
+      "dynamodb:UpdateTable",
+      "dynamodb:CreateTableReplica",
       "dynamodb:UpdateTimeToLive",
       "dynamodb:Scan",
       "dynamodb:Query",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
     ]

@@ -128,6 +128,12 @@ variable "dynamodb_read_capacity" {
   default     = 10
 }
 
+variable "dynamodb_replica_regions" {
+  type        = list(string)
+  description = "Additional AWS regions to replicate DynamoDB tables to using Global Tables v2. Empty disables replication."
+  default     = []
+}
+
 variable "dynamodb_write_capacity" {
   type        = number
   description = "Write capacity units for DynamoDB tables"

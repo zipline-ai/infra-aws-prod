@@ -38,6 +38,8 @@ spec:
               value: "{{ .Values.aws.region }}"
             - name: KV_TABLE_PREFIX
               value: "{{ .Values.aws.kvTablePrefix }}"
+            - name: KV_REPLICA_REGIONS
+              value: "{{ .Values.aws.kvReplicaRegions }}"
             - name: CHRONON_METRICS_READER
               value: "http"
             - name: EXPORTER_OTLP_ENDPOINT

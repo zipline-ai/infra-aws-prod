@@ -13,6 +13,7 @@ aws:
   warehouseBucket: "${warehouse_bucket}"
   kvTablePrefix: "${kv_table_prefix}"
   kvEnableTtl: "${kv_enable_ttl}"
+  kvReplicaRegions: "${kv_replica_regions}"
   eksClusterName: "${eks_cluster_name}"
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"

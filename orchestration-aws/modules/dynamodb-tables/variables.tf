@@ -15,3 +15,9 @@ variable "write_capacity" {
   description = "Write capacity units for DynamoDB tables"
   default     = 10
 }
+
+variable "replica_regions" {
+  type        = list(string)
+  description = "Additional AWS regions to replicate these DynamoDB tables to using Global Tables v2. Empty disables replication."
+  default     = []
+}
