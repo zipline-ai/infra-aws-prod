@@ -67,6 +67,23 @@ data "aws_iam_policy_document" "orchestration_s3_policy" {
       "arn:aws:s3:::zipline-warehouse/*",
     ]
   }
+
+  dynamic "statement" {
+    for_each = length(var.additional_data_buckets) > 0 ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "s3:GetObject",
+        "s3:ListBucket",
+      ]
+      resources = flatten([
+        for bucket in var.additional_data_buckets : [
+          "arn:aws:s3:::${bucket}",
+          "arn:aws:s3:::${bucket}/*",
+        ]
+      ])
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "orchestration_s3" {

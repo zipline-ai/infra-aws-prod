@@ -116,6 +116,12 @@ variable "additional_flink_s3_buckets" {
   default     = []
 }
 
+variable "additional_data_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the orchestration IRSA read-only access to. Use this for external data lake buckets (e.g. Iceberg metadata paths) that the orchestration role needs to read."
+  default     = []
+}
+
 variable "dynamodb_table_prefix" {
   type        = string
   description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."
