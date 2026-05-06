@@ -475,6 +475,22 @@ resource "aws_iam_role_policy" "flink_glue_schema_registry" {
 }
 
 # MSK access policy for Flink jobs (connect, describe, read/write topics)
+#
+# MSK IAM ARN formats differ by resource type:
+#   cluster: arn:aws:kafka:region:account:cluster/name/uuid
+#   topic:   arn:aws:kafka:region:account:topic/name/uuid/topic-name
+#   group:   arn:aws:kafka:region:account:group/name/uuid/group-name
+#
+# Topic and group ARNs use a different resource-type prefix ("topic/"/"group/") rather than
+# being appended to the cluster ARN ("cluster/.../topic/"). Using the cluster ARN as the base
+# for topic/group resources silently fails — MSK evaluates them as non-matching.
+locals {
+  # MSK topic/group ARNs replace the ":cluster/" resource-type segment with ":topic/" or ":group/".
+  # e.g. arn:aws:kafka:us-west-2:acct:cluster/name/uuid -> arn:aws:kafka:us-west-2:acct:topic/name/uuid/*
+  msk_topic_arn_prefix = var.msk_cluster_arn != "" ? replace(var.msk_cluster_arn, ":cluster/", ":topic/") : ""
+  msk_group_arn_prefix = var.msk_cluster_arn != "" ? replace(var.msk_cluster_arn, ":cluster/", ":group/") : ""
+}
+
 data "aws_iam_policy_document" "flink_msk_policy" {
   count = var.msk_cluster_arn != "" ? 1 : 0
 
@@ -499,7 +515,7 @@ data "aws_iam_policy_document" "flink_msk_policy" {
       "kafka-cluster:DescribeTopicDynamicConfiguration",
       "kafka-cluster:AlterTopicDynamicConfiguration",
     ]
-    resources = ["${var.msk_cluster_arn}/topic/*"]
+    resources = ["${local.msk_topic_arn_prefix}/*"]
   }
 
   statement {
@@ -511,8 +527,8 @@ data "aws_iam_policy_document" "flink_msk_policy" {
       "kafka-cluster:AlterGroup",
     ]
     resources = [
-      "${var.msk_cluster_arn}/topic/*",
-      "${var.msk_cluster_arn}/group/*",
+      "${local.msk_topic_arn_prefix}/*",
+      "${local.msk_group_arn_prefix}/*",
     ]
   }
 }
