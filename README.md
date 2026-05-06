@@ -76,6 +76,8 @@ tofu apply
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |
 | `databricks_client_secret` | `""` | Databricks service principal client secret for Unity Catalog (optional) |
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
+| `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
+| `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
 
 ## Custom domains (HTTPS)
 
@@ -182,7 +184,7 @@ If these variables are left empty (the default), no Databricks resources are cre
 
 Orchestration pods run under the `${customer_name}-orchestration-irsa` IAM role via IRSA (mapped to the `orchestration-sa` service account in the `zipline-system` namespace). This role has access to:
 
-- S3: read/write on `zipline-warehouse-${customer_name}`, read-only on shared artifacts
+- S3: read/write on `zipline-warehouse-${customer_name}`, read-only on shared artifacts, and read-only on any buckets listed in `additional_data_buckets`
 - DynamoDB: Chronon metadata table
 - EMR: job submission and cluster management
 - Glue: catalog reads (`GetTable`, `GetTables`, `GetDatabase`, `GetPartitions`, etc.)
