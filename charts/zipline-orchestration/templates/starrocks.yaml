@@ -181,7 +181,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: starrocks
+  name: starrocks-service
   namespace: {{ .Release.Namespace }}
 spec:
   selector:

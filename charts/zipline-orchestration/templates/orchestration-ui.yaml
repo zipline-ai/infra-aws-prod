@@ -60,6 +60,8 @@ spec:
               value: "{{ .Values.prometheus.queryEndpoint }}"
             - name: PROMETHEUS_NAMESPACE
               value: "{{ .Values.prometheus.namespace }}"
+            - name: STARROCKS_HOST
+              value: "http://starrocks-service"
             - name: AUTH_ENABLED
               value: "{{ .Values.auth.enabled }}"
             - name: AUTH_URL
