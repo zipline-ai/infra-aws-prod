@@ -224,10 +224,10 @@ resource "helm_release" "zipline_orchestration" {
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
       fetcher_replicas = var.fetcher_replicas
-      customer_name   = var.name_prefix
-      aws_region      = data.aws_region.current.name
-      artifact_prefix = var.artifact_prefix
-      version         = var.zipline_version
+      customer_name    = var.name_prefix
+      aws_region       = data.aws_region.current.name
+      artifact_prefix  = var.artifact_prefix
+      version          = var.zipline_version
 
       # RDS instance + self-managed secret
       db_host     = aws_db_instance.zipline.endpoint
@@ -237,14 +237,14 @@ resource "helm_release" "zipline_orchestration" {
       irsa_role_arn     = aws_iam_role.orchestration_irsa.arn
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name
 
-      hub_domain          = var.hub_domain
-      hub_external_url    = var.hub_external_url
-      ui_domain           = var.ui_domain
-      fetcher_domain      = var.fetcher_domain
-      eval_domain         = var.eval_domain
-      kv_table_prefix     = module.dynamodb_tables.table_prefix
-      kv_enable_ttl       = var.dynamodb_enable_ttl
-      kv_replica_regions  = join(",", var.dynamodb_replica_regions)
+      hub_domain                = var.hub_domain
+      hub_external_url          = var.hub_external_url
+      ui_domain                 = var.ui_domain
+      fetcher_domain            = var.fetcher_domain
+      eval_domain               = var.eval_domain
+      kv_table_prefix           = module.dynamodb_tables.table_prefix
+      kv_enable_ttl             = var.dynamodb_enable_ttl
+      kv_replica_regions        = join(",", var.dynamodb_replica_regions)
       eks_cluster_name          = aws_eks_cluster.main.name
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
@@ -266,24 +266,24 @@ resource "helm_release" "zipline_orchestration" {
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")
 
-      zipline_auth_enabled = var.zipline_auth_enabled
-      zipline_auth_url     = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
-      zipline_auth_secret  = random_password.zipline_auth.result
-      zipline_auth_jwksUrl = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
-      google_oauth_client_id = var.google_oauth_client_id
-      google_oauth_client_secret = var.google_oauth_client_secret
-      github_oauth_client_id = var.github_oauth_client_id
-      github_oauth_client_secret = var.github_oauth_client_secret
-      microsoft_entra_tenant_id = var.microsoft_entra_tenant_id
-      microsoft_entra_oauth_client_id = var.microsoft_entra_oauth_client_id
+      zipline_auth_enabled                = var.zipline_auth_enabled
+      zipline_auth_url                    = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
+      auth_secrets_arn                    = var.zipline_auth_enabled ? aws_secretsmanager_secret.zipline_auth[0].arn : ""
+      zipline_auth_jwksUrl                = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
+      google_oauth_client_id              = var.google_oauth_client_id
+      google_oauth_client_secret          = var.google_oauth_client_secret
+      github_oauth_client_id              = var.github_oauth_client_id
+      github_oauth_client_secret          = var.github_oauth_client_secret
+      microsoft_entra_tenant_id           = var.microsoft_entra_tenant_id
+      microsoft_entra_oauth_client_id     = var.microsoft_entra_oauth_client_id
       microsoft_entra_oauth_client_secret = var.microsoft_entra_oauth_client_secret
-      sso_provider_id = var.sso_provider_id
-      sso_domain = var.sso_domain
-      sso_issuer = var.sso_issuer
-      sso_client_id = var.sso_client_id
-      sso_client_secret = var.sso_client_secret
-      idp_role_mapping = var.idp_role_mapping
-      idp_group_claim = var.idp_group_claim
+      sso_provider_id                     = var.sso_provider_id
+      sso_domain                          = var.sso_domain
+      sso_issuer                          = var.sso_issuer
+      sso_client_id                       = var.sso_client_id
+      sso_client_secret                   = var.sso_client_secret
+      idp_role_mapping                    = var.idp_role_mapping
+      idp_group_claim                     = var.idp_group_claim
 
     })
   ]
@@ -302,6 +302,7 @@ resource "helm_release" "zipline_orchestration" {
 }
 
 resource "random_password" "zipline_auth" {
+  count            = var.zipline_auth_enabled ? 1 : 0
   length           = 32
   special          = true
   override_special = "!@#$%^&*"
@@ -310,12 +311,44 @@ resource "random_password" "zipline_auth" {
 }
 
 resource "aws_secretsmanager_secret" "zipline_auth" {
-  name = "zipline-auth-secret"
+  count = var.zipline_auth_enabled ? 1 : 0
+  name  = "zipline-auth-secret"
 }
 
 resource "aws_secretsmanager_secret_version" "zipline_auth" {
-  secret_id = aws_secretsmanager_secret.zipline_auth.id
+  count     = var.zipline_auth_enabled ? 1 : 0
+  secret_id = aws_secretsmanager_secret.zipline_auth[0].id
   secret_string = jsonencode({
-    auth-secret = random_password.zipline_auth.result
+    auth-secret                         = random_password.zipline_auth[0].result,
+    google-oauth-client-secret          = var.google_oauth_client_secret,
+    github-oauth-client-secret          = var.github_oauth_client_secret,
+    microsoft-entra-oauth-client-secret = var.microsoft_entra_oauth_client_secret,
+    sso-client-secret                   = var.sso_client_secret,
   })
+}
+
+resource "aws_iam_policy" "zipline_auth_secret_policy" {
+  count       = var.zipline_auth_enabled ? 1 : 0
+  name        = "${var.name_prefix}-ZiplineAuthSecretReadAccess"
+  description = "Allows reading the Zipline auth secret from Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [aws_secretsmanager_secret.zipline_auth[0].arn]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "orchestration_irsa_zipline_auth_secret" {
+  count      = var.zipline_auth_enabled ? 1 : 0
+  role       = aws_iam_role.orchestration_irsa.name
+  policy_arn = aws_iam_policy.zipline_auth_secret_policy[0].arn
 }
