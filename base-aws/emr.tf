@@ -43,7 +43,11 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "dynamodb:GetItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
+      "dynamodb:UpdateTable",
+      "dynamodb:CreateTableReplica",
       "dynamodb:UpdateTimeToLive",
+      "dynamodb:DeleteItem",
+      "dynamodb:DeleteTable",
       // Glue
       "glue:BatchCreatePartition",
       "glue:BatchDeletePartition",
@@ -83,6 +87,7 @@ data "aws_iam_policy_document" "iam_emr_policy" {
     ]
     resources = ["*"]
   }
+
 }
 
 # Bedrock inference access for EMR Serverless batch jobs (ModelTransformsJob)
@@ -147,7 +152,7 @@ resource "aws_emrserverless_application" "spark" {
   }
 
   network_configuration {
-    subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : aws_subnet.main.id]
+    subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : (var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id)]
     security_group_ids = [aws_security_group.emr_sg.id]
   }
 }

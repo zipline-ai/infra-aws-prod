@@ -223,6 +223,7 @@ resource "helm_release" "zipline_orchestration" {
 
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
+      fetcher_replicas = var.fetcher_replicas
       customer_name   = var.name_prefix
       aws_region      = data.aws_region.current.name
       artifact_prefix = var.artifact_prefix
@@ -241,8 +242,9 @@ resource "helm_release" "zipline_orchestration" {
       ui_domain           = var.ui_domain
       fetcher_domain      = var.fetcher_domain
       eval_domain         = var.eval_domain
-      dynamodb_table_name = module.dynamodb_tables.chronon_metadata_base_name
       kv_table_prefix     = module.dynamodb_tables.table_prefix
+      kv_enable_ttl       = var.dynamodb_enable_ttl
+      kv_replica_regions  = join(",", var.dynamodb_replica_regions)
       eks_cluster_name          = aws_eks_cluster.main.name
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
@@ -280,6 +282,8 @@ resource "helm_release" "zipline_orchestration" {
       sso_issuer = var.sso_issuer
       sso_client_id = var.sso_client_id
       sso_client_secret = var.sso_client_secret
+      idp_role_mapping = var.idp_role_mapping
+      idp_group_claim = var.idp_group_claim
 
     })
   ]

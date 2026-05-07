@@ -10,8 +10,9 @@ imagePullSecrets:
 aws:
   region: "${aws_region}"
   secretsArn: "${secrets_arn}"
-  dynamodbTableName: "${dynamodb_table_name}"
   kvTablePrefix: "${kv_table_prefix}"
+  kvEnableTtl: "${kv_enable_ttl}"
+  kvReplicaRegions: "${kv_replica_regions}"
   eksClusterName: "${eks_cluster_name}"
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"
@@ -181,15 +182,15 @@ orchestration:
   fetcher:
     image: "ziplineai/chronon-fetcher"
     tag: "dev"
-    replicas: 1
+    replicas: ${fetcher_replicas}
     port: 9000
     resources:
       limits:
-        cpu: "4"
-        memory: "8Gi"
+        cpu: "8"
+        memory: "32Gi"
       requests:
-        cpu: "1"
-        memory: "2Gi"
+        cpu: "8"
+        memory: "32Gi"
 
 # Ingress configuration
 ingress:
@@ -246,3 +247,5 @@ auth:
   sso_issuer: "${sso_issuer}"
   sso_client_id: "${sso_client_id}"
   sso_client_secret: "${sso_client_secret}"
+  idp_role_mapping: "${idp_role_mapping}"
+  idp_group_claim: "${idp_group_claim}"

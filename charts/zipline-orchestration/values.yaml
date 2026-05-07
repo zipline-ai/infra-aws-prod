@@ -9,6 +9,7 @@ global:
 aws:
   region: ""
   secretsArn: ""
+  kvEnableTtl: "true"
   databricksSpSecretArn: ""
   eksClusterName: ""
   flinkEksServiceAccount: ""
@@ -62,15 +63,15 @@ orchestration:
 
   fetcher:
     image: "ziplineai/chronon-fetcher"
-    replicas: 1
+    replicas: 3
     port: 9000
     resources:
       limits:
-        cpu: "4"
-        memory: "8Gi"
+        cpu: "8"
+        memory: "32Gi"
       requests:
-        cpu: "1"
-        memory: "2Gi"
+        cpu: "8"
+        memory: "32Gi"
 
   eval:
     image: "ziplineai/eval-aws"
@@ -205,3 +206,5 @@ auth:
   sso_issuer: ""
   sso_client_id: ""
   sso_client_secret: ""
+  idp_role_mapping: ""
+  idp_group_claim: ""
