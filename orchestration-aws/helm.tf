@@ -319,6 +319,10 @@ resource "aws_secretsmanager_secret_version" "zipline_auth" {
   count         = var.zipline_auth_enabled ? 1 : 0
   secret_id     = aws_secretsmanager_secret.zipline_auth[0].id
   secret_string = jsonencode({
-    auth-secret = random_password.zipline_auth[0].result
+    auth-secret = random_password.zipline_auth[0].result,
+    google-oauth-client-secret = var.google_oauth_client_secret,
+    github-oauth-client-secret = var.github_oauth_client_secret,
+    microsoft-entra-oauth-client-secret = var.microsoft_entra_oauth_client_secret,
+    sso-client-secret = var.sso_client_secret,
   })
 }
