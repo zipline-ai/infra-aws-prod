@@ -4,10 +4,10 @@ module "orchestration" {
   name_prefix         = var.customer_name
   artifact_prefix     = var.artifact_prefix
   zipline_version     = var.zipline_version
-  main_subnet_id      = aws_subnet.main.id
-  secondary_subnet_id = aws_subnet.secondary.id
+  main_subnet_id      = var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id
+  secondary_subnet_id = var.existing_vpc_id != "" ? var.existing_vpc_secondary_subnet_id : aws_subnet.secondary[0].id
   security_group_id   = aws_security_group.emr_sg.id
-  vpc_id              = aws_vpc.main.id
+  vpc_id              = var.existing_vpc_id != "" ? var.existing_vpc_id : aws_vpc.main[0].id
   dockerhub_token     = var.dockerhub_token
   warehouse_bucket    = aws_s3_bucket.zipline_warehouse_bucket.id
 
