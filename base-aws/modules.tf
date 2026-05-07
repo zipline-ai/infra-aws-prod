@@ -12,9 +12,10 @@ module "orchestration" {
   warehouse_bucket    = aws_s3_bucket.zipline_warehouse_bucket.id
 
   # DynamoDB Configuration
-  dynamodb_table_prefix   = var.dynamodb_table_prefix
-  dynamodb_read_capacity  = var.dynamodb_read_capacity
-  dynamodb_write_capacity = var.dynamodb_write_capacity
+  dynamodb_table_prefix    = var.dynamodb_table_prefix
+  dynamodb_read_capacity   = var.dynamodb_read_capacity
+  dynamodb_write_capacity  = var.dynamodb_write_capacity
+  dynamodb_replica_regions = var.dynamodb_replica_regions
 
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain
@@ -44,6 +45,7 @@ module "orchestration" {
   msk_cluster_arn = var.msk_cluster_arn
 
   additional_flink_s3_buckets = var.additional_flink_s3_buckets
+  additional_data_buckets     = var.additional_data_buckets
 
   zipline_auth_enabled                = var.zipline_auth_enabled
   google_oauth_client_id              = var.google_oauth_client_id

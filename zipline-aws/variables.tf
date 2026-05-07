@@ -115,6 +115,12 @@ variable "additional_flink_s3_buckets" {
   default     = []
 }
 
+variable "additional_data_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the orchestration IRSA read-only access to. Use this for external data lake buckets (e.g. Iceberg metadata paths) that the orchestration role needs to read."
+  default     = []
+}
+
 # DynamoDB Configuration
 variable "dynamodb_table_prefix" {
   type        = string
@@ -132,6 +138,17 @@ variable "dynamodb_write_capacity" {
   type        = number
   description = "Write capacity units for DynamoDB tables"
   default     = 10
+}
+
+variable "dynamodb_replica_regions" {
+  type        = list(string)
+  description = "Additional AWS regions to replicate DynamoDB tables to using Global Tables v2. Empty disables replication."
+  default     = []
+
+  validation {
+    condition     = length(var.dynamodb_replica_regions) == length(distinct(var.dynamodb_replica_regions)) && alltrue([for r in var.dynamodb_replica_regions : r != ""])
+    error_message = "dynamodb_replica_regions must contain only unique, non-empty region strings."
+  }
 }
 
 # Zipline Authentication

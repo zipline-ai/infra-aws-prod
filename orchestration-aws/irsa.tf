@@ -67,6 +67,23 @@ data "aws_iam_policy_document" "orchestration_s3_policy" {
       "arn:aws:s3:::zipline-warehouse/*",
     ]
   }
+
+  dynamic "statement" {
+    for_each = length(var.additional_data_buckets) > 0 ? [1] : []
+    content {
+      effect = "Allow"
+      actions = [
+        "s3:GetObject",
+        "s3:ListBucket",
+      ]
+      resources = flatten([
+        for bucket in var.additional_data_buckets : [
+          "arn:aws:s3:::${bucket}",
+          "arn:aws:s3:::${bucket}/*",
+        ]
+      ])
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "orchestration_s3" {
@@ -96,6 +113,7 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
       "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*",
     ]
   }
+
 }
 
 resource "aws_iam_role_policy" "orchestration_dynamodb" {
@@ -406,12 +424,15 @@ data "aws_iam_policy_document" "flink_dynamodb_policy" {
     actions = [
       "dynamodb:CreateTable",
       "dynamodb:DescribeTable",
+      "dynamodb:UpdateTable",
+      "dynamodb:CreateTableReplica",
       "dynamodb:UpdateTimeToLive",
       "dynamodb:Scan",
       "dynamodb:Query",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
     ]
@@ -471,6 +492,22 @@ resource "aws_iam_role_policy" "flink_glue_schema_registry" {
 }
 
 # MSK access policy for Flink jobs (connect, describe, read/write topics)
+#
+# MSK IAM ARN formats differ by resource type:
+#   cluster: arn:aws:kafka:region:account:cluster/name/uuid
+#   topic:   arn:aws:kafka:region:account:topic/name/uuid/topic-name
+#   group:   arn:aws:kafka:region:account:group/name/uuid/group-name
+#
+# Topic and group ARNs use a different resource-type prefix ("topic/"/"group/") rather than
+# being appended to the cluster ARN ("cluster/.../topic/"). Using the cluster ARN as the base
+# for topic/group resources silently fails — MSK evaluates them as non-matching.
+locals {
+  # MSK topic/group ARNs replace the ":cluster/" resource-type segment with ":topic/" or ":group/".
+  # e.g. arn:aws:kafka:us-west-2:acct:cluster/name/uuid -> arn:aws:kafka:us-west-2:acct:topic/name/uuid/*
+  msk_topic_arn_prefix = var.msk_cluster_arn != "" ? replace(var.msk_cluster_arn, ":cluster/", ":topic/") : ""
+  msk_group_arn_prefix = var.msk_cluster_arn != "" ? replace(var.msk_cluster_arn, ":cluster/", ":group/") : ""
+}
+
 data "aws_iam_policy_document" "flink_msk_policy" {
   count = var.msk_cluster_arn != "" ? 1 : 0
 
@@ -495,7 +532,7 @@ data "aws_iam_policy_document" "flink_msk_policy" {
       "kafka-cluster:DescribeTopicDynamicConfiguration",
       "kafka-cluster:AlterTopicDynamicConfiguration",
     ]
-    resources = ["${var.msk_cluster_arn}/topic/*"]
+    resources = ["${local.msk_topic_arn_prefix}/*"]
   }
 
   statement {
@@ -507,8 +544,8 @@ data "aws_iam_policy_document" "flink_msk_policy" {
       "kafka-cluster:AlterGroup",
     ]
     resources = [
-      "${var.msk_cluster_arn}/topic/*",
-      "${var.msk_cluster_arn}/group/*",
+      "${local.msk_topic_arn_prefix}/*",
+      "${local.msk_group_arn_prefix}/*",
     ]
   }
 }

@@ -128,6 +128,12 @@ variable "dynamodb_enable_ttl" {
   default     = true
 }
 
+variable "dynamodb_replica_regions" {
+  type        = list(string)
+  description = "Additional AWS regions to replicate DynamoDB tables to using Global Tables v2. Empty disables replication."
+  default     = []
+}
+
 variable "dynamodb_read_capacity" {
   type        = number
   description = "Read capacity units for DynamoDB tables"
@@ -155,6 +161,12 @@ variable "msk_cluster_arn" {
 variable "additional_flink_s3_buckets" {
   type        = list(string)
   description = "Additional S3 bucket names (without arn prefix) to grant the Flink job execution role read/write access to. Useful for cross-account artifact prefixes that aren't covered by warehouse_bucket or artifact_prefix."
+  default     = []
+}
+
+variable "additional_data_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the orchestration IRSA read-only access to. Use this for external data lake buckets (e.g. Iceberg metadata paths) that the orchestration role needs to read."
   default     = []
 }
 
