@@ -28,6 +28,8 @@ spec:
           env:
             - name: API_BASE_URL
               value: "http://orchestration-hub-service"
+            - name: FETCHER_BASE_URL
+              value: "http://orchestration-fetcher-service"
             - name: DB_HOST
               value: {{ .Values.database.host | quote }}
             - name: DB_NAME
@@ -62,15 +64,14 @@ spec:
               value: "{{ .Values.prometheus.namespace }}"
             - name: AUTH_ENABLED
               value: "{{ .Values.auth.enabled }}"
+            {{- if .Values.auth.enabled }}
             - name: AUTH_URL
               value: "{{ .Values.auth.url }}"
-            {{- if .Values.auth.enabled }}
             - name: AUTH_SECRET
               valueFrom:
                 secretKeyRef:
                   name: auth-secret
                   key: auth-secret
-            {{- end }}
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -117,6 +118,7 @@ spec:
               value: "{{ .Values.auth.idp_role_mapping }}"
             - name: IDP_GROUP_CLAIM
               value: "{{ .Values.auth.idp_group_claim }}"
+            {{- end }}
 
           volumeMounts:
             - name: secrets-store-inline
