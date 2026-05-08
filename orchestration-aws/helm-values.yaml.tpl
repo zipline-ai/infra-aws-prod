@@ -2,6 +2,7 @@ global:
   customer_name: "${customer_name}"
   artifact_prefix: "${artifact_prefix}"
   version: "${version}"
+  deploy_fetcher: ${deploy_fetcher}
 
 imagePullSecrets:
   - name: "${image_pull_secret}"

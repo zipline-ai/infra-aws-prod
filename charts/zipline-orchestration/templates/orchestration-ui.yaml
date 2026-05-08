@@ -28,8 +28,10 @@ spec:
           env:
             - name: API_BASE_URL
               value: "http://orchestration-hub-service"
+            {{- if .Values.global.deploy_fetcher }}
             - name: FETCHER_BASE_URL
-              value: "http://orchestration-fetcher-service"
+              value: "http://fetcher-service"
+            {{- end }}
             - name: DB_HOST
               value: {{ .Values.database.host | quote }}
             - name: DB_NAME

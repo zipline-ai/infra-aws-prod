@@ -55,6 +55,11 @@ variable "eks_instance_type" {
   default     = "m8a.4xlarge"
 }
 
+variable "deploy_fetcher" {
+  description = "Whether or not to deploy the fetcher service"
+  default     = false
+}
+
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"

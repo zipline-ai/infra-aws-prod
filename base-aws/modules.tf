@@ -26,6 +26,7 @@ module "orchestration" {
 
   # EKS Configuration
   eks_version      = var.eks_version
+  deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
   # Personnel access
