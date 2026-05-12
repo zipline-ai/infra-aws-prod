@@ -60,3 +60,9 @@ variable "personnel_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "crucible_bucket_name" {
+  description = "S3 bucket for Crucible spark event logs, flink checkpoints, and jar staging."
+  type        = string
+  default     = "zipline-crucible-canary"
+}
