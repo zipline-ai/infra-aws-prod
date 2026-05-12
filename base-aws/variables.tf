@@ -26,6 +26,12 @@ variable "emr_subnetwork" {
   default     = ""
 }
 
+variable "emr_custom_image_version" {
+  type        = string
+  description = "Optional EMR Serverless custom Docker image tag (e.g. 'v3.3.2-zipline.1'). When non-empty, provisions a sibling EMR Serverless application zipline-emr-<customer_name>-custom-image with imageConfiguration set, plus an ECR repo chronon-emr-<customer_name>-custom-image with a pull policy scoped to that app. The canonical zipline-emr-<customer_name> application is left untouched; opt workflows in by pointing teams.py SPARK_CLUSTER_NAME at the custom-image app. The customer is responsible for building and pushing the image to the ECR repo at the matching tag."
+  default     = ""
+}
+
 variable "emr_log_uri" {
   type        = string
   description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{customer_name}/emr/"

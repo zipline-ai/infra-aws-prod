@@ -101,6 +101,8 @@ module "base_setup" {
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
 
+  emr_custom_image_version = var.emr_custom_image_version
+
   msk_cluster_arn = var.msk_cluster_arn
 
   additional_flink_s3_buckets = var.additional_flink_s3_buckets
