@@ -3,7 +3,10 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  emr_custom_image_enabled = var.emr_custom_image_version != ""
+  # Trim whitespace so accidental " " in tfvars doesn't enable the feature
+  # or produce a bogus image URI like "...:  ".
+  emr_custom_image_version = trimspace(var.emr_custom_image_version)
+  emr_custom_image_enabled = local.emr_custom_image_version != ""
   emr_custom_image_app     = "zipline-emr-${var.customer_name}-custom-image"
   emr_custom_image_repo    = "chronon-emr-${var.customer_name}-custom-image"
   emr_custom_image_uri = local.emr_custom_image_enabled ? format(
@@ -11,7 +14,7 @@ locals {
     data.aws_caller_identity.current.account_id,
     var.region,
     local.emr_custom_image_repo,
-    var.emr_custom_image_version,
+    local.emr_custom_image_version,
   ) : ""
 }
 
