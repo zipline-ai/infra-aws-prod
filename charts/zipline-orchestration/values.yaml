@@ -4,6 +4,7 @@ global:
   customer_name: ""
   artifact_prefix: ""
   version: ""
+  deploy_fetcher: false
 
 # AWS-specific configuration
 aws:

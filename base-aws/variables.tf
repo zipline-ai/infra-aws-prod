@@ -46,6 +46,11 @@ variable "personnel_arns" {
 }
 
 # EKS Configuration
+variable "deploy_fetcher" {
+  description = "Whether or not to deploy the fetcher service"
+  default     = false
+}
+
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"

@@ -2,6 +2,7 @@ global:
   customer_name: "${customer_name}"
   artifact_prefix: "${artifact_prefix}"
   version: "${version}"
+  deploy_fetcher: ${deploy_fetcher}
 
 imagePullSecrets:
   - name: "${image_pull_secret}"
@@ -61,7 +62,7 @@ ingress-nginx-ui:
 
 # Ingress NGINX Controller for Fetcher
 ingress-nginx-fetcher:
-  enabled: true
+  enabled: ${deploy_fetcher}
   fullnameOverride: nginx-fetcher
   controller:
     ingressClassResource:
