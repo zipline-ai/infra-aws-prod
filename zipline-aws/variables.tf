@@ -108,6 +108,12 @@ variable "databricks_client_secret" {
   default     = ""
 }
 
+variable "emr_custom_image_version" {
+  type        = string
+  description = "Optional EMR Serverless custom Docker image tag (e.g. 'v3.3.2-zipline.1'). When non-empty, provisions a sibling EMR Serverless application zipline-emr-<customer_name>-custom-image with imageConfiguration set, and attaches an ECR pull policy (scoped to that app) to the existing repo chronon-emr-<customer_name>-custom-image. The canonical zipline-emr-<customer_name> application is left untouched; opt workflows in by pointing teams.py SPARK_CLUSTER_NAME at the custom-image app. The customer must create the ECR repo and push the matching tag before applying."
+  default     = ""
+}
+
 variable "msk_cluster_arn" {
   type        = string
   description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
