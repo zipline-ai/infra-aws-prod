@@ -62,7 +62,7 @@ ingress-nginx-ui:
 
 # Ingress NGINX Controller for Fetcher
 ingress-nginx-fetcher:
-  enabled: true
+  enabled: ${deploy_fetcher}
   fullnameOverride: nginx-fetcher
   controller:
     ingressClassResource:
