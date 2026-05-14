@@ -42,6 +42,15 @@ module "orchestration" {
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
+  databricks_host          = var.databricks_host
+  databricks_warehouse     = var.databricks_warehouse
+
+  # Snowflake Open Catalog (Polaris, Iceberg REST) integration (optional)
+  snowflake_polaris_client_id     = var.snowflake_polaris_client_id
+  snowflake_polaris_client_secret = var.snowflake_polaris_client_secret
+  snowflake_account               = var.snowflake_account
+  polaris_warehouse               = var.polaris_warehouse
+  polaris_principal_role          = var.polaris_principal_role
 
   msk_cluster_arn = var.msk_cluster_arn
 

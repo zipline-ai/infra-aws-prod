@@ -19,6 +19,7 @@ aws:
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"
   databricksSpSecretArn: "${databricks_sp_secret_arn}"
+  snowflakePolarisSpSecretArn: "${snowflake_polaris_sp_secret_arn}"
   emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
   emrLogUri: "${emr_log_uri}"
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
@@ -251,3 +252,18 @@ auth:
   sso_client_secret: "${sso_client_secret}"
   idp_role_mapping: "${idp_role_mapping}"
   idp_group_claim: "${idp_group_claim}"
+
+starrocks:
+  catalogInit:
+    enabled: true
+    skipMissingRequiredEnv: true
+    env:
+      DATABRICKS_HOST: "${databricks_host}"
+      DATABRICKS_WAREHOUSE: "${databricks_warehouse}"
+      SNOWFLAKE_ACCOUNT: "${snowflake_account}"
+      POLARIS_WAREHOUSE: "${polaris_warehouse}"
+      POLARIS_PRINCIPAL_ROLE: "${polaris_principal_role}"
+    catalogs:
+      awsGlue: true
+      databricksUnityAws: true
+      snowflakePolarisAws: true

@@ -13,6 +13,7 @@ aws:
   warehouseBucket: ""
   kvEnableTtl: "true"
   databricksSpSecretArn: ""
+  snowflakePolarisSpSecretArn: ""
   eksClusterName: ""
   flinkEksServiceAccount: ""
   flinkEksNamespace: ""
@@ -210,3 +211,18 @@ auth:
   sso_client_secret: ""
   idp_role_mapping: ""
   idp_group_claim: ""
+
+starrocks:
+  catalogInit:
+    enabled: true
+    skipMissingRequiredEnv: true
+    env:
+      DATABRICKS_HOST: ""
+      DATABRICKS_WAREHOUSE: ""
+      SNOWFLAKE_ACCOUNT: ""
+      POLARIS_WAREHOUSE: ""
+      POLARIS_PRINCIPAL_ROLE: ""
+    catalogs:
+      awsGlue: true
+      databricksUnityAws: true
+      snowflakePolarisAws: true

@@ -264,6 +264,14 @@ resource "helm_release" "zipline_orchestration" {
 
       # Databricks service principal secret ARN (empty if not configured)
       databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
+      databricks_host          = var.databricks_host
+      databricks_warehouse     = var.databricks_warehouse
+
+      # Snowflake service principal secret ARN (empty if not configured)
+      snowflake_polaris_sp_secret_arn  = var.snowflake_polaris_client_id != "" ? aws_secretsmanager_secret.snowflake_polaris_sp[0].arn : ""
+      snowflake_account                = var.snowflake_account
+      polaris_warehouse                = var.polaris_warehouse
+      polaris_principal_role           = var.polaris_principal_role
 
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")

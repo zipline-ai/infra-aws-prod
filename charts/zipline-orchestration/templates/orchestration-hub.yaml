@@ -88,12 +88,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: databricks-sp-credentials
-                  key: client_id
+                  key: databricks_client_id
             - name: DATABRICKS_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: databricks-sp-credentials
-                  key: client_secret
+                  key: databricks_client_secret
             {{- end }}
             - name: AUTH_ENABLED
               value: "{{ .Values.auth.enabled }}"

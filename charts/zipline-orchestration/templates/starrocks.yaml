@@ -39,6 +39,19 @@ data:
     # Storage configuration
     storage_root_path = ${STARROCKS_HOME}/storage
     mem_limit = 70%
+{{- if .Values.starrocks.catalogInit.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: starrocks-catalog-sql
+  namespace: {{ .Release.Namespace }}
+data:
+{{- range $path, $_ := .Files.Glob "catalogs/*.sql" }}
+  {{ base $path }}: |-
+{{ $.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -216,6 +229,7 @@ spec:
       port: 8030
       targetPort: 8030
       nodePort: 30830
+{{- if .Values.starrocks.catalogInit.enabled }}
 ---
 # Job to initialize the Iceberg catalog after StarRocks is ready
 apiVersion: batch/v1
@@ -239,7 +253,7 @@ spec:
             - |
               echo "Waiting for StarRocks to accept queries..."
               for i in $(seq 1 60); do
-                if mysql -h starrocks -P 9030 -u root -e "SELECT 1" >/dev/null 2>&1; then
+                if mysql -h starrocks-service -P 9030 -u root -e "SELECT 1" >/dev/null 2>&1; then
                   echo "StarRocks is ready and accepting queries"
                   exit 0
                 fi
@@ -267,6 +281,51 @@ spec:
       containers:
         - name: init-catalog
           image: mysql:8.0
+          env:
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: SKIP_MISSING_REQUIRED_ENV
+              value: {{ .Values.starrocks.catalogInit.skipMissingRequiredEnv | quote }}
+            - name: CATALOG_AWS_GLUE_ENABLED
+              value: {{ .Values.starrocks.catalogInit.catalogs.awsGlue | quote }}
+            - name: CATALOG_DATABRICKS_UNITY_AWS_ENABLED
+              value: {{ .Values.starrocks.catalogInit.catalogs.databricksUnityAws | quote }}
+            - name: CATALOG_SNOWFLAKE_POLARIS_AWS_ENABLED
+              value: {{ .Values.starrocks.catalogInit.catalogs.snowflakePolarisAws | quote }}
+            {{- range $name, $value := .Values.starrocks.catalogInit.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.aws.databricksSpSecretArn }}
+            - name: DATABRICKS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: databricks-sp-credentials
+                  key: databricks_client_id
+            - name: DATABRICKS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: databricks-sp-credentials
+                  key: databricks_client_secret
+            {{- end }}
+            {{- if .Values.aws.snowflakeSpSecretArn }}
+            - name: SNOWFLAKE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: snowflake-polaris-credentials
+                  key: snowflake_polaris_client_id
+            - name: SNOWFLAKE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: snowflake-polaris-credentials
+                  key: snowflake_polaris_client_secret
+            - name: SNOWFLAKE_ACCOUNT
+              value: {{ .Values.starrocks.catalogInit.env.SNOWFLAKE_ACCOUNT | quote }}
+            - name: POLARIS_WAREHOUSE
+              value: {{ .Values.starrocks.catalogInit.env.POLARIS_WAREHOUSE | quote }}
+            - name: POLARIS_PRINCIPAL_ROLE
+              value: {{ .Values.starrocks.catalogInit.env.POLARIS_PRINCIPAL_ROLE | quote }}
+            {{- end }}
           command:
             - sh
             - -c
@@ -277,6 +336,75 @@ spec:
 
               sql_escape() {
                 printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+              }
+
+              sed_escape_replacement() {
+                sed -e 's/\\/\\\\/g' -e 's/[\/&]/\\&/g'
+              }
+
+              catalog_enabled() {
+                case "$1" in
+                  aws-glue.sql)
+                    [ "${CATALOG_AWS_GLUE_ENABLED:-true}" = "true" ]
+                    ;;
+                  databricks-unity-aws.sql)
+                    [ "${CATALOG_DATABRICKS_UNITY_AWS_ENABLED:-true}" = "true" ]
+                    ;;
+                  snowflake-polaris-aws.sql)
+                    [ "${CATALOG_SNOWFLAKE_POLARIS_AWS_ENABLED:-true}" = "true" ]
+                    ;;
+                  *)
+                    true
+                    ;;
+                esac
+              }
+
+              render_sql_template() {
+                input_file="$1"
+                output_file="$2"
+
+                cp "$input_file" "$output_file"
+                vars="$(grep -o '\${[A-Za-z_][A-Za-z0-9_]*}' "$input_file" | sed 's/[${}]//g' | sort -u)"
+                for var in $vars; do
+                  eval "raw_value=\${$var:-}"
+                  escaped_value="$(sql_escape "$raw_value" | sed_escape_replacement)"
+                  sed -i "s/\${$var}/$escaped_value/g" "$output_file"
+                done
+              }
+
+              apply_catalog_template() {
+                catalog_file="$1"
+                catalog_name="$(basename "$catalog_file")"
+                requires="$(sed -n 's/^-- @requires:[[:space:]]*//p' "$catalog_file" | head -n1)"
+                missing=""
+
+                if ! catalog_enabled "$catalog_name"; then
+                  echo "Skipping $catalog_name; disabled by Helm values"
+                  return 0
+                fi
+
+                for var in $requires; do
+                  eval "value=\${$var:-}"
+                  if [ -z "$value" ]; then
+                    missing="$missing $var"
+                  fi
+                done
+
+                if [ -n "$missing" ]; then
+                  if [ "$SKIP_MISSING_REQUIRED_ENV" = "true" ]; then
+                    echo "Skipping $catalog_name; missing required env:$missing"
+                    return 0
+                  fi
+
+                  echo "Cannot apply $catalog_name; missing required env:$missing"
+                  return 1
+                fi
+
+                rendered="/tmp/rendered-$catalog_name"
+                render_sql_template "$catalog_file" "$rendered"
+
+                echo "Applying $catalog_name..."
+                mysql -h starrocks-service -P 9030 -u root < "$rendered"
               }
 
               DB_USERNAME_ESCAPED="$(sql_escape "$DB_USERNAME")"
@@ -299,12 +427,18 @@ spec:
               );
               EOF
 
-              mysql -h starrocks -P 9030 -u root < /tmp/init-catalog.sql
+              mysql -h starrocks-service -P 9030 -u root < /tmp/init-catalog.sql
+
+              for catalog_file in /catalogs/*.sql; do
+                if [ -f "$catalog_file" ]; then
+                  apply_catalog_template "$catalog_file"
+                fi
+              done
 
               # Verify catalog was created
               echo ""
               echo "Verifying catalog creation..."
-              mysql -h starrocks -P 9030 -u root -e "SHOW CATALOGS;"
+              mysql -h starrocks-service -P 9030 -u root -e "SHOW CATALOGS;"
 
               echo ""
               echo "Iceberg catalog initialized successfully!"
@@ -313,6 +447,9 @@ spec:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
+            - name: catalog-sql
+              mountPath: /catalogs
+              readOnly: true
       volumes:
         - name: secrets-store-inline
           csi:
@@ -320,3 +457,7 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "db-secret-provider"
+        - name: catalog-sql
+          configMap:
+            name: starrocks-catalog-sql
+{{- end }}

@@ -208,6 +208,51 @@ variable "databricks_client_secret" {
   default     = ""
 }
 
+variable "databricks_host" {
+  type        = string
+  description = "Databricks host for data exploration. Leave empty to skip Databricks integration."
+  default     = ""
+}
+
+variable "databricks_warehouse" {
+  type        = string
+  description = "Databricks warehouse for data exploration. Leave empty to skip Databricks integration."
+  default     = ""
+}
+
+# Snowflake Open Catalog (Polaris, Iceberg REST) integration (optional)
+variable "snowflake_polaris_client_id" {
+  type        = string
+  description = "Snowflake service principal for Catalog OAuth. Leave empty to skip Snowflake integration."
+  sensitive   = true
+  default     = ""
+}
+
+variable "snowflake_polaris_client_secret" {
+  type        = string
+  description = "Snowflake service principal client secret for Catalog OAuth. Leave empty to skip Snowflake integration."
+  sensitive   = true
+  default     = ""
+}
+
+variable "snowflake_account" {
+  type        = string
+  description = "Snowflake account for data exploration. Leave empty to skip Snowflake integration."
+  default     = ""
+}
+
+variable "polaris_warehouse" {
+  type        = string
+  description = "Polaris warehouse for data exploration. Leave empty to skip Snowflake integration."
+  default     = ""
+}
+
+variable "polaris_principal_role" {
+  type        = string
+  description = "Polaris principal role for data exploration. Leave empty to skip Snowflake integration."
+  default     = ""
+}
+
 # Zipline Authentication
 variable "zipline_auth_enabled" {
   type        = bool
