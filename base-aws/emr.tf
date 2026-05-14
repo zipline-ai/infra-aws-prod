@@ -1,5 +1,23 @@
 data "aws_region" "current" {}
 
+data "aws_caller_identity" "current" {}
+
+locals {
+  # Trim whitespace so accidental " " in tfvars doesn't enable the feature
+  # or produce a bogus image URI like "...:  ".
+  emr_custom_image_version = trimspace(var.emr_custom_image_version)
+  emr_custom_image_enabled = local.emr_custom_image_version != ""
+  emr_custom_image_app     = "zipline-emr-${var.customer_name}-custom-image"
+  emr_custom_image_repo    = "chronon-emr-${var.customer_name}-custom-image"
+  emr_custom_image_uri = local.emr_custom_image_enabled ? format(
+    "%s.dkr.ecr.%s.amazonaws.com/%s:%s",
+    data.aws_caller_identity.current.account_id,
+    var.region,
+    local.emr_custom_image_repo,
+    local.emr_custom_image_version,
+  ) : ""
+}
+
 resource "aws_cloudwatch_log_group" "emr_logs" {
   name              = "/emr/zipline-${var.customer_name}"
   retention_in_days = 30
@@ -152,7 +170,80 @@ resource "aws_emrserverless_application" "spark" {
   }
 
   network_configuration {
-    subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : aws_subnet.main.id]
+    subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : (var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id)]
     security_group_ids = [aws_security_group.emr_sg.id]
   }
+}
+
+###
+# Optional: EMR Serverless custom image — separate application
+#
+# Provisioned only when var.emr_custom_image_version is set. Lets one customer
+# opt specific workflows into a patched Spark image (e.g. forked delta-spark)
+# by pointing teams.py SPARK_CLUSTER_NAME at this sibling app. The canonical
+# zipline-emr-${var.customer_name} app is left untouched so paved-path
+# workflows are unaffected.
+###
+
+resource "aws_emrserverless_application" "spark_custom_image" {
+  count = local.emr_custom_image_enabled ? 1 : 0
+
+  name          = local.emr_custom_image_app
+  type          = "Spark"
+  release_label = "emr-7.12.0"
+
+  auto_start_configuration {
+    enabled = true
+  }
+
+  auto_stop_configuration {
+    enabled              = true
+    idle_timeout_minutes = 15
+  }
+
+  network_configuration {
+    subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : (var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id)]
+    security_group_ids = [aws_security_group.emr_sg.id]
+  }
+
+  image_configuration {
+    image_uri = local.emr_custom_image_uri
+  }
+}
+
+# EMR Serverless pulls the image as its own service principal, scoped to the
+# custom-image application's ARN — not via the execution role. The ECR repo
+# itself (chronon-emr-${var.customer_name}-custom-image) is created by the
+# customer outside of TF (one-time `aws ecr create-repository`); this policy
+# is attached to that existing repo by name.
+data "aws_iam_policy_document" "emr_custom_image_pull" {
+  count = local.emr_custom_image_enabled ? 1 : 0
+
+  statement {
+    sid    = "EmrServerlessCustomImagePull"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["emr-serverless.amazonaws.com"]
+    }
+
+    actions = [
+      "ecr:BatchGetImage",
+      "ecr:DescribeImages",
+      "ecr:GetDownloadUrlForLayer",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = [aws_emrserverless_application.spark_custom_image[0].arn]
+    }
+  }
+}
+
+resource "aws_ecr_repository_policy" "emr_custom_image" {
+  count      = local.emr_custom_image_enabled ? 1 : 0
+  repository = local.emr_custom_image_repo
+  policy     = data.aws_iam_policy_document.emr_custom_image_pull[0].json
 }

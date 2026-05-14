@@ -55,6 +55,11 @@ variable "eks_instance_type" {
   default     = "m8a.4xlarge"
 }
 
+variable "deploy_fetcher" {
+  description = "Whether or not to deploy the fetcher service"
+  default     = false
+}
+
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"
@@ -161,6 +166,12 @@ variable "msk_cluster_arn" {
 variable "additional_flink_s3_buckets" {
   type        = list(string)
   description = "Additional S3 bucket names (without arn prefix) to grant the Flink job execution role read/write access to. Useful for cross-account artifact prefixes that aren't covered by warehouse_bucket or artifact_prefix."
+  default     = []
+}
+
+variable "additional_data_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the orchestration IRSA read-only access to. Use this for external data lake buckets (e.g. Iceberg metadata paths) that the orchestration role needs to read."
   default     = []
 }
 

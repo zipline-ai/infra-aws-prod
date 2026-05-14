@@ -1,5 +1,6 @@
 // Provider configuration
 terraform {
+  required_version = ">= 1.9.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -84,6 +85,7 @@ module "base_setup" {
 
   # EKS Configuration
   eks_version      = var.eks_version
+  deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
   # Custom domains for HTTPS
@@ -100,9 +102,12 @@ module "base_setup" {
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
 
+  emr_custom_image_version = var.emr_custom_image_version
+
   msk_cluster_arn = var.msk_cluster_arn
 
   additional_flink_s3_buckets = var.additional_flink_s3_buckets
+  additional_data_buckets     = var.additional_data_buckets
 
   # DynamoDB Configuration
   dynamodb_table_prefix    = var.dynamodb_table_prefix
@@ -126,5 +131,10 @@ module "base_setup" {
   sso_client_secret                   = var.sso_client_secret
   idp_role_mapping                    = var.idp_role_mapping
   idp_group_claim                     = var.idp_group_claim
+
+  # Optional VPC Import
+  existing_vpc_id                = var.existing_vpc_id
+  existing_vpc_primary_subnet_id = var.existing_vpc_primary_subnet_id
+  existing_vpc_secondary_subnet_id = var.existing_vpc_secondary_subnet_id
 
 }

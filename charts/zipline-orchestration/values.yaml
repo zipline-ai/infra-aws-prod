@@ -4,6 +4,7 @@ global:
   customer_name: ""
   artifact_prefix: ""
   version: ""
+  deploy_fetcher: false
 
 # AWS-specific configuration
 aws:
@@ -193,7 +194,7 @@ prometheus:
 auth:
   enabled: false
   url: ""
-  secret: ""
+  secrets_arn: ""
   jwksUrl: ""
   google_oauth_client_id: ""
   google_oauth_client_secret: ""

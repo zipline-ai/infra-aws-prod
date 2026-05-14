@@ -43,6 +43,11 @@ variable "personnel_arns" {
 }
 
 # EKS Configuration
+variable "deploy_fetcher" {
+  description = "Whether or not to deploy the fetcher service"
+  default     = false
+}
+
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"
@@ -103,6 +108,12 @@ variable "databricks_client_secret" {
   default     = ""
 }
 
+variable "emr_custom_image_version" {
+  type        = string
+  description = "Optional EMR Serverless custom Docker image tag (e.g. 'v3.3.2-zipline.1'). When non-empty, provisions a sibling EMR Serverless application zipline-emr-<customer_name>-custom-image with imageConfiguration set, and attaches an ECR pull policy (scoped to that app) to the existing repo chronon-emr-<customer_name>-custom-image. The canonical zipline-emr-<customer_name> application is left untouched; opt workflows in by pointing teams.py SPARK_CLUSTER_NAME at the custom-image app. The customer must create the ECR repo and push the matching tag before applying."
+  default     = ""
+}
+
 variable "msk_cluster_arn" {
   type        = string
   description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."
@@ -112,6 +123,12 @@ variable "msk_cluster_arn" {
 variable "additional_flink_s3_buckets" {
   type        = list(string)
   description = "Additional S3 bucket names (without arn prefix) to grant the Flink job execution role read/write access to. Useful for cross-account artifact prefixes that aren't covered by warehouse_bucket or artifact_prefix."
+  default     = []
+}
+
+variable "additional_data_buckets" {
+  type        = list(string)
+  description = "Additional S3 bucket names (without arn prefix) to grant the orchestration IRSA read-only access to. Use this for external data lake buckets (e.g. Iceberg metadata paths) that the orchestration role needs to read."
   default     = []
 }
 
@@ -234,5 +251,32 @@ variable "idp_role_mapping" {
 variable "idp_group_claim" {
   type        = string
   description = "Optional group claims configured for zipline authentication"
+  default     = ""
+}
+
+# Optional VPC Import
+# If used, S3 and DynamoDB Gateway endpoints are required for EMR Serverless workers (they lack public IPs).
+# Users providing an existing VPC must ensure these endpoints exist.
+
+variable "existing_vpc_id" {
+  type        = string
+  description = "Optional. ID to existing vpc to attach the resources to"
+  default     = ""
+
+  validation {
+    condition     = var.existing_vpc_id == "" || (var.existing_vpc_primary_subnet_id != "" && var.existing_vpc_secondary_subnet_id != "")
+    error_message = "When existing_vpc_id is provided, both existing_vpc_primary_subnet_id and existing_vpc_secondary_subnet_id must also be provided."
+  }
+}
+
+variable "existing_vpc_primary_subnet_id" {
+  type        = string
+  description = "Optional. ID to existing primary subnet to attach the resources to"
+  default     = ""
+}
+
+variable "existing_vpc_secondary_subnet_id" {
+  type        = string
+  description = "Optional. ID to existing secondary subnet to attach the resources to"
   default     = ""
 }
