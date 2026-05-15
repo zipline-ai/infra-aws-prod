@@ -19,6 +19,12 @@ data "aws_subnet" "shared" {
     name   = "tag:Name"
     values = [each.value]
   }
+  # Pin to the selected VPC so a name collision with another VPC's subnet
+  # tags can't bind the cluster to the wrong network.
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.shared.id]
+  }
 }
 
 locals {

@@ -47,5 +47,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "crucible" {
     expiration {
       days = 7
     }
+
+    # Reap orphaned multipart-upload parts on the same cadence so a failed
+    # `aws s3 cp` doesn't leak storage cost indefinitely.
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
   }
 }

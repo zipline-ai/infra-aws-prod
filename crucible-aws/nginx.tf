@@ -41,9 +41,9 @@ resource "helm_release" "ingress_nginx" {
           "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
 
           # ACM cert + TLS termination at the NLB.
-          "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"           = aws_acm_certificate_validation.crucible_aws.certificate_arn
-          "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"          = "443"
-          "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"   = "tcp"
+          "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"                = aws_acm_certificate_validation.crucible_aws.certificate_arn
+          "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"               = "443"
+          "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"        = "tcp"
           "service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout" = "60"
         }
       }

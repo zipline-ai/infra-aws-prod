@@ -7,6 +7,8 @@
 # pkg/cloud/aws.go), (3) STS GetCallerIdentity at startup.
 ###############################################################################
 
+data "aws_caller_identity" "current" {}
+
 locals {
   oidc_host = replace(aws_iam_openid_connect_provider.oidc.url, "https://", "")
 }
@@ -85,13 +87,13 @@ data "aws_iam_policy_document" "gateway_iam" {
       "iam:ListAttachedRolePolicies",
       "iam:ListRolePolicies",
     ]
-    resources = ["arn:aws:iam::*:role/crucible-*"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/crucible-*"]
   }
 
   statement {
     effect    = "Allow"
     actions   = ["iam:GetOpenIDConnectProvider"]
-    resources = ["*"]
+    resources = [aws_iam_openid_connect_provider.oidc.arn]
   }
 
   statement {
@@ -246,6 +248,14 @@ data "aws_iam_policy_document" "spark_s3" {
   # the canary account (e.g. `_BATCH`, plus per-groupBy upload tables).
   # Without this the driver finishes the Spark stage but crashes on the
   # control-plane DescribeTable call. Scoped to canary-region tables only.
+  # dynamodb:ListTables doesn't accept a resource-level ARN per AWS auth
+  # rules — it has to be granted at the account level. Split into its own
+  # statement so the table-scoped statement below can stay tight.
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:ListTables"]
+    resources = ["*"]
+  }
   statement {
     effect = "Allow"
     actions = [
@@ -253,7 +263,6 @@ data "aws_iam_policy_document" "spark_s3" {
       "dynamodb:CreateTable",
       "dynamodb:UpdateTable",
       "dynamodb:DeleteTable",
-      "dynamodb:ListTables",
       "dynamodb:DescribeContinuousBackups",
       "dynamodb:UpdateContinuousBackups",
       "dynamodb:DescribeImport",
