@@ -1,5 +1,21 @@
+###############################################################################
+# Skeleton variables for crucible-aws.
+#
+# Environment-specific values (canary VPC/subnet tags, public host, bucket
+# name, public-API CIDR list, ...) come from `terraform.tfvars` that lives in
+# s3://zipline-canary-vars/crucible/ and is pulled in by `pull_canary_config.sh`
+# at plan/apply time — so this template stays env-agnostic and doesn't leak
+# canary-account specifics into the prod-facing tree.
+#
+# Generic operational defaults (region, cluster name, eks version, node sizing)
+# stay here as reasonable starting points. Anything specific to *which*
+# network or *which* fleet of buckets the cluster talks to has no default —
+# missing values fail the plan loudly rather than silently selecting whatever
+# happens to share a name in the current account.
+###############################################################################
+
 variable "region" {
-  description = "AWS region hosting the Crucible cluster (same region as canary-eks so they can share the VPC)."
+  description = "AWS region hosting the cluster."
   type        = string
   default     = "us-west-2"
 }
@@ -16,19 +32,32 @@ variable "eks_version" {
   default     = "1.34"
 }
 
-# VPC + subnets are reused from the canary stack (per user direction). Resolved
-# at plan time via data lookups so this module isn't coupled to the canary
-# terraform state — only to the resource names that canary already exposes.
+# EKS public API endpoint exposure.
+#
+# Skeleton default is private-only — canary `terraform.tfvars` flips this on
+# (operator laptops + GitHub Actions OIDC need to reach the API). Prod should
+# leave it off, or supply a tight `eks_public_access_cidrs` list.
+variable "eks_endpoint_public_access" {
+  description = "Whether the EKS API endpoint is reachable from outside the VPC."
+  type        = bool
+  default     = false
+}
+
+variable "eks_public_access_cidrs" {
+  description = "CIDR ranges allowed to reach the EKS public API endpoint when eks_endpoint_public_access is true. Empty list means AWS-default (0.0.0.0/0)."
+  type        = list(string)
+  default     = []
+}
+
+# Shared network. Supplied per-environment via tfvars from S3.
 variable "shared_vpc_name_tag" {
-  description = "Name tag of the VPC that crucible-eks will join (canary VPC)."
+  description = "Name tag of the VPC that the cluster joins."
   type        = string
-  default     = "zipline-canary-vpc"
 }
 
 variable "shared_subnet_name_tags" {
-  description = "Name tags of the subnets to attach to crucible-eks. Order is not significant."
+  description = "Name tags of the subnets to attach to the cluster. Order is not significant."
   type        = list(string)
-  default     = ["zipline-canary-subnet-main", "zipline-canary-subnet-secondary"]
 }
 
 variable "node_instance_type" {
@@ -56,7 +85,7 @@ variable "node_desired_size" {
 }
 
 variable "personnel_arns" {
-  description = "IAM principal ARNs that should get cluster admin access via EKS access entries. Defaults to empty; populate with engineers who'll kubectl into the cluster."
+  description = "IAM principal ARNs that should get cluster admin access via EKS access entries."
   type        = list(string)
   default     = []
 }
@@ -64,11 +93,9 @@ variable "personnel_arns" {
 variable "crucible_bucket_name" {
   description = "S3 bucket for Crucible spark event logs, flink checkpoints, and jar staging."
   type        = string
-  default     = "zipline-crucible-canary"
 }
 
 variable "public_host" {
-  description = "Public hostname for the cluster (frontend, hub REST, crucible gateway routes path-prefixed under this host). spark-history.<public_host> is added as a SAN."
+  description = "Public hostname for the cluster. ACM cert is issued for this exact domain."
   type        = string
-  default     = "crucible-aws.zipline.ai"
 }

@@ -71,8 +71,12 @@ resource "aws_eks_cluster" "crucible" {
   vpc_config {
     subnet_ids              = local.subnet_ids
     endpoint_private_access = true
-    endpoint_public_access  = true
-    security_group_ids      = [aws_security_group.cluster.id]
+    endpoint_public_access  = var.eks_endpoint_public_access
+    # When the public endpoint is on, the canary tfvars supplies an explicit
+    # CIDR allow-list; empty list elides the argument and AWS falls back to
+    # 0.0.0.0/0. Skeleton default has the endpoint off entirely.
+    public_access_cidrs = length(var.eks_public_access_cidrs) > 0 ? var.eks_public_access_cidrs : null
+    security_group_ids  = [aws_security_group.cluster.id]
   }
 
   access_config {
