@@ -66,3 +66,9 @@ variable "crucible_bucket_name" {
   type        = string
   default     = "zipline-crucible-canary"
 }
+
+variable "public_host" {
+  description = "Public hostname for the cluster (frontend, hub REST, crucible gateway routes path-prefixed under this host). spark-history.<public_host> is added as a SAN."
+  type        = string
+  default     = "crucible-aws.zipline.ai"
+}
