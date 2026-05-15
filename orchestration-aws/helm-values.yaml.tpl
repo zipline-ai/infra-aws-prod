@@ -264,6 +264,6 @@ starrocks:
       POLARIS_WAREHOUSE: "${polaris_warehouse}"
       POLARIS_PRINCIPAL_ROLE: "${polaris_principal_role}"
     catalogs:
-      awsGlue: true
-      databricksUnityAws: true
-      snowflakePolarisAws: true
+      glue: true
+      databricksUnity: true
+      snowflakePolaris: true

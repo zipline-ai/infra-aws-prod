@@ -286,12 +286,12 @@ spec:
               value: {{ .Values.aws.region | quote }}
             - name: SKIP_MISSING_REQUIRED_ENV
               value: {{ .Values.starrocks.catalogInit.skipMissingRequiredEnv | quote }}
-            - name: CATALOG_AWS_GLUE_ENABLED
-              value: {{ .Values.starrocks.catalogInit.catalogs.awsGlue | quote }}
-            - name: CATALOG_DATABRICKS_UNITY_AWS_ENABLED
-              value: {{ .Values.starrocks.catalogInit.catalogs.databricksUnityAws | quote }}
-            - name: CATALOG_SNOWFLAKE_POLARIS_AWS_ENABLED
-              value: {{ .Values.starrocks.catalogInit.catalogs.snowflakePolarisAws | quote }}
+            - name: CATALOG_GLUE_ENABLED
+              value: {{ .Values.starrocks.catalogInit.catalogs.glue | quote }}
+            - name: CATALOG_DATABRICKS_UNITY_ENABLED
+              value: {{ .Values.starrocks.catalogInit.catalogs.databricksUnity | quote }}
+            - name: CATALOG_SNOWFLAKE_POLARIS_ENABLED
+              value: {{ .Values.starrocks.catalogInit.catalogs.snowflakePolaris | quote }}
             {{- range $name, $value := .Values.starrocks.catalogInit.env }}
             - name: {{ $name }}
               value: {{ $value | quote }}
@@ -344,14 +344,14 @@ spec:
 
               catalog_enabled() {
                 case "$1" in
-                  aws-glue.sql)
-                    [ "${CATALOG_AWS_GLUE_ENABLED:-true}" = "true" ]
+                  glue.sql)
+                    [ "${CATALOG_GLUE_ENABLED:-true}" = "true" ]
                     ;;
-                  databricks-unity-aws.sql)
-                    [ "${CATALOG_DATABRICKS_UNITY_AWS_ENABLED:-true}" = "true" ]
+                  databricks-unity.sql)
+                    [ "${CATALOG_DATABRICKS_UNITY_ENABLED:-true}" = "true" ]
                     ;;
-                  snowflake-polaris-aws.sql)
-                    [ "${CATALOG_SNOWFLAKE_POLARIS_AWS_ENABLED:-true}" = "true" ]
+                  snowflake-polaris.sql)
+                    [ "${CATALOG_SNOWFLAKE_POLARIS_ENABLED:-true}" = "true" ]
                     ;;
                   *)
                     true
