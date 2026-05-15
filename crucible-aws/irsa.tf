@@ -157,6 +157,7 @@ resource "aws_iam_role" "spark" {
 }
 
 data "aws_iam_policy_document" "spark_s3" {
+  # Crucible's own bucket (event logs, archive db, conf uploads from Hub).
   statement {
     effect = "Allow"
     actions = [
@@ -169,6 +170,110 @@ data "aws_iam_policy_document" "spark_s3" {
     resources = [
       aws_s3_bucket.crucible.arn,
       "${aws_s3_bucket.crucible.arn}/*",
+    ]
+  }
+  # Read-only access to chronon canary buckets. The python integration suite
+  # hardcodes ARTIFACT_PREFIX=s3://zipline-artifacts-canary (see
+  # chronon/python/test/canary/teams.py); the Spark driver downloads
+  # cloud_aws_lib_deploy.jar from there. The warehouse / spark-libs buckets
+  # mirror what orchestration-aws grants its Flink IRSA role.
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      "arn:aws:s3:::zipline-artifacts-canary",
+      "arn:aws:s3:::zipline-artifacts-canary/*",
+      "arn:aws:s3:::zipline-spark-libs",
+      "arn:aws:s3:::zipline-spark-libs/*",
+      "arn:aws:s3:::zipline-warehouse",
+      "arn:aws:s3:::zipline-warehouse/*",
+      "arn:aws:s3:::zipline-warehouse-canary",
+      "arn:aws:s3:::zipline-warehouse-canary/*",
+      # The Glue Database `data` was created with a LocationUri pointing at
+      # zipline-warehouse-dev, so even though our spark.sql.catalog.warehouse
+      # is set to zipline-warehouse-canary, Iceberg table creates inherit the
+      # database location and write here. Read+write rather than try to
+      # rewrite the shared Glue catalog default.
+      "arn:aws:s3:::zipline-warehouse-dev",
+      "arn:aws:s3:::zipline-warehouse-dev/*",
+    ]
+  }
+  # The chronon backfill jobs write outputs under zipline-warehouse-canary
+  # and (via the Glue Database default location) zipline-warehouse-dev.
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "arn:aws:s3:::zipline-warehouse-canary/*",
+      "arn:aws:s3:::zipline-warehouse-dev/*",
+    ]
+  }
+  # Glue catalog read access — the chronon Spark conf sets
+  # spark.hadoop.hive.metastore.client.factory.class to the AWS Glue Hive
+  # client, so every backfill driver issues GetTable/GetPartitions/GetDatabase
+  # against the canary account's Glue catalog before writing Iceberg tables.
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartition",
+      "glue:GetPartitions",
+      "glue:BatchGetPartition",
+      "glue:CreateTable",
+      "glue:UpdateTable",
+      "glue:CreatePartition",
+      "glue:BatchCreatePartition",
+      "glue:UpdatePartition",
+      "glue:BatchUpdatePartition",
+      "glue:DeleteTable",
+      "glue:DeletePartition",
+      "glue:BatchDeletePartition",
+    ]
+    resources = ["*"]
+  }
+  # DynamoDB access — chronon's BatchNodeRunner post-job action writes
+  # partition watermarks / batch-table registry into DynamoDB tables in
+  # the canary account (e.g. `_BATCH`, plus per-groupBy upload tables).
+  # Without this the driver finishes the Spark stage but crashes on the
+  # control-plane DescribeTable call. Scoped to canary-region tables only.
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:DescribeTable",
+      "dynamodb:CreateTable",
+      "dynamodb:UpdateTable",
+      "dynamodb:DeleteTable",
+      "dynamodb:ListTables",
+      "dynamodb:DescribeContinuousBackups",
+      "dynamodb:UpdateContinuousBackups",
+      "dynamodb:DescribeImport",
+      "dynamodb:ImportTable",
+      "dynamodb:DescribeTimeToLive",
+      "dynamodb:UpdateTimeToLive",
+      "dynamodb:TagResource",
+      "dynamodb:UntagResource",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+    ]
+    resources = [
+      "arn:aws:dynamodb:us-west-2:345594603419:table/*",
+      "arn:aws:dynamodb:us-west-2:345594603419:table/*/index/*",
     ]
   }
 }
