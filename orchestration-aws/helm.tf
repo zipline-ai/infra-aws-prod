@@ -223,11 +223,12 @@ resource "helm_release" "zipline_orchestration" {
 
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
-      fetcher_replicas = var.fetcher_replicas
       customer_name    = var.name_prefix
       aws_region       = data.aws_region.current.name
       artifact_prefix  = var.artifact_prefix
       version          = var.zipline_version
+      deploy_fetcher   = var.deploy_fetcher
+      fetcher_replicas = var.fetcher_replicas
 
       # RDS instance + self-managed secret
       db_host     = aws_db_instance.zipline.endpoint

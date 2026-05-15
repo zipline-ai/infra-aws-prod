@@ -26,6 +26,12 @@ variable "emr_subnetwork" {
   default     = ""
 }
 
+variable "emr_custom_image_version" {
+  type        = string
+  description = "Optional EMR Serverless custom Docker image tag (e.g. 'v3.3.2-zipline.1'). When non-empty, provisions a sibling EMR Serverless application zipline-emr-<customer_name>-custom-image with imageConfiguration set, and attaches an ECR pull policy (scoped to that app) to the existing repo chronon-emr-<customer_name>-custom-image. The canonical zipline-emr-<customer_name> application is left untouched; opt workflows in by pointing teams.py SPARK_CLUSTER_NAME at the custom-image app. The customer must create the ECR repo and push the matching tag before applying."
+  default     = ""
+}
+
 variable "emr_log_uri" {
   type        = string
   description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{customer_name}/emr/"
@@ -40,6 +46,11 @@ variable "personnel_arns" {
 }
 
 # EKS Configuration
+variable "deploy_fetcher" {
+  description = "Whether or not to deploy the fetcher service"
+  default     = false
+}
+
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"

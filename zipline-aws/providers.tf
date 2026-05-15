@@ -85,6 +85,7 @@ module "base_setup" {
 
   # EKS Configuration
   eks_version      = var.eks_version
+  deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
   # Custom domains for HTTPS
@@ -100,6 +101,8 @@ module "base_setup" {
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
+
+  emr_custom_image_version = var.emr_custom_image_version
 
   msk_cluster_arn = var.msk_cluster_arn
 

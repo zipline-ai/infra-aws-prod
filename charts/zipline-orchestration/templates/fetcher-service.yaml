@@ -1,3 +1,4 @@
+{{ if .Values.global.deploy_fetcher }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,3 +80,4 @@ spec:
       targetPort: {{ .Values.orchestration.fetcher.port }}
       protocol: TCP
   type: ClusterIP
+{{ end }}
