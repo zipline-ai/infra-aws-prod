@@ -99,3 +99,37 @@ variable "public_host" {
   description = "Public hostname for the cluster. ACM cert is issued for this exact domain."
   type        = string
 }
+
+# Optional chronon backfill grants on the spark IAM role. The shape is the
+# same for any chronon-on-EKS deployment (read on artifact + warehouse
+# buckets, Glue catalog, DynamoDB tables that BatchNodeRunner writes to);
+# the values below are environment-specific and supplied via tfvars.
+variable "spark_chronon_grants_enabled" {
+  description = "Attach the chronon-grants inline policy to the spark IAM role. Off in the skeleton; canary tfvars enables it."
+  type        = bool
+  default     = false
+}
+
+variable "chronon_artifact_buckets" {
+  description = "S3 buckets the chronon Spark driver downloads its cloud_aws jar from (typically ARTIFACT_PREFIX in chronon/python/test/canary/teams.py)."
+  type        = list(string)
+  default     = []
+}
+
+variable "chronon_warehouse_read_buckets" {
+  description = "S3 buckets the chronon Spark driver needs read access to (warehouse / spark-libs / Iceberg metadata reads)."
+  type        = list(string)
+  default     = []
+}
+
+variable "chronon_warehouse_write_buckets" {
+  description = "S3 buckets the chronon Spark driver writes Iceberg table outputs to."
+  type        = list(string)
+  default     = []
+}
+
+variable "chronon_dynamodb_account" {
+  description = "AWS account ID that holds the chronon DynamoDB tables. Empty = current account."
+  type        = string
+  default     = ""
+}

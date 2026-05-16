@@ -26,16 +26,19 @@ terraform apply
 
 `pull_canary_config.sh` writes:
 
-- `terraform.tfvars` — concrete values for `shared_vpc_name_tag`,
-  `shared_subnet_name_tags`, `crucible_bucket_name`, `public_host`,
-  `eks_endpoint_public_access`, `eks_public_access_cidrs`, etc.
-- `canary_chronon_grants.tf` — extra `aws_iam_role_policy` attached to
-  `aws_iam_role.spark` that grants chronon-canary S3 / Glue / DynamoDB
-  access. Empty/missing for non-canary environments.
+- `terraform.tfvars` — concrete values for the variables declared in
+  `variables.tf` (VPC/subnet tags, bucket name, public host, public-API
+  CIDRs, chronon bucket lists, etc.).
 - `.terraform.lock.hcl` — pinned provider versions.
 
-All three patterns are gitignored at the repo root so they can't leak into
-this prod-facing tree.
+The skeleton's `chronon_irsa.tf` reads the chronon bucket lists from those
+tfvars and conditionally attaches an inline policy to the spark IAM role —
+the *shape* of the policy stays in this prod-facing tree (every
+chronon-on-EKS deployment needs the same statement structure), only the
+bucket NAMES vary per environment.
+
+`.tfvars` files are gitignored at the repo root so they can't leak into
+this tree.
 
 ## What lives in this directory (skeleton)
 

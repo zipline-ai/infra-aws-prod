@@ -36,8 +36,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Canary-specific Terraform pulled from s3://zipline-canary-vars/... at apply
-# time (see crucible-aws/pull_canary_config.sh). Keeps env-specific resources
-# out of the prod-facing tree.
-crucible-aws/canary_*.tf
+# Local staging for canary tfvars before they're pushed to
+# s3://zipline-canary-vars/... by crucible-aws/push_canary_config.sh.
+# (The pulled tfvars themselves are already covered by `*.tfvars` above.)
 crucible-aws/.canary-config/

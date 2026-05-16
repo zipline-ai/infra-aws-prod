@@ -5,5 +5,4 @@
 set -euo pipefail
 
 aws s3 cp ./terraform.tfvars s3://zipline-canary-vars/crucible/
-aws s3 cp ./canary_chronon_grants.tf s3://zipline-canary-vars/crucible/
 aws s3 cp ./.terraform.lock.hcl s3://zipline-canary-vars/crucible/
