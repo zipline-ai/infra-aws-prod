@@ -35,3 +35,8 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Local staging for canary tfvars before they're pushed to
+# s3://zipline-canary-vars/... by crucible-aws/push_canary_config.sh.
+# (The pulled tfvars themselves are already covered by `*.tfvars` above.)
+crucible-aws/.canary-config/
