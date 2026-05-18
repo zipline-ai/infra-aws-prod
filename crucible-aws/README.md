@@ -51,7 +51,8 @@ cluster and the Azure `crucible-aks` AKS cluster.
 | `aws_eks_cluster.crucible` | `crucible-eks`, version 1.34, public+private API |
 | `aws_iam_role.cluster` + policy attachments | `AmazonEKSClusterPolicy`, `AmazonEKSVPCResourceController` |
 | `aws_security_group.cluster` + HTTPS ingress rule | Control-plane SG |
-| `aws_eks_node_group.default` | Single Graviton (arm64) pool, m7g.large, autoscale 1-5 |
+| `aws_eks_node_group.control` | Tainted Graviton control-plane pool for Hub, ingress, and Crucible services |
+| `aws_eks_node_group.default` | Graviton data-plane pool for Chronon engine Spark/Flink pods |
 | `aws_iam_role.node` + policy attachments | `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly` |
 | `aws_iam_openid_connect_provider.oidc` | Required by IRSA |
 | `aws_eks_access_entry` + access policy associations | Optional, driven by `var.personnel_arns` |

@@ -64,6 +64,30 @@ variable "node_desired_size" {
   default     = 2
 }
 
+variable "control_node_instance_type" {
+  description = "EC2 instance type for the tainted control-plane node group that runs Hub, ingress, and Crucible control-plane services."
+  type        = string
+  default     = "m7g.large"
+}
+
+variable "control_node_min_size" {
+  description = "Minimum number of nodes in the tainted control-plane node group."
+  type        = number
+  default     = 2
+}
+
+variable "control_node_max_size" {
+  description = "Maximum number of nodes in the tainted control-plane node group."
+  type        = number
+  default     = 3
+}
+
+variable "control_node_desired_size" {
+  description = "Desired number of nodes in the tainted control-plane node group at apply time."
+  type        = number
+  default     = 2
+}
+
 variable "personnel_arns" {
   description = "IAM principal ARNs that should get cluster admin access via EKS access entries."
   type        = list(string)

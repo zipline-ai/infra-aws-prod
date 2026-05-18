@@ -170,9 +170,59 @@ resource "aws_iam_role_policy_attachment" "container_registry" {
 }
 
 ###############################################################################
-# Default node group — arm64 (Graviton) to match GCP c4a + AKS arm64 pools.
-# Tenant-specific node groups (NVMe, spot) land in a follow-up PR.
+# Node groups
 ###############################################################################
+
+# Small, tainted pool for Hub, ingress, and Crucible control-plane services.
+# Spark/Flink jobs do not tolerate this taint, so data-plane bursts cannot evict
+# or consume the capacity that keeps the user/API surface alive.
+resource "aws_eks_node_group" "control" {
+  cluster_name    = aws_eks_cluster.crucible.name
+  node_group_name = "${var.cluster_name}-control"
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = local.subnet_ids
+  instance_types  = [var.control_node_instance_type]
+  ami_type        = "AL2023_ARM_64_STANDARD"
+  capacity_type   = "ON_DEMAND"
+
+  scaling_config {
+    desired_size = var.control_node_desired_size
+    max_size     = var.control_node_max_size
+    min_size     = var.control_node_min_size
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  labels = {
+    role           = "crucible-system"
+    workload-plane = "control"
+  }
+
+  taint {
+    key    = "dedicated"
+    value  = "crucible-system"
+    effect = "NO_SCHEDULE"
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-control-node"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.worker_node_policy,
+    aws_iam_role_policy_attachment.cni_policy,
+    aws_iam_role_policy_attachment.container_registry,
+  ]
+
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
+  }
+}
+
+# Default data-plane node group — arm64 (Graviton) to match GCP c4a + AKS arm64 pools.
+# Chronon engine Spark/Flink pods are pinned here by the Crucible Helm values.
 
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.crucible.name
@@ -193,7 +243,8 @@ resource "aws_eks_node_group" "default" {
   }
 
   labels = {
-    role = "crucible-workload"
+    role           = "crucible-workload"
+    workload-plane = "data"
   }
 
   tags = {
