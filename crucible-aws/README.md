@@ -1,9 +1,48 @@
 # crucible-aws
 
-Terraform that provisions the **Crucible** EKS cluster in the canary AWS
-account (`345594603419` / `us-west-2`), sharing the existing canary VPC.
-This is the AWS counterpart to the GCP `crucible-dev` GKE cluster and the
-Azure `crucible-aks` AKS cluster.
+Terraform that provisions the **Crucible** EKS cluster. The files in this
+directory are the env-agnostic skeleton — concrete network IDs, bucket names,
+public-API CIDR allow-list, etc. live in `s3://zipline-canary-vars/` (shared
+with zipline-aws and other canary modules) as `crucible.auto.tfvars` and are
+pulled in via `./pull_canary_config.sh` before `terraform apply`.
+
+## Workflow
+
+```sh
+cd crucible-aws
+
+# First-time / new clone — fetch canary tfvars + extra IAM grants from S3.
+./pull_canary_config.sh
+
+terraform init
+terraform plan
+terraform apply
+
+# After editing canary_*.tf or terraform.tfvars locally, push back to S3 so
+# the next operator pulls your change.
+./push_canary_config.sh
+```
+
+`pull_canary_config.sh` writes a single `crucible.auto.tfvars` with the
+concrete values for the variables declared in `variables.tf` (VPC/subnet
+tags, bucket name, public host, public-API CIDRs, chronon bucket lists).
+Terraform auto-loads `*.auto.tfvars` so no `-var-file` flag is needed.
+
+The skeleton's `chronon_irsa.tf` reads the chronon bucket lists from those
+tfvars and conditionally attaches an inline policy to the spark IAM role —
+the *shape* of the policy stays in this prod-facing tree (every
+chronon-on-EKS deployment needs the same statement structure), only the
+bucket NAMES vary per environment.
+
+`.tfvars` files are gitignored at the repo root so they can't leak into
+this tree. `.terraform.lock.hcl` stays in version control alongside the
+skeleton (single source of truth for provider versions).
+
+## What lives in this directory (skeleton)
+
+Originally the canary AWS account (`345594603419` / `us-west-2`), sharing
+the existing canary VPC. AWS counterpart to the GCP `crucible-dev` GKE
+cluster and the Azure `crucible-aks` AKS cluster.
 
 ## Scope (this PR — cluster only)
 

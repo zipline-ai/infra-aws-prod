@@ -71,8 +71,11 @@ resource "aws_eks_cluster" "crucible" {
   vpc_config {
     subnet_ids              = local.subnet_ids
     endpoint_private_access = true
-    endpoint_public_access  = true
-    security_group_ids      = [aws_security_group.cluster.id]
+    # Public endpoint only when the operator opts in by supplying a CIDR
+    # allow-list. Skeleton default keeps the endpoint private.
+    endpoint_public_access = length(var.eks_public_access_cidrs) > 0
+    public_access_cidrs    = length(var.eks_public_access_cidrs) > 0 ? var.eks_public_access_cidrs : null
+    security_group_ids     = [aws_security_group.cluster.id]
   }
 
   access_config {
