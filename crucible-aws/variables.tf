@@ -1,17 +1,14 @@
 ###############################################################################
-# Skeleton variables for crucible-aws.
+# Customer-facing inputs for crucible-aws.
 #
-# Environment-specific values (canary VPC/subnet tags, public host, bucket
-# name, public-API CIDR list, ...) come from `terraform.tfvars` that lives in
-# s3://zipline-canary-vars/crucible/ and is pulled in by `pull_canary_config.sh`
-# at plan/apply time — so this template stays env-agnostic and doesn't leak
-# canary-account specifics into the prod-facing tree.
+# The skeleton is opinionated by design — knobs that don't need to differ
+# between our canary and a customer's deployment are hardcoded in the resource
+# blocks instead of exposed here. Each variable below either has a sensible
+# default that works everywhere, or is required because the value is genuinely
+# environment-specific (VPC tag, bucket name, public host).
 #
-# Generic operational defaults (region, cluster name, eks version, node sizing)
-# stay here as reasonable starting points. Anything specific to *which*
-# network or *which* fleet of buckets the cluster talks to has no default —
-# missing values fail the plan loudly rather than silently selecting whatever
-# happens to share a name in the current account.
+# Concrete values for the required vars live in `terraform.tfvars` pulled from
+# `s3://zipline-canary-vars/crucible/` by `./pull_canary_config.sh`.
 ###############################################################################
 
 variable "region" {
@@ -32,24 +29,7 @@ variable "eks_version" {
   default     = "1.34"
 }
 
-# EKS public API endpoint exposure.
-#
-# Skeleton default is private-only — canary `terraform.tfvars` flips this on
-# (operator laptops + GitHub Actions OIDC need to reach the API). Prod should
-# leave it off, or supply a tight `eks_public_access_cidrs` list.
-variable "eks_endpoint_public_access" {
-  description = "Whether the EKS API endpoint is reachable from outside the VPC."
-  type        = bool
-  default     = false
-}
-
-variable "eks_public_access_cidrs" {
-  description = "CIDR ranges allowed to reach the EKS public API endpoint when eks_endpoint_public_access is true. Empty list means AWS-default (0.0.0.0/0)."
-  type        = list(string)
-  default     = []
-}
-
-# Shared network. Supplied per-environment via tfvars from S3.
+# Shared network. Supplied per-environment via tfvars.
 variable "shared_vpc_name_tag" {
   description = "Name tag of the VPC that the cluster joins."
   type        = string
@@ -100,36 +80,17 @@ variable "public_host" {
   type        = string
 }
 
-# Optional chronon backfill grants on the spark IAM role. The shape is the
-# same for any chronon-on-EKS deployment (read on artifact + warehouse
-# buckets, Glue catalog, DynamoDB tables that BatchNodeRunner writes to);
-# the values below are environment-specific and supplied via tfvars.
-variable "spark_chronon_grants_enabled" {
-  description = "Attach the chronon-grants inline policy to the spark IAM role. Off in the skeleton; canary tfvars enables it."
-  type        = bool
-  default     = false
-}
-
+# chronon backfill IRSA grants on the spark role. Both lists empty → no
+# chronon policy attached; the spark role only gets the cluster's own bucket.
+# Otherwise the policy auto-attaches.
 variable "chronon_artifact_buckets" {
-  description = "S3 buckets the chronon Spark driver downloads its cloud_aws jar from (typically ARTIFACT_PREFIX in chronon/python/test/canary/teams.py)."
+  description = "S3 buckets the chronon Spark driver needs read-only access to (jar download path + any other read-only inputs)."
   type        = list(string)
   default     = []
 }
 
-variable "chronon_warehouse_read_buckets" {
-  description = "S3 buckets the chronon Spark driver needs read access to (warehouse / spark-libs / Iceberg metadata reads)."
+variable "chronon_warehouse_buckets" {
+  description = "S3 buckets the chronon Spark driver writes Iceberg table outputs to (granted read+write)."
   type        = list(string)
   default     = []
-}
-
-variable "chronon_warehouse_write_buckets" {
-  description = "S3 buckets the chronon Spark driver writes Iceberg table outputs to."
-  type        = list(string)
-  default     = []
-}
-
-variable "chronon_dynamodb_account" {
-  description = "AWS account ID that holds the chronon DynamoDB tables. Empty = current account."
-  type        = string
-  default     = ""
 }
