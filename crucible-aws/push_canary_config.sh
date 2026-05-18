@@ -1,8 +1,6 @@
 #!/bin/bash
-# Push canary-specific overrides back to S3 after editing locally. Inverse of
-# `pull_canary_config.sh`. Run from this directory after you've validated the
-# change with `terraform plan` against the canary account.
+# Push canary tfvars for this module back to S3 after editing locally.
+# Inverse of `pull_canary_config.sh`.
 set -euo pipefail
 
-aws s3 cp ./terraform.tfvars s3://zipline-canary-vars/crucible/
-aws s3 cp ./.terraform.lock.hcl s3://zipline-canary-vars/crucible/
+aws s3 cp ./crucible.auto.tfvars s3://zipline-canary-vars/crucible.auto.tfvars

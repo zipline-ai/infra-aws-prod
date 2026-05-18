@@ -2,10 +2,9 @@
 
 Terraform that provisions the **Crucible** EKS cluster. The files in this
 directory are the env-agnostic skeleton — concrete network IDs, bucket names,
-public-API CIDR allow-list, and account-specific IRSA grants live in
-`s3://zipline-canary-vars/crucible/` and are pulled in via
-`./pull_canary_config.sh` before `terraform apply`. This mirrors the
-`zipline-aws/` module's split.
+public-API CIDR allow-list, etc. live in `s3://zipline-canary-vars/` (shared
+with zipline-aws and other canary modules) as `crucible.auto.tfvars` and are
+pulled in via `./pull_canary_config.sh` before `terraform apply`.
 
 ## Workflow
 
@@ -24,12 +23,10 @@ terraform apply
 ./push_canary_config.sh
 ```
 
-`pull_canary_config.sh` writes:
-
-- `terraform.tfvars` — concrete values for the variables declared in
-  `variables.tf` (VPC/subnet tags, bucket name, public host, public-API
-  CIDRs, chronon bucket lists, etc.).
-- `.terraform.lock.hcl` — pinned provider versions.
+`pull_canary_config.sh` writes a single `crucible.auto.tfvars` with the
+concrete values for the variables declared in `variables.tf` (VPC/subnet
+tags, bucket name, public host, public-API CIDRs, chronon bucket lists).
+Terraform auto-loads `*.auto.tfvars` so no `-var-file` flag is needed.
 
 The skeleton's `chronon_irsa.tf` reads the chronon bucket lists from those
 tfvars and conditionally attaches an inline policy to the spark IAM role —
@@ -38,7 +35,8 @@ chronon-on-EKS deployment needs the same statement structure), only the
 bucket NAMES vary per environment.
 
 `.tfvars` files are gitignored at the repo root so they can't leak into
-this tree.
+this tree. `.terraform.lock.hcl` stays in version control alongside the
+skeleton (single source of truth for provider versions).
 
 ## What lives in this directory (skeleton)
 
