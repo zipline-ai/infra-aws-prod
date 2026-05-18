@@ -11,6 +11,7 @@ spec:
   template:
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- include "zipline-orchestration.controlPlanePlacement" . | nindent 6 }}
       restartPolicy: Never
       containers:
       - name: set-hub-url

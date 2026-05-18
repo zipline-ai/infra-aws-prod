@@ -22,6 +22,16 @@ aws:
   emrLogUri: "${emr_log_uri}"
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
 
+# Crucible configuration for AWS job execution
+crucible:
+  url: "${crucible_url}"
+  namespace: "${crucible_namespace}"
+  sparkImage: "${crucible_spark_image}"
+  flinkImage: "${crucible_flink_image}"
+  jarName: "${crucible_jar_name}"
+  jarUriOverride: "${crucible_jar_uri_override}"
+  spotExecutors: "${crucible_spot_executors}"
+
 # Database configuration
 database:
   host: "${db_host}"
@@ -34,6 +44,17 @@ serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: "${irsa_role_arn}"
 
+controlPlanePlacement:
+  priorityClassName: "zipline-control-plane"
+  priorityClassValue: 1000
+  nodeSelector:
+    workload-plane: control
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: zipline-control-plane
+      effect: NoSchedule
+
 # Ingress NGINX Controller for UI
 ingress-nginx-ui:
   enabled: true
@@ -44,6 +65,14 @@ ingress-nginx-ui:
       default: false
       controllerValue: "k8s.io/ingress-nginx-ui"
     ingressClass: nginx-ui
+    priorityClassName: "zipline-control-plane"
+    nodeSelector:
+      workload-plane: control
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: zipline-control-plane
+        effect: NoSchedule
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -71,6 +100,14 @@ ingress-nginx-fetcher:
       default: false
       controllerValue: "k8s.io/ingress-nginx-fetcher"
     ingressClass: nginx-fetcher
+    priorityClassName: "zipline-control-plane"
+    nodeSelector:
+      workload-plane: control
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: zipline-control-plane
+        effect: NoSchedule
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -98,6 +135,14 @@ ingress-nginx-eval:
       default: false
       controllerValue: "k8s.io/ingress-nginx-eval"
     ingressClass: nginx-eval
+    priorityClassName: "zipline-control-plane"
+    nodeSelector:
+      workload-plane: control
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: zipline-control-plane
+        effect: NoSchedule
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -125,6 +170,14 @@ ingress-nginx-hub:
       default: false
       controllerValue: "k8s.io/ingress-nginx-hub"
     ingressClass: nginx-hub
+    priorityClassName: "zipline-control-plane"
+    nodeSelector:
+      workload-plane: control
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: zipline-control-plane
+        effect: NoSchedule
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"

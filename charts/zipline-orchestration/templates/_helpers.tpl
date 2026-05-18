@@ -59,3 +59,24 @@ Service account name
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Control-plane pod placement for long-running Zipline services.
+*/}}
+{{- define "zipline-orchestration.controlPlanePlacement" -}}
+{{- if .Values.controlPlanePlacement.priorityClassName }}
+priorityClassName: {{ .Values.controlPlanePlacement.priorityClassName | quote }}
+{{- end }}
+{{- with .Values.controlPlanePlacement.nodeSelector }}
+nodeSelector:
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.controlPlanePlacement.tolerations }}
+tolerations:
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .Values.controlPlanePlacement.affinity }}
+affinity:
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

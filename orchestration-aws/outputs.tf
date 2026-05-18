@@ -20,6 +20,16 @@ output "eks_cluster_security_group_id" {
   value       = aws_security_group.eks_cluster.id
 }
 
+output "eks_control_node_group_name" {
+  description = "Name of the tainted EKS node group for orchestration control-plane pods"
+  value       = aws_eks_node_group.control.node_group_name
+}
+
+output "eks_data_node_group_name" {
+  description = "Name of the EKS node group for Spark/Flink engine pods"
+  value       = aws_eks_node_group.default.node_group_name
+}
+
 output "eks_oidc_provider_arn" {
   description = "ARN of the OIDC provider for IRSA"
   value       = aws_iam_openid_connect_provider.eks.arn
@@ -135,9 +145,11 @@ output "flink_namespace" {
 output "databricks_sp_secret_arn" {
   description = "ARN of the Databricks service principal credentials secret (empty if not configured)"
   value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
+  sensitive   = true
 }
 
 output "databricks_sp_secret_name" {
   description = "Name of the Databricks service principal credentials secret (empty if not configured)"
   value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].name : ""
+  sensitive   = true
 }

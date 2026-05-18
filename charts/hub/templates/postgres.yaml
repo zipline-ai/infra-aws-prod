@@ -1,0 +1,89 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hub.pgname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "hub.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "hub.pgSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "hub.pgSelectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.placement.priorityClassName }}
+      priorityClassName: {{ .Values.placement.priorityClassName | quote }}
+      {{- end }}
+      {{- with .Values.placement.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+        {{- toYaml .Values.placement.tolerations | nindent 8 }}
+      {{- with .Values.placement.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          ports:
+            - containerPort: {{ .Values.postgres.port }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.username }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgres.password }}
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: pgdata
+          {{- if .Values.postgres.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "hub.pgname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "hub.pgname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "hub.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "hub.pgSelectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ .Values.postgres.port }}
+      targetPort: {{ .Values.postgres.port }}
+{{- if .Values.postgres.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "hub.pgname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "hub.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .Values.postgres.persistence.storageClass }}
+  storageClassName: {{ .Values.postgres.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size }}
+{{- end }}
+{{- end }}
