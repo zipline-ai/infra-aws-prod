@@ -80,6 +80,16 @@ variable "public_host" {
   type        = string
 }
 
+# EKS API server exposure. Empty list → endpoint is private-only (the secure
+# default — operators reach it through the VPC). Non-empty list → endpoint is
+# public and restricted to those CIDRs. Customers who need kubectl from
+# outside the VPC supply their operator/CI CIDRs here.
+variable "eks_public_access_cidrs" {
+  description = "CIDR ranges allowed to reach the EKS API server. Empty disables the public endpoint entirely."
+  type        = list(string)
+  default     = []
+}
+
 # chronon backfill IRSA grants on the spark role. Both lists empty → no
 # chronon policy attached; the spark role only gets the cluster's own bucket.
 # Otherwise the policy auto-attaches.
