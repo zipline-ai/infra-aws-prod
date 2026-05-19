@@ -9,14 +9,11 @@ hub:
   #   --set hub.jarUri=s3://zipline-crucible-canary/release/<version>/jars/k8s_assembly.jar
   jarUri: ""
 
-  # Public crucible URL. Used as the base for both API calls AND user-facing
-  # tracking URLs emitted by CrucibleSubmitter (getJobUrl/getSparkUrl/etc.) —
-  # so links surfaced in the Hub UI are browser-resolvable. Includes the
-  # `/spark-history` prefix so the gateway's `/api/v1/...` API surface and the
-  # emitted `/jobs/<ns>/<id>/ui` tracking URLs all land under the same Ingress
-  # that fronts Spark History Server. In-cluster Hub traffic loops back through
-  # the same NLB; latency hit is tolerable for the benefit of one URL config.
+  # Public Crucible API URL. Includes `/spark-history` because that Ingress
+  # mirrors `/spark-history/api/v1/...` to the gateway while keeping every
+  # user-facing Spark URL under the same Spark History Server subtree.
   crucibleUrl: "https://crucible-aws.zipline.ai/spark-history"
+  sparkUiBaseUrl: "https://crucible-aws.zipline.ai/spark-history"
   crucibleNamespace: "test-ns-a"
 
   cloudProvider: aws
