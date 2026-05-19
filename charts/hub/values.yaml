@@ -13,9 +13,6 @@ hub:
 
   # Crucible gateway URL (internal K8s service)
   crucibleUrl: "http://crucible.crucible-system:8080"
-  # Optional browser-visible Spark/Flink UI base. When empty, Hub uses
-  # crucibleUrl for tracking links.
-  sparkUiBaseUrl: ""
   crucibleNamespace: "default"
 
   # Cloud provider: gcp, aws, or azure

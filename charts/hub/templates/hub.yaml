@@ -125,16 +125,6 @@ spec:
             - name: CRUCIBLE_JAR_URI_OVERRIDE
               value: {{ .Values.hub.crucibleJarUriOverride | quote }}
             {{- end }}
-            {{- if .Values.hub.sparkUiBaseUrl }}
-            # Fully-qualified browser base for Spark/Flink UI tracking links.
-            # JobTrackingInfo.sparkUrl becomes `${this}/jobs/<ns>/<id>/ui`.
-            - name: CRUCIBLE_SPARK_UI_BASE_URL
-              value: {{ .Values.hub.sparkUiBaseUrl | quote }}
-            {{- else if .Values.hub.cruciblePublicSparkUrl }}
-            # Backward-compatible values key used by early canary charts.
-            - name: CRUCIBLE_SPARK_UI_BASE_URL
-              value: {{ .Values.hub.cruciblePublicSparkUrl | quote }}
-            {{- end }}
             - name: CHRONON_ONLINE_CLASS
               value: {{ .Values.hub.onlineClass | quote }}
             {{- if .Values.hub.gcpProjectId }}

@@ -13,7 +13,6 @@ hub:
   # mirrors `/spark-history/api/v1/...` to the gateway while keeping every
   # user-facing Spark URL under the same Spark History Server subtree.
   crucibleUrl: "https://crucible-aws.zipline.ai/spark-history"
-  sparkUiBaseUrl: "https://crucible-aws.zipline.ai/spark-history"
   crucibleNamespace: "test-ns-a"
 
   cloudProvider: aws
