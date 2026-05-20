@@ -181,7 +181,7 @@ resource "aws_eks_node_group" "control" {
   node_group_name = "${var.cluster_name}-control"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = local.subnet_ids
-  instance_types  = [var.control_node_instance_type]
+  instance_types  = var.control_node_instance_types
   ami_type        = "AL2023_ARM_64_STANDARD"
   capacity_type   = "ON_DEMAND"
 
@@ -229,7 +229,7 @@ resource "aws_eks_node_group" "default" {
   node_group_name = "${var.cluster_name}-default"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = local.subnet_ids
-  instance_types  = [var.node_instance_type]
+  instance_types  = var.node_instance_types
   ami_type        = "AL2023_ARM_64_STANDARD"
 
   scaling_config {
