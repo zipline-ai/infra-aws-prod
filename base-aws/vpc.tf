@@ -4,7 +4,7 @@ resource "aws_vpc" "main" {
   cidr_block           = "172.31.0.0/16"
   enable_dns_hostnames = true
   tags = {
-    Name = "zipline-${var.customer_name}-vpc"
+    Name = "zipline-${local.customer_name}-vpc"
   }
 }
 
@@ -15,7 +15,7 @@ resource "aws_subnet" "main" {
   map_public_ip_on_launch = true
   availability_zone       = "${var.region}a"
   tags = {
-    Name                              = "zipline-${var.customer_name}-subnet-main"
+    Name                              = "zipline-${local.customer_name}-subnet-main"
     "kubernetes.io/role/elb"          = "1" # Allows internet-facing load balancers
     "kubernetes.io/role/internal-elb" = "1" # Allows internal load balancers
   }
@@ -31,7 +31,7 @@ resource "aws_subnet" "secondary" {
   map_public_ip_on_launch = true
   availability_zone       = "${var.region}b"
   tags = {
-    Name                              = "zipline-${var.customer_name}-subnet-secondary"
+    Name                              = "zipline-${local.customer_name}-subnet-secondary"
     "kubernetes.io/role/elb"          = "1" # Allows internet-facing load balancers
     "kubernetes.io/role/internal-elb" = "1" # Allows internal load balancers
   }
@@ -41,7 +41,7 @@ resource "aws_subnet" "secondary" {
 }
 
 resource "aws_security_group" "emr_sg" {
-  name        = "zipline-${var.customer_name}-sg"
+  name        = "zipline-${local.customer_name}-sg"
   description = "Security group for Zipline"
   vpc_id      = var.existing_vpc_id != "" ? var.existing_vpc_id : aws_vpc.main[0].id
 

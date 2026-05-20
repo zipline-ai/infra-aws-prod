@@ -1,9 +1,9 @@
 resource "aws_s3_bucket" "zipline_warehouse_bucket" {
-  bucket = "zipline-warehouse-${lower(var.customer_name)}"
+  bucket = "zipline-warehouse-${lower(local.customer_name)}"
 }
 
 resource "aws_s3_bucket" "zipline_logs_bucket" {
-  bucket = "zipline-logs-${lower(var.customer_name)}"
+  bucket = "zipline-logs-${lower(local.customer_name)}"
 }
 
 data "aws_iam_policy_document" "zipline_logs_bucket_policy" {

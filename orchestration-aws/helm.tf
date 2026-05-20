@@ -313,7 +313,7 @@ resource "random_password" "zipline_auth" {
 
 resource "aws_secretsmanager_secret" "zipline_auth" {
   count = var.zipline_auth_enabled ? 1 : 0
-  name  = "zipline-auth-secret"
+  name  = "${var.name_prefix}-zipline-auth-secret"
 }
 
 resource "aws_secretsmanager_secret_version" "zipline_auth" {

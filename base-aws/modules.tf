@@ -1,7 +1,7 @@
 module "orchestration" {
   source = "../orchestration-aws"
 
-  name_prefix         = var.customer_name
+  name_prefix         = local.customer_name
   artifact_prefix     = var.artifact_prefix
   zipline_version     = var.zipline_version
   main_subnet_id      = var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id
@@ -33,7 +33,7 @@ module "orchestration" {
   personnel_arns = var.personnel_arns
 
   # EMR Serverless
-  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.customer_name}/emr/"
+  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${local.customer_name}/emr/"
   emr_cloudwatch_log_group = aws_cloudwatch_log_group.emr_logs.name
 
   # Glue Schema Registry (optional)

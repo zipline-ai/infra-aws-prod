@@ -6,6 +6,12 @@ variable "customer_name" {
   description = "Your unique company identifier. Used as a prefix for naming AWS resources."
 }
 
+variable "environment" {
+  type        = string
+  description = "Optional environment qualifier (e.g. \"canary\", \"prod\"). When set, prepended to customer_name so AWS resources are named like zipline-warehouse-<environment>-<customer_name>. Leave empty for the default single-environment naming."
+  default     = ""
+}
+
 variable "artifact_prefix" {
   description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }

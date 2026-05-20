@@ -77,6 +77,7 @@ module "base_setup" {
   source = "../base-aws"
 
   customer_name   = var.customer_name
+  environment     = var.environment
   region          = var.region
   artifact_prefix = var.artifact_prefix
   zipline_version = var.zipline_version
