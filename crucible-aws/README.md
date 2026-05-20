@@ -88,3 +88,19 @@ kubectl get nodes
 Shares the canary VPC (looked up by Name tag `zipline-canary-vpc` plus subnet
 Name tags). If/when crucible warrants isolation, switch to a dedicated VPC by
 adding the network resources here and dropping the data lookups in `vpc.tf`.
+
+## Hub chart
+
+`charts/hub/` is the Helm chart for the Chronon Hub that pairs with this
+cluster. It is kept under `crucible-aws/` rather than the top-level `charts/`
+directory because it is Crucible-specific — deployments that don't run
+Crucible never render it. It lands service pods on the tainted control node
+group (`aws_eks_node_group.control`); Spark/Flink engine pods stay on the
+default data-plane pool. Install it after `terraform apply`:
+
+```sh
+helm install hub crucible-aws/charts/hub \
+  -f crucible-aws/charts/hub/hub-values-eks-dev.yaml \
+  --set hub.jarUri=s3://<bucket>/release/<version>/jars/k8s_assembly.jar \
+  -n crucible-system
+```
