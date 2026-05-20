@@ -254,13 +254,6 @@ resource "helm_release" "zipline_orchestration" {
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"
       emr_log_uri                       = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.name_prefix}/emr/"
       emr_cloudwatch_log_group          = var.emr_cloudwatch_log_group
-      crucible_url                      = var.crucible_url
-      crucible_namespace                = var.crucible_namespace
-      crucible_spark_image              = var.crucible_spark_image
-      crucible_flink_image              = var.crucible_flink_image
-      crucible_jar_name                 = var.crucible_jar_name
-      crucible_jar_uri_override         = var.crucible_jar_uri_override
-      crucible_spot_executors           = var.crucible_spot_executors
 
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
       ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
@@ -298,7 +291,6 @@ resource "helm_release" "zipline_orchestration" {
 
   depends_on = [
     aws_eks_cluster.main,
-    aws_eks_node_group.control,
     aws_eks_node_group.default,
     helm_release.secrets_store_csi_aws,
     helm_release.aws_load_balancer_controller,

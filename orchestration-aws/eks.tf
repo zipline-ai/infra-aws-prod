@@ -190,7 +190,7 @@ data "aws_iam_policy_document" "eks_node_emr_policy" {
   }
 
   statement {
-    effect  = "Allow"
+    effect = "Allow"
     actions = ["iam:PassRole"]
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role",
@@ -252,7 +252,7 @@ data "aws_iam_policy_document" "eks_node_root_key_policy" {
       type        = "AWS"
       identifiers = [aws_iam_role.eks_cluster_role.arn]
     }
-    actions   = ["kms:CreateGrant"]
+    actions = ["kms:CreateGrant"]
     resources = ["*"]
     condition {
       test     = "Bool"
@@ -344,56 +344,7 @@ resource "aws_launch_template" "eks_nodes" {
   }
 }
 
-# Tainted node group for orchestration control-plane services. Spark/Flink
-# engine pods do not tolerate this taint, so backfill bursts cannot consume
-# capacity needed by Hub, UI, eval, ingress, and other service pods.
-resource "aws_eks_node_group" "control" {
-  cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${var.name_prefix}-control"
-  node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = [var.main_subnet_id, var.secondary_subnet_id]
-  instance_types  = [var.eks_control_instance_type]
-
-  launch_template {
-    id      = aws_launch_template.eks_nodes.id
-    version = aws_launch_template.eks_nodes.latest_version
-  }
-
-  scaling_config {
-    desired_size = var.eks_control_desired_size
-    max_size     = var.eks_control_max_size
-    min_size     = var.eks_control_min_size
-  }
-
-  update_config {
-    max_unavailable = 1
-  }
-
-  labels = {
-    role           = "zipline-control-plane"
-    workload-plane = "control"
-  }
-
-  taint {
-    key    = "dedicated"
-    value  = "zipline-control-plane"
-    effect = "NO_SCHEDULE"
-  }
-
-  tags = {
-    Name = "${var.name_prefix}-eks-control-node"
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_worker_node_policy,
-    aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.eks_container_registry,
-    aws_iam_role_policy.eks_node_emr,
-    aws_kms_key.eks_node_root,
-  ]
-}
-
-# Default data-plane node group for Spark/Flink engine pods.
+# EKS Node Group
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.name_prefix}-default"
@@ -417,8 +368,7 @@ resource "aws_eks_node_group" "default" {
   }
 
   labels = {
-    role           = "zipline-workload"
-    workload-plane = "data"
+    role = "zipline-workload"
   }
 
   tags = {

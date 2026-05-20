@@ -19,7 +19,6 @@ spec:
         app: orchestration-hub
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
-      {{- include "zipline-orchestration.controlPlanePlacement" . | nindent 6 }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 8 }}
@@ -82,22 +81,6 @@ spec:
               value: "{{ .Values.aws.emrLogUri }}"
             - name: EMR_CLOUDWATCH_LOG_GROUP
               value: "{{ .Values.aws.emrCloudWatchLogGroup }}"
-            - name: CRUCIBLE_URL
-              value: "{{ .Values.crucible.url }}"
-            - name: CRUCIBLE_NAMESPACE
-              value: "{{ .Values.crucible.namespace }}"
-            - name: CRUCIBLE_SPARK_IMAGE
-              value: "{{ .Values.crucible.sparkImage }}"
-            - name: CRUCIBLE_FLINK_IMAGE
-              value: "{{ .Values.crucible.flinkImage }}"
-            - name: CRUCIBLE_JAR_NAME
-              value: "{{ .Values.crucible.jarName }}"
-            {{- if .Values.crucible.jarUriOverride }}
-            - name: CRUCIBLE_JAR_URI_OVERRIDE
-              value: "{{ .Values.crucible.jarUriOverride }}"
-            {{- end }}
-            - name: CRUCIBLE_SPOT_EXECUTORS
-              value: "{{ .Values.crucible.spotExecutors }}"
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
             {{- if .Values.aws.databricksSpSecretArn }}

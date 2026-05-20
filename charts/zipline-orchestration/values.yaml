@@ -19,16 +19,6 @@ aws:
   emrLogUri: ""
   emrCloudWatchLogGroup: ""
 
-# Crucible configuration for AWS job execution
-crucible:
-  url: ""
-  namespace: ""
-  sparkImage: ""
-  flinkImage: ""
-  jarName: "cloud_aws_lib_deploy.jar"
-  jarUriOverride: ""
-  spotExecutors: "false"
-
 # Database configuration
 database:
   host: ""
@@ -40,16 +30,6 @@ serviceAccount:
   name: orchestration-sa
   annotations:
     eks.amazonaws.com/role-arn: ""
-
-# Scheduling for long-running control-plane services (Hub, UI, eval, fetcher,
-# and one-shot control jobs). The AWS deployment pins these to a tainted
-# control-plane node group so Spark engine pods cannot consume service capacity.
-controlPlanePlacement:
-  priorityClassName: ""
-  priorityClassValue: 1000
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
 
 # Domain configuration
 domains:

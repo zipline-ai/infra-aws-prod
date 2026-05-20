@@ -84,30 +84,6 @@ variable "eks_max_size" {
   default     = 8
 }
 
-variable "eks_control_instance_type" {
-  type        = string
-  description = "Instance type for the tainted EKS control-plane node group that runs Hub, UI, eval, ingress, and other service pods."
-  default     = "m8a.4xlarge"
-}
-
-variable "eks_control_desired_size" {
-  type        = number
-  description = "Desired number of nodes in the tainted EKS control-plane node group."
-  default     = 2
-}
-
-variable "eks_control_min_size" {
-  type        = number
-  description = "Minimum number of nodes in the tainted EKS control-plane node group."
-  default     = 2
-}
-
-variable "eks_control_max_size" {
-  type        = number
-  description = "Maximum number of nodes in the tainted EKS control-plane node group."
-  default     = 4
-}
-
 variable "eks_disk_size" {
   type        = number
   description = "Disk size in GB for EKS nodes"
@@ -215,50 +191,6 @@ variable "emr_log_uri" {
 variable "emr_cloudwatch_log_group" {
   type        = string
   description = "CloudWatch log group name for EMR Serverless job logs"
-  default     = ""
-}
-
-# Crucible configuration
-variable "crucible_url" {
-  type        = string
-  description = "Base URL for the Crucible gateway used by AWS workflow execution."
-  default     = ""
-}
-
-variable "crucible_namespace" {
-  type        = string
-  description = "Kubernetes namespace where Crucible submits Chronon jobs."
-  default     = ""
-}
-
-variable "crucible_spark_image" {
-  type        = string
-  description = "Spark runtime image for Crucible-submitted Chronon batch jobs."
-  default     = ""
-}
-
-variable "crucible_flink_image" {
-  type        = string
-  description = "Flink runtime image for Crucible-submitted Chronon streaming jobs."
-  default     = ""
-}
-
-variable "crucible_jar_name" {
-  type        = string
-  description = "Chronon cloud AWS jar name resolved under artifact_prefix/release/{version}/jars."
-  default     = "cloud_aws_lib_deploy.jar"
-}
-
-variable "crucible_jar_uri_override" {
-  type        = string
-  description = "Optional fully-qualified jar URI for Crucible to use instead of artifact_prefix/release/{version}/jars/{crucible_jar_name}."
-  default     = ""
-}
-
-variable "crucible_spot_executors" {
-  type        = string
-  description = "Whether Crucible should request spot executors for submitted jobs."
-  default     = "false"
 }
 
 # Databricks Unity Catalog integration (optional)
