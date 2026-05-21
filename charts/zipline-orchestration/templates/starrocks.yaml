@@ -104,7 +104,7 @@ spec:
       initContainers:
         # Download PostgreSQL JDBC driver (cached in PVC across restarts)
         - name: download-jdbc-driver
-          image: busybox:1.36
+          image: {{ .Values.starrocks.utilityImage }}
           command:
             - sh
             - -c
@@ -124,7 +124,7 @@ spec:
       containers:
         # Combined FE + BE container using StarRocks allin1 image
         - name: starrocks
-          image: starrocks/allin1-ubuntu:3.5.2
+          image: "{{ .Values.starrocks.image }}"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9030
@@ -235,7 +235,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: starrocks-init-catalog
+  name: starrocks-init-catalog-{{ .Release.Revision }}
   namespace: {{ .Release.Namespace }}
 spec:
   ttlSecondsAfterFinished: 300
@@ -246,14 +246,14 @@ spec:
       initContainers:
         # Wait for StarRocks to actually accept queries (not just TCP)
         - name: wait-for-starrocks
-          image: mysql:8.0
+          image: {{ .Values.starrocks.mysqlImage }}
           command:
             - sh
             - -c
             - |
               echo "Waiting for StarRocks to accept queries..."
               for i in $(seq 1 60); do
-                if mysql -h starrocks-service -P 9030 -u root -e "SELECT 1" >/dev/null 2>&1; then
+                if mysql -h {{ .Values.starrocks.host | quote }} -P {{ .Values.starrocks.port | quote }} -u root -e "SELECT 1" >/dev/null 2>&1; then
                   echo "StarRocks is ready and accepting queries"
                   exit 0
                 fi
@@ -264,7 +264,7 @@ spec:
               exit 1
         # Wait for PostgreSQL (Iceberg catalog backend)
         - name: wait-for-postgres
-          image: busybox:1.36
+          image: {{ .Values.starrocks.utilityImage }}
           command:
             - sh
             - -c
@@ -280,7 +280,7 @@ spec:
               exit 1
       containers:
         - name: init-catalog
-          image: mysql:8.0
+          image: {{ .Values.starrocks.mysqlImage }}
           env:
             - name: AWS_REGION
               value: {{ .Values.aws.region | quote }}
@@ -297,38 +297,28 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
             {{- if .Values.aws.databricksSpSecretArn }}
-            - name: DATABRICKS_HOST
-              value: {{ .Values.starrocks.catalogInit.env.DATABRICKS_HOST | quote }}
-            - name: DATABRICKS_WAREHOUSE
-              value: {{ .Values.starrocks.catalogInit.env.DATABRICKS_WAREHOUSE | quote }}
             - name: DATABRICKS_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: databricks-sp-credentials
-                  key: databricks_client_id
+                  key: databricks-client-id
             - name: DATABRICKS_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: databricks-sp-credentials
-                  key: databricks_client_secret
+                  key: databricks-client-secret
             {{- end }}
-            {{- if .Values.aws.snowflakeSpSecretArn }}
+            {{- if .Values.aws.snowflakePolarisSpSecretArn }}
             - name: SNOWFLAKE_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: snowflake-polaris-credentials
-                  key: snowflake_polaris_client_id
+                  key: snowflake-polaris-client-id
             - name: SNOWFLAKE_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: snowflake-polaris-credentials
-                  key: snowflake_polaris_client_secret
-            - name: SNOWFLAKE_ACCOUNT
-              value: {{ .Values.starrocks.catalogInit.env.SNOWFLAKE_ACCOUNT | quote }}
-            - name: POLARIS_WAREHOUSE
-              value: {{ .Values.starrocks.catalogInit.env.POLARIS_WAREHOUSE | quote }}
-            - name: POLARIS_PRINCIPAL_ROLE
-              value: {{ .Values.starrocks.catalogInit.env.POLARIS_PRINCIPAL_ROLE | quote }}
+                  key: snowflake-polaris-client-secret
             {{- end }}
           command:
             - sh
@@ -408,7 +398,7 @@ spec:
                 render_sql_template "$catalog_file" "$rendered"
 
                 echo "Applying $catalog_name..."
-                mysql -h starrocks-service -P 9030 -u root < "$rendered"
+                mysql -h {{ .Values.starrocks.host | quote }} -P {{ .Values.starrocks.port | quote }} -u root < "$rendered"
               }
 
               DB_USERNAME_ESCAPED="$(sql_escape "$DB_USERNAME")"
@@ -431,7 +421,7 @@ spec:
               );
               EOF
 
-              mysql -h starrocks-service -P 9030 -u root < /tmp/init-catalog.sql
+              mysql -h {{ .Values.starrocks.host | quote }} -P {{ .Values.starrocks.port | quote }} -u root < /tmp/init-catalog.sql
 
               for catalog_file in /catalogs/*.sql; do
                 if [ -f "$catalog_file" ]; then
@@ -442,7 +432,7 @@ spec:
               # Verify catalog was created
               echo ""
               echo "Verifying catalog creation..."
-              mysql -h starrocks-service -P 9030 -u root -e "SHOW CATALOGS;"
+              mysql -h {{ .Values.starrocks.host | quote }} -P {{ .Values.starrocks.port | quote }} -u root -e "SHOW CATALOGS;"
 
               echo ""
               echo "Iceberg catalog initialized successfully!"
