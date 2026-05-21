@@ -155,6 +155,23 @@ spec:
             - name: AWS_S3_BUCKET
               value: {{ .Values.hub.awsS3Bucket | quote }}
             {{- end }}
+            {{- if .Values.hub.databricks.clientId }}
+            - name: DATABRICKS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hub.fullname" . }}-databricks
+                  key: client_id
+            - name: DATABRICKS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hub.fullname" . }}-databricks
+                  key: client_secret
+            - name: DATABRICKS_CREDENTIAL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hub.fullname" . }}-databricks
+                  key: credential
+            {{- end }}
           ports:
             - containerPort: {{ .Values.hub.port }}
           readinessProbe:

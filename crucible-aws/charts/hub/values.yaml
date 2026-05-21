@@ -29,6 +29,15 @@ hub:
   # Online API class (cloud-specific)
   onlineClass: ""
 
+  # Databricks service-principal OAuth creds — needed when confs read/write
+  # Unity Catalog tables. When clientId is set, the chart renders a Secret and
+  # injects DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET / DATABRICKS_CREDENTIAL
+  # so the Hub can fill {DATABRICKS_*} conf placeholders. Pass via --set at
+  # install time — do not commit real values here.
+  databricks:
+    clientId: ""
+    clientSecret: ""
+
   # KV store properties
   gcpProjectId: ""
   gcpBigtableInstanceId: ""
