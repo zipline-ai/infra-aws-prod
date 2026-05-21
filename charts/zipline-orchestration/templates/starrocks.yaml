@@ -297,6 +297,10 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
             {{- if .Values.aws.databricksSpSecretArn }}
+            - name: DATABRICKS_HOST
+              value: {{ .Values.starrocks.catalogInit.env.DATABRICKS_HOST | quote }}
+            - name: DATABRICKS_WAREHOUSE
+              value: {{ .Values.starrocks.catalogInit.env.DATABRICKS_WAREHOUSE | quote }}
             - name: DATABRICKS_CLIENT_ID
               valueFrom:
                 secretKeyRef:

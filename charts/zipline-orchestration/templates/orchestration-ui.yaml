@@ -65,7 +65,7 @@ spec:
             - name: PROMETHEUS_NAMESPACE
               value: "{{ .Values.prometheus.namespace }}"
             - name: STARROCKS_HOST
-              value: "http://starrocks-service"
+              value: "starrocks-service"
             - name: DATA_EXPLORER
               value: "true"
             - name: AUTH_ENABLED
