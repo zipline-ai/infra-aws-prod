@@ -27,6 +27,19 @@ data "aws_subnet" "shared" {
   }
 }
 
+data "aws_subnet" "ingress_nlb" {
+  for_each = toset(var.ingress_nlb_subnet_name_tags)
+  filter {
+    name   = "tag:Name"
+    values = [each.value]
+  }
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.shared.id]
+  }
+}
+
 locals {
-  subnet_ids = [for s in data.aws_subnet.shared : s.id]
+  subnet_ids             = [for s in data.aws_subnet.shared : s.id]
+  ingress_nlb_subnet_ids = [for s in data.aws_subnet.ingress_nlb : s.id]
 }

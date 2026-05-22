@@ -6,7 +6,7 @@
 # host plus the spark-history subdomain.
 #
 # DNS validation: ACM emits one CNAME per domain into the cert's
-# `domain_validation_options`. Add those to Cloudflare (as DNS-only records).
+# `domain_validation_options`. Add those records to your DNS provider.
 # `aws_acm_certificate_validation` then waits for ACM to confirm.
 #
 # Spark History Server is path-prefixed under the main host
@@ -30,8 +30,7 @@ resource "aws_acm_certificate_validation" "crucible_aws" {
   certificate_arn = aws_acm_certificate.crucible_aws.arn
 
   # No `validation_record_fqdns` — that's needed only when terraform manages
-  # the DNS provider. We use Cloudflare out-of-band, so this just waits for
-  # whatever validation records you've added there.
+  # the DNS provider. This waits for whatever validation records you've added.
   timeouts {
     create = "30m"
   }

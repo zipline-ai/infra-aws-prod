@@ -40,6 +40,22 @@ variable "shared_subnet_name_tags" {
   type        = list(string)
 }
 
+variable "ingress_nlb_subnet_name_tags" {
+  description = "Optional Name tags of public subnets where the internet-facing nginx ingress NLB should be provisioned."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for tag in var.ingress_nlb_subnet_name_tags : trimspace(tag) != ""])
+    error_message = "ingress_nlb_subnet_name_tags must not contain empty subnet name tags."
+  }
+
+  validation {
+    condition     = length(var.ingress_nlb_subnet_name_tags) == length(distinct(var.ingress_nlb_subnet_name_tags))
+    error_message = "ingress_nlb_subnet_name_tags must contain unique subnet name tags."
+  }
+}
+
 variable "node_instance_types" {
   description = "EC2 instance types for the default data-plane node group. Defaults to a single Graviton (arm64) type. Add equivalent-size types to let EKS fall back across instance families when one is capacity-constrained in an AZ — keep every entry the same vCPU/memory size so the cluster autoscaler can predict node capacity. Note: changing this on an existing node group forces a replacement."
   type        = list(string)

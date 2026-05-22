@@ -1,31 +1,33 @@
 # crucible-aws
 
-Terraform that provisions the **Crucible** EKS cluster. The files in this
-directory are the env-agnostic skeleton — concrete network IDs, bucket names,
-public-API CIDR allow-list, etc. live in `s3://zipline-canary-vars/` (shared
-with zipline-aws and other canary modules) as `crucible.auto.tfvars` and are
-pulled in via `./pull_canary_config.sh` before `terraform apply`.
+Terraform that provisions the **Crucible** EKS cluster. The checked-in files in
+this directory are the env-agnostic skeleton — concrete network IDs, bucket
+names, public-API CIDR allow-list, etc. live in `s3://zipline-canary-vars/`
+(shared with zipline-aws and other canary modules) and are pulled in via
+`./pull_canary_config.sh` before `terraform apply`.
 
 ## Workflow
 
 ```sh
 cd crucible-aws
 
-# First-time / new clone — fetch canary tfvars + extra IAM grants from S3.
+# First-time / new clone — fetch canary tfvars + canary-only overlay from S3.
 ./pull_canary_config.sh
 
 terraform init
 terraform plan
 terraform apply
 
-# After editing canary_*.tf or terraform.tfvars locally, push back to S3 so
-# the next operator pulls your change.
+# After editing canary-only local config, push back to S3 so the next operator
+# pulls your change.
 ./push_canary_config.sh
 ```
 
-`pull_canary_config.sh` writes a single `crucible.auto.tfvars` with the
-concrete values for the variables declared in `variables.tf` (VPC/subnet
-tags, bucket name, public host, public-API CIDRs, chronon bucket lists).
+`pull_canary_config.sh` writes `crucible.auto.tfvars` with the concrete values
+for the variables declared in `variables.tf` (VPC/subnet tags, ingress NLB
+subnet tags, bucket name, public host, public-API CIDRs, chronon bucket lists).
+It also pulls a gitignored canary-only Terraform overlay for Zipline-managed
+environment details that should not become part of the customer-facing API.
 Terraform auto-loads `*.auto.tfvars` so no `-var-file` flag is needed.
 
 The skeleton's `chronon_irsa.tf` reads the chronon bucket lists from those
@@ -34,9 +36,15 @@ the *shape* of the policy stays in this prod-facing tree (every
 chronon-on-EKS deployment needs the same statement structure), only the
 bucket NAMES vary per environment.
 
-`.tfvars` files are gitignored at the repo root so they can't leak into
-this tree. `.terraform.lock.hcl` stays in version control alongside the
-skeleton (single source of truth for provider versions).
+`.tfvars` files and canary-only overlays are gitignored at the repo root so
+they can't leak into this tree. `.terraform.lock.hcl` stays in version control
+alongside the skeleton (single source of truth for provider versions).
+
+The canary overlay has its own provider dependencies. `pull_canary_config.sh`
+therefore replaces the local `.terraform.lock.hcl` with
+`s3://zipline-canary-vars/crucible.terraform.lock.hcl`, and
+`push_canary_config.sh` uploads that canary lockfile back to S3. Do not commit
+the S3-synced canary lockfile to this tree.
 
 ## What lives in this directory (skeleton)
 
@@ -56,6 +64,16 @@ cluster and the Azure `crucible-aks` AKS cluster.
 | `aws_iam_role.node` + policy attachments | `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly` |
 | `aws_iam_openid_connect_provider.oidc` | Required by IRSA |
 | `aws_eks_access_entry` + access policy associations | Optional, driven by `var.personnel_arns` |
+
+## Public ingress DNS
+
+The nginx ingress controller provisions an AWS NLB. Set
+`ingress_nlb_subnet_name_tags` to public subnet Name tags when you need to pin
+the public ingress NLB to specific subnets. When unset, Terraform leaves subnet
+selection to Kubernetes/AWS.
+
+This skeleton does not manage DNS records. After apply, point `public_host` at
+the `ingress_nlb_hostname` output using your DNS provider.
 
 ## Follow-up PRs
 
