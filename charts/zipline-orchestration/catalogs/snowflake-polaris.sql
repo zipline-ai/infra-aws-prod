@@ -30,8 +30,10 @@ PROPERTIES (
     "type" = "iceberg",
     "iceberg.catalog.type" = "rest",
     "iceberg.catalog.uri" = "https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com/polaris/api/catalog",
-    "iceberg.catalog.credential" = "${SNOWFLAKE_CLIENT_ID}:${SNOWFLAKE_CLIENT_SECRET}",
-    "iceberg.catalog.scope" = "PRINCIPAL_ROLE:${POLARIS_PRINCIPAL_ROLE}",
+    "iceberg.catalog.security" = "oauth2",
+    "iceberg.catalog.oauth2.credential" = "${SNOWFLAKE_CLIENT_ID}:${SNOWFLAKE_CLIENT_SECRET}",
+    "iceberg.catalog.oauth2.scope" = "PRINCIPAL_ROLE:${POLARIS_PRINCIPAL_ROLE}",
     "iceberg.catalog.warehouse" = "${POLARIS_WAREHOUSE}",
+    "iceberg.catalog.vended-credentials-enabled" = "true",
     "iceberg.catalog.header.X-Iceberg-Access-Delegation" = "vended-credentials"
 );
