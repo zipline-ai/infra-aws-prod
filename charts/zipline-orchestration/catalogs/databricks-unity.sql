@@ -26,6 +26,6 @@ PROPERTIES (
     "iceberg.catalog.oauth2.credential" = "${DATABRICKS_CLIENT_ID}:${DATABRICKS_CLIENT_SECRET}",
     "iceberg.catalog.oauth2.scope" = "all-apis",
     "iceberg.catalog.warehouse" = "${DATABRICKS_WAREHOUSE}",
-    "aws.s3.use_aws_sdk_default_behavior" = "true",
+    "iceberg.catalog.vended-credentials-enabled" = "true",
     "aws.s3.region" = "${AWS_REGION}"
 );
