@@ -7,8 +7,8 @@ locals {
   # or produce a bogus image URI like "...:  ".
   emr_custom_image_version = trimspace(var.emr_custom_image_version)
   emr_custom_image_enabled = local.emr_custom_image_version != ""
-  emr_custom_image_app     = "zipline-emr-${local.customer_name}-custom-image"
-  emr_custom_image_repo    = "chronon-emr-${local.customer_name}-custom-image"
+  emr_custom_image_app     = "zipline-emr-${var.customer_name}-custom-image"
+  emr_custom_image_repo    = "chronon-emr-${var.customer_name}-custom-image"
   emr_custom_image_uri = local.emr_custom_image_enabled ? format(
     "%s.dkr.ecr.%s.amazonaws.com/%s:%s",
     data.aws_caller_identity.current.account_id,
@@ -19,7 +19,7 @@ locals {
 }
 
 resource "aws_cloudwatch_log_group" "emr_logs" {
-  name              = "/emr/zipline-${local.customer_name}"
+  name              = "/emr/zipline-${var.customer_name}"
   retention_in_days = 30
 }
 
@@ -139,24 +139,24 @@ data "aws_iam_policy_document" "emr_serverless_assume_role" {
 }
 
 resource "aws_iam_role" "emr_serverless_role" {
-  name               = "zipline_${local.customer_name}_emr_serverless_role"
+  name               = "zipline_${var.customer_name}_emr_serverless_role"
   assume_role_policy = data.aws_iam_policy_document.emr_serverless_assume_role.json
 }
 
 resource "aws_iam_role_policy" "emr_serverless_policy" {
-  name   = "zipline_${local.customer_name}_emr_serverless_policy"
+  name   = "zipline_${var.customer_name}_emr_serverless_policy"
   role   = aws_iam_role.emr_serverless_role.id
   policy = data.aws_iam_policy_document.iam_emr_policy.json
 }
 
 resource "aws_iam_role_policy" "emr_serverless_bedrock" {
-  name   = "zipline_${local.customer_name}_emr_serverless_bedrock_policy"
+  name   = "zipline_${var.customer_name}_emr_serverless_bedrock_policy"
   role   = aws_iam_role.emr_serverless_role.id
   policy = data.aws_iam_policy_document.emr_bedrock_policy.json
 }
 
 resource "aws_emrserverless_application" "spark" {
-  name          = "zipline-emr-${local.customer_name}"
+  name          = "zipline-emr-${var.customer_name}"
   type          = "Spark"
   release_label = "emr-7.12.0"
 
@@ -181,7 +181,7 @@ resource "aws_emrserverless_application" "spark" {
 # Provisioned only when var.emr_custom_image_version is set. Lets one customer
 # opt specific workflows into a patched Spark image (e.g. forked delta-spark)
 # by pointing teams.py SPARK_CLUSTER_NAME at this sibling app. The canonical
-# zipline-emr-${local.customer_name} app is left untouched so paved-path
+# zipline-emr-${var.customer_name} app is left untouched so paved-path
 # workflows are unaffected.
 ###
 
@@ -213,7 +213,7 @@ resource "aws_emrserverless_application" "spark_custom_image" {
 
 # EMR Serverless pulls the image as its own service principal, scoped to the
 # custom-image application's ARN — not via the execution role. The ECR repo
-# itself (chronon-emr-${local.customer_name}-custom-image) is created by the
+# itself (chronon-emr-${var.customer_name}-custom-image) is created by the
 # customer outside of TF (one-time `aws ecr create-repository`); this policy
 # is attached to that existing repo by name.
 data "aws_iam_policy_document" "emr_custom_image_pull" {

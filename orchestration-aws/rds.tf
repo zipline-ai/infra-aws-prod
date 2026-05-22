@@ -41,7 +41,7 @@ resource "aws_db_instance" "zipline" {
 }
 
 resource "aws_iam_policy" "rds_secret_policy" {
-  name        = "${var.name_prefix}-RDSSecretReadAccess"
+  name        = "RDSSecretReadAccess"
   description = "Allows reading the database credentials from Secrets Manager"
 
   policy = jsonencode({
