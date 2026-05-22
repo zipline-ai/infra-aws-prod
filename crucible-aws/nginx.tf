@@ -20,12 +20,27 @@ resource "helm_release" "ingress_nginx" {
   wait    = true
   timeout = 600
 
+  depends_on = [aws_eks_node_group.control]
+
   values = [yamlencode({
     controller = {
       ingressClassResource = {
         name = "nginx"
       }
       ingressClass = "nginx"
+
+      nodeSelector = {
+        "workload-plane" = "control"
+      }
+
+      tolerations = [
+        {
+          key      = "dedicated"
+          operator = "Equal"
+          value    = "crucible-system"
+          effect   = "NoSchedule"
+        }
+      ]
 
       service = {
         type = "LoadBalancer"

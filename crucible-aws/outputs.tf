@@ -28,6 +28,16 @@ output "crucible_bucket_name" {
   value       = aws_s3_bucket.crucible.id
 }
 
+output "control_node_group_name" {
+  description = "Tainted EKS node group for Hub, ingress, and Crucible control-plane services."
+  value       = aws_eks_node_group.control.node_group_name
+}
+
+output "data_node_group_name" {
+  description = "EKS node group for Chronon engine Spark/Flink data-plane pods."
+  value       = aws_eks_node_group.default.node_group_name
+}
+
 output "gateway_role_arn" {
   description = "IRSA role ARN for the crucible gateway SA. Plug into `serviceAccount.annotations.eks.amazonaws.com/role-arn` in the helm values."
   value       = aws_iam_role.gateway.arn

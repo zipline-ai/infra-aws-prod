@@ -51,7 +51,8 @@ cluster and the Azure `crucible-aks` AKS cluster.
 | `aws_eks_cluster.crucible` | `crucible-eks`, version 1.34, public+private API |
 | `aws_iam_role.cluster` + policy attachments | `AmazonEKSClusterPolicy`, `AmazonEKSVPCResourceController` |
 | `aws_security_group.cluster` + HTTPS ingress rule | Control-plane SG |
-| `aws_eks_node_group.default` | Single Graviton (arm64) pool, m7g.large, autoscale 1-5 |
+| `aws_eks_node_group.control` | Tainted Graviton control-plane pool for Hub, ingress, and Crucible services |
+| `aws_eks_node_group.default` | Graviton data-plane pool for Chronon engine Spark/Flink pods |
 | `aws_iam_role.node` + policy attachments | `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly` |
 | `aws_iam_openid_connect_provider.oidc` | Required by IRSA |
 | `aws_eks_access_entry` + access policy associations | Optional, driven by `var.personnel_arns` |
@@ -87,3 +88,19 @@ kubectl get nodes
 Shares the canary VPC (looked up by Name tag `zipline-canary-vpc` plus subnet
 Name tags). If/when crucible warrants isolation, switch to a dedicated VPC by
 adding the network resources here and dropping the data lookups in `vpc.tf`.
+
+## Hub chart
+
+`charts/hub/` is the Helm chart for the Chronon Hub that pairs with this
+cluster. It is kept under `crucible-aws/` rather than the top-level `charts/`
+directory because it is Crucible-specific — deployments that don't run
+Crucible never render it. It lands service pods on the tainted control node
+group (`aws_eks_node_group.control`); Spark/Flink engine pods stay on the
+default data-plane pool. Install it after `terraform apply`:
+
+```sh
+helm install hub crucible-aws/charts/hub \
+  -f crucible-aws/charts/hub/hub-values-eks-dev.yaml \
+  --set hub.jarUri=s3://<bucket>/release/<version>/jars/k8s_assembly.jar \
+  -n crucible-system
+```
