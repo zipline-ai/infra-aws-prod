@@ -40,3 +40,4 @@ terraform.rc
 # s3://zipline-canary-vars/... by crucible-aws/push_canary_config.sh.
 # (The pulled tfvars themselves are already covered by `*.tfvars` above.)
 crucible-aws/.canary-config/
+crucible-aws/crucible.canary.auto.tf

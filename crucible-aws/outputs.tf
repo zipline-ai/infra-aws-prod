@@ -59,8 +59,8 @@ output "acm_certificate_arn" {
 
 output "acm_validation_records" {
   description = <<-EOT
-    DNS validation records to add to Cloudflare (DNS-only / grey cloud) so ACM
-    can issue the cert. One per cert SAN. After adding them, re-run
+    DNS validation records to add to your DNS provider so ACM can issue the
+    cert. One per cert SAN. After adding them, re-run
     `terraform apply` — the `aws_acm_certificate_validation` resource will
     block until ACM confirms.
   EOT
@@ -74,7 +74,7 @@ output "acm_validation_records" {
 }
 
 output "ingress_nlb_hostname" {
-  description = "NLB hostname provisioned by the nginx-ingress controller. CNAME `<public_host>` + `spark-history.<public_host>` to this in Cloudflare."
+  description = "NLB hostname provisioned by the nginx-ingress controller. CNAME `<public_host>` to this in your DNS provider."
   value       = try(data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname, "(NLB hostname will appear after first apply completes)")
 }
 

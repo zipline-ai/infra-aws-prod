@@ -51,7 +51,7 @@ resource "helm_release" "ingress_nginx" {
           http  = "http"
           https = "http"
         }
-        annotations = {
+        annotations = merge({
           # Legacy in-tree NLB (works without AWS Load Balancer Controller).
           "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
 
@@ -60,7 +60,9 @@ resource "helm_release" "ingress_nginx" {
           "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"               = "443"
           "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"        = "tcp"
           "service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout" = "60"
-        }
+          }, length(local.ingress_nlb_subnet_ids) > 0 ? {
+          "service.beta.kubernetes.io/aws-load-balancer-subnets" = join(",", local.ingress_nlb_subnet_ids)
+        } : {})
       }
 
       config = {
