@@ -1,0 +1,104 @@
+# Helm values for the crucible-eks cluster in the zipline-ai canary AWS account
+# (account 345594603419, region us-west-2). Mirrors values-eks-dev.yaml but
+# points at the company-owned canary infrastructure provisioned by
+# infra-aws-prod/crucible-aws/ rather than the personal dev account.
+
+replicaCount: 1
+
+cloudProvider: aws
+
+image:
+  # Built locally from the tchow/shs-redirect branch (PR #10) — drops the
+  # SHS body-rewriter in favor of a 302 redirect to historyServer.publicUrl.
+  # Switch back to `latest` once PR #10 lands and CI publishes a new tag.
+  repository: 345594603419.dkr.ecr.us-west-2.amazonaws.com/crucible-gateway
+  tag: "shs-redirect"
+  pullPolicy: Always
+
+objectStore:
+  bucket: s3://zipline-crucible-canary
+  region: us-west-2
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::345594603419:role/crucible-gateway"
+
+persistence:
+  enabled: false
+
+namespaces:
+  managed:
+    - test-ns-a
+
+sparkDefaults:
+  eventLogDir: "s3a://zipline-crucible-canary/spark-events"
+  executorCores: 1
+  executorMemory: "2Gi"
+  driverCores: 1
+  driverMemory: "1Gi"
+  serviceAccountAnnotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::345594603419:role/crucible-spark"
+  adminConf: {}
+
+flinkDefaults:
+  checkpointDir: "s3a://zipline-crucible-canary/flink/checkpoints"
+  savepointDir: "s3a://zipline-crucible-canary/flink/savepoints"
+  parallelism: 1
+  taskSlots: 1
+  jmMemory: "1024m"
+  jmCPU: 0.5
+  tmMemory: "1024m"
+  tmCPU: 1
+
+namespaceOnboarding:
+  clusterName: crucible-eks
+  eksOIDCIssuer: "https://oidc.eks.us-west-2.amazonaws.com/id/4C5B1E5B2BAB942BA62A6BE276C440F9"
+
+# Gateway ingress at /api/v1 (no rewrite — the gateway mounts /api/v1
+# routes natively). Spark History Server gets its own Ingress; see
+# historyServer.ingress below.
+ingress:
+  enabled: true
+  className: nginx
+  host: "crucible-aws.zipline.ai"
+  path: /api/v1
+  pathType: Prefix
+
+gateway:
+  maxJobsPerNamespace: 50
+
+warmPool:
+  enabled: false
+
+imagePrepull:
+  enabled: false
+
+historyServer:
+  # Enabled now that 345594603419.dkr.ecr.us-west-2.amazonaws.com/spark is mirrored.
+  enabled: true
+  image: "345594603419.dkr.ecr.us-west-2.amazonaws.com/spark:4.1-crucible-latest"
+  # SHS lives at /spark-history. proxyBase only affects the URLs SHS emits;
+  # the gateway no longer rewrites SHS responses, it 302-redirects completed
+  # Spark job UIs to publicUrl + /history/<appId>/.
+  proxyBase: "/spark-history"
+  publicUrl: "https://crucible-aws.zipline.ai/spark-history"
+  ingress:
+    enabled: true
+  daemonMemory: "1g"
+  hybridStoreMemory: "512m"
+  maxDiskUsage: "5g"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      memory: "2Gi"
+  persistence:
+    enabled: false
+
+litestream:
+  enabled: true
+  replicaType: "s3"
+  bucket: "zipline-crucible-canary"
+  region: "us-west-2"

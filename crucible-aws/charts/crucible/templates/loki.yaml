@@ -1,0 +1,182 @@
+{{- if .Values.loki.enabled }}
+{{- $cloud := .Values.cloudProvider | default "" }}
+{{- $bucket := .Values.objectStore.bucket | default "" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "crucible.fullname" . }}-loki
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  loki.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+
+    common:
+      path_prefix: /loki
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+      {{- if not (and $bucket (or (eq $cloud "aws") (eq $cloud "gcp") (eq $cloud "azure"))) }}
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      {{- end }}
+
+    {{- if and $bucket (eq $cloud "aws") }}
+    storage_config:
+      tsdb_shipper:
+        active_index_directory: /loki/tsdb-index
+        cache_location: /loki/tsdb-cache
+      aws:
+        bucketnames: {{ include "crucible.bucketName" . }}
+        region: {{ .Values.objectStore.region | default .Values.litestream.region | default "us-east-1" }}
+        s3forcepathstyle: false
+    {{- else if and $bucket (eq $cloud "gcp") }}
+    storage_config:
+      tsdb_shipper:
+        active_index_directory: /loki/tsdb-index
+        cache_location: /loki/tsdb-cache
+      gcs:
+        bucket_name: {{ include "crucible.bucketName" . }}
+    {{- else if and $bucket (eq $cloud "azure") }}
+    storage_config:
+      tsdb_shipper:
+        active_index_directory: /loki/tsdb-index
+        cache_location: /loki/tsdb-cache
+      azure:
+        container_name: {{ include "crucible.azureContainerName" . }}
+        account_name: {{ include "crucible.azureAccountName" . }}
+        use_federated_token: true
+    {{- end }}
+
+    schema_config:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          {{- if and $bucket (eq $cloud "aws") }}
+          object_store: s3
+          {{- else if and $bucket (eq $cloud "gcp") }}
+          object_store: gcs
+          {{- else if and $bucket (eq $cloud "azure") }}
+          object_store: azure
+          {{- else }}
+          object_store: filesystem
+          {{- end }}
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    limits_config:
+      retention_period: {{ .Values.loki.retention | default "168h" }}
+      ingestion_rate_mb: 32
+      ingestion_burst_size_mb: 64
+      per_stream_rate_limit: 16MB
+      per_stream_rate_limit_burst: 32MB
+
+    compactor:
+      working_directory: /loki/compactor
+      compaction_interval: 10m
+      retention_enabled: true
+      retention_delete_delay: 2h
+      {{- if and $bucket (eq $cloud "aws") }}
+      delete_request_store: s3
+      {{- else if and $bucket (eq $cloud "gcp") }}
+      delete_request_store: gcs
+      {{- else if and $bucket (eq $cloud "azure") }}
+      delete_request_store: azure
+      {{- else }}
+      delete_request_store: filesystem
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "crucible.fullname" . }}-loki
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3100
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-loki
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crucible.fullname" . }}-loki
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "crucible.fullname" . }}-loki
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "crucible.fullname" . }}-loki
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- if index (.Values.serviceAccount.annotations | default dict) "azure.workload.identity/client-id" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "crucible.serviceAccountName" . }}
+      tolerations:
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+      containers:
+        - name: loki
+          image: {{ .Values.loki.image | default "grafana/loki:3.4.2" }}
+          args:
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.loki.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: storage
+              mountPath: /loki
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "crucible.fullname" . }}-loki
+        - name: storage
+          emptyDir:
+            sizeLimit: {{ .Values.loki.storage.size | default "10Gi" }}
+{{- end }}

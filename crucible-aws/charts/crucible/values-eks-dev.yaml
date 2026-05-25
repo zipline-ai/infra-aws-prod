@@ -1,0 +1,78 @@
+replicaCount: 1
+
+cloudProvider: aws
+
+image:
+  repository: 011528299780.dkr.ecr.us-east-1.amazonaws.com/crucible-gateway
+  tag: "latest"
+  pullPolicy: Always
+
+objectStore:
+  bucket: s3://crucible-test-nikhil
+  region: us-east-1
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::011528299780:role/crucible-gateway"
+
+persistence:
+  enabled: false
+
+namespaces:
+  managed:
+    - test-ns-a
+
+sparkDefaults:
+  eventLogDir: "s3a://crucible-test-nikhil/spark-events"
+  executorCores: 1
+  executorMemory: "2Gi"
+  driverCores: 1
+  driverMemory: "1Gi"
+  serviceAccountAnnotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::011528299780:role/crucible-spark"
+  adminConf: {}
+
+flinkDefaults:
+  checkpointDir: "s3a://crucible-test-nikhil/flink/checkpoints"
+  savepointDir: "s3a://crucible-test-nikhil/flink/savepoints"
+  parallelism: 1
+  taskSlots: 1
+  jmMemory: "1024m"
+  jmCPU: 0.5
+  tmMemory: "1024m"
+  tmCPU: 1
+
+namespaceOnboarding:
+  clusterName: crucible-eks
+  eksOIDCIssuer: "https://oidc.eks.us-east-1.amazonaws.com/id/B9A2EDFCAF23403E202F269700473FFB"
+
+gateway:
+  maxJobsPerNamespace: 50
+
+warmPool:
+  enabled: false
+
+imagePrepull:
+  enabled: false
+
+historyServer:
+  enabled: true
+  image: "011528299780.dkr.ecr.us-east-1.amazonaws.com/spark:4.1-crucible-latest"
+  daemonMemory: "1g"
+  hybridStoreMemory: "512m"
+  maxDiskUsage: "5g"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      memory: "2Gi"
+  persistence:
+    enabled: false
+
+litestream:
+  enabled: true
+  replicaType: "s3"
+  bucket: "crucible-test-nikhil"
+  region: "us-east-1"

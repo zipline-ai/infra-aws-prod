@@ -1,0 +1,9 @@
+{{- range .Values.namespaces.managed }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ . }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+{{- end }}

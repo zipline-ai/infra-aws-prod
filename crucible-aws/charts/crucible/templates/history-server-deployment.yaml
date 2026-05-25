@@ -1,0 +1,112 @@
+{{- if .Values.historyServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-history-server
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: spark-history-server
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-history-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spark-history-server
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- if index (.Values.serviceAccount.annotations | default dict) "azure.workload.identity/client-id" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "crucible.serviceAccountName" . }}
+      {{- if and .Values.systemPriorityClass.enabled .Values.systemPriorityClass.name }}
+      priorityClassName: {{ .Values.systemPriorityClass.name }}
+      {{- end }}
+      # ARM arch toleration (GKE taints arm64 nodes by default).
+      tolerations:
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+      {{- /* History server needs cloud identity to read event logs from object storage */}}
+      initContainers:
+        - name: fix-permissions
+          image: {{ .Values.historyServer.image }}
+          command: ["sh", "-c", "mkdir -p /data/spark-history-cache && chown -R spark:spark /data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: history-cache
+              mountPath: /data
+      containers:
+        - name: history-server
+          image: {{ .Values.historyServer.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /opt/spark/bin/spark-class
+            - org.apache.spark.deploy.history.HistoryServer
+          env:
+            - name: SPARK_HISTORY_OPTS
+              value: >-
+                -Dspark.history.fs.logDirectory={{ trimSuffix "/" (include "crucible.sparkEventLogDir" .) }}
+                -Dspark.history.store.hybridStore.enabled=true
+                -Dspark.history.store.hybridStore.diskBackend=ROCKSDB
+                -Dspark.history.store.hybridStore.maxMemoryUsage={{ .Values.historyServer.hybridStoreMemory | default "4g" }}
+                -Dspark.history.store.path=/data/spark-history-cache
+                -Dspark.history.store.maxDiskUsage={{ .Values.historyServer.maxDiskUsage | default "50g" }}
+                -Dspark.history.fs.numReplayThreads=8
+                -Dspark.history.fs.cleaner.enabled=true
+                -Dspark.history.fs.cleaner.maxAge={{ .Values.historyServer.cleanerMaxAge | default "3d" }}
+                -Dspark.history.retainedApplications={{ .Values.historyServer.retainedApplications | default 50 }}
+                -Dspark.history.ui.port=18080
+                -Dspark.ui.proxyBase={{ .Values.historyServer.proxyBase | default "/api/v1/history" }}
+                {{- if eq (.Values.cloudProvider | default "aws") "aws" }}
+                -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.WebIdentityTokenCredentialsProvider
+                -Dspark.hadoop.fs.s3a.connection.maximum=200
+                -Dspark.hadoop.fs.s3a.threads.max=50
+                {{- else if eq .Values.cloudProvider "gcp" }}
+                -Dspark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem
+                {{- else if eq .Values.cloudProvider "azure" }}
+                -Dspark.hadoop.fs.azure.account.auth.type=OAuth
+                -Dspark.hadoop.fs.azure.account.oauth.provider.type=org.apache.hadoop.fs.azurebfs.oauth2.WorkloadIdentityTokenProvider
+                {{- range $k, $v := (.Values.sparkDefaults.adminConf | default dict) }}
+                -D{{ $k }}={{ $v }}
+                {{- end }}
+                {{- end }}
+            - name: SPARK_DAEMON_MEMORY
+              value: {{ .Values.historyServer.daemonMemory | default "5g" }}
+            - name: SPARK_DAEMON_JAVA_OPTS
+              value: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication"
+          ports:
+            - name: http
+              containerPort: 18080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.historyServer.resources | nindent 12 }}
+          volumeMounts:
+            - name: history-cache
+              mountPath: /data
+      volumes:
+        - name: history-cache
+          {{- if .Values.historyServer.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: spark-history-server
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
