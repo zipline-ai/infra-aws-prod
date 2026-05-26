@@ -1,0 +1,71 @@
+replicaCount: 1
+
+cloudProvider: gcp
+
+image:
+  repository: us-docker.pkg.dev/crucible-io/crucible/gateway
+  tag: "latest"
+  pullPolicy: Always
+
+objectStore:
+  bucket: gs://crucible-dev-bucket
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: crucible-gateway@crucible-io.iam.gserviceaccount.com
+
+persistence:
+  enabled: true
+  storageClass: dynamic-rwo    # uses Hyperdisk Balanced on c4a (Axion); pd does not work on c4a
+  size: 10Gi
+
+namespaces:
+  managed:
+    - test-ns-a
+    - test-ns-b
+
+sparkDefaults:
+  eventLogDir: "gs://crucible-dev-bucket/spark-events"
+  executorCores: 1         # dev cluster has small nodes
+  executorMemory: "1Gi"
+  driverCores: 1
+  driverMemory: "1Gi"
+  serviceAccountAnnotations:
+    iam.gke.io/gcp-service-account: crucible-spark@crucible-io.iam.gserviceaccount.com
+
+flinkDefaults:
+  checkpointDir: "gs://crucible-dev-bucket/flink/checkpoints"
+  savepointDir: "gs://crucible-dev-bucket/flink/savepoints"
+  parallelism: 1
+  taskSlots: 1
+  jmMemory: "2048m"
+  jmCPU: 0.5
+  tmMemory: "2048m"
+  tmCPU: 1
+
+namespaceOnboarding:
+  clusterName: crucible-dev
+  gcpProject: crucible-io
+  gcpClusterLocation: us-west1
+
+gateway:
+  maxJobsPerNamespace: 20
+
+historyServer:
+  enabled: true
+  image: "us-docker.pkg.dev/crucible-io/crucible/spark:4.1-crucible-latest"
+  daemonMemory: "1g"
+  hybridStoreMemory: "512m"
+  maxDiskUsage: "5g"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      memory: "8Gi"
+  persistence:
+    enabled: true
+    storageClass: dynamic-rwo    # uses Hyperdisk Balanced on c4a (Axion); pd does not work on c4a
+    size: 5Gi
+

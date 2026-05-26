@@ -1,0 +1,105 @@
+replicaCount: 1
+
+cloudProvider: azure
+
+image:
+  repository: ziplinecanary.azurecr.io/crucible-gateway
+  tag: "latest"
+  pullPolicy: Always
+
+objectStore:
+  bucket: https://ziplineai2.blob.core.windows.net/crucible
+
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id: "5db0e3c1-eef7-4a78-9a60-6d759615dcf9"
+
+persistence:
+  enabled: false
+
+namespaces:
+  managed:
+    - test-ns-a
+
+sparkDefaults:
+  nvmeEnabled: true
+  nvmeSetupImage: "ziplinecanary.azurecr.io/crucible-nvme-setup:latest"
+  executorNodeSelector:
+    crucible.ai/arch: arm64
+  executorTolerations:
+    - key: kubernetes.azure.com/scalesetpriority
+      operator: Equal
+      value: spot
+      effect: NoSchedule
+  spotNodeSelector:
+    crucible.ai/spot: "true"
+  eventLogDir: "abfss://crucible@ziplineai2.dfs.core.windows.net/spark-events"
+  executorCores: 1
+  executorMemory: "1Gi"
+  driverCores: 1
+  driverMemory: "1Gi"
+  serviceAccountAnnotations:
+    azure.workload.identity/client-id: "5db0e3c1-eef7-4a78-9a60-6d759615dcf9"
+  adminConf:
+    "spark.hadoop.fs.azure.account.oauth2.msi.tenant": "48e0cf82-8462-48fe-b995-5accce3156d0"
+    "spark.hadoop.fs.azure.account.oauth2.client.id": "5db0e3c1-eef7-4a78-9a60-6d759615dcf9"
+
+flinkDefaults:
+  checkpointDir: "abfss://crucible@ziplineai2.dfs.core.windows.net/flink/checkpoints"
+  savepointDir: "abfss://crucible@ziplineai2.dfs.core.windows.net/flink/savepoints"
+  parallelism: 1
+  taskSlots: 1
+  jmMemory: "1024m"
+  jmCPU: 0.5
+  tmMemory: "1024m"
+  tmCPU: 1
+  adminConf:
+    "fs.azure.account.oauth2.msi.tenant": "48e0cf82-8462-48fe-b995-5accce3156d0"
+    "fs.azure.account.oauth2.client.id": "5db0e3c1-eef7-4a78-9a60-6d759615dcf9"
+
+namespaceOnboarding:
+  clusterName: crucible-aks
+  azureSubscription: "3cece986-9416-439c-98a6-441ff986c88d"
+  azureResourceGroup: "crucible-rg"
+  azureTenantID: "48e0cf82-8462-48fe-b995-5accce3156d0"
+  aksOIDCIssuer: "https://westus2.oic.prod-aks.azure.com/48e0cf82-8462-48fe-b995-5accce3156d0/9351a845-b838-41d2-a190-57425619c482/"
+
+gateway:
+  maxJobsPerNamespace: 20
+  externalBasePath: /api/crucible
+
+ingress:
+  enabled: true
+  className: nginx-claims-demo-hub
+  host: crucible-azure.zipline.ai
+  path: /api/crucible
+  pathType: Prefix
+
+warmPool:
+  enabled: false
+
+imagePrepull:
+  enabled: false
+
+historyServer:
+  enabled: true
+  image: "ziplinecanary.azurecr.io/spark:4.1-crucible-latest"
+  daemonMemory: "1g"
+  hybridStoreMemory: "512m"
+  maxDiskUsage: "5g"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      memory: "8Gi"
+  persistence:
+    enabled: false
+
+litestream:
+  enabled: true
+  image: "litestream/litestream:0.5"
+  replicaType: "abs"
+  accountName: "ziplineai2"
+  container: "crucible"

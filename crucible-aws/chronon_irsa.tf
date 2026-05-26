@@ -1,12 +1,17 @@
 ###############################################################################
 # Optional inline policy on the spark IAM role granting the access pattern
 # chronon backfill jobs need: read on artifact buckets, read+write on warehouse
-# buckets, Glue catalog, DynamoDB tables that BatchNodeRunner writes to.
+# buckets, and Glue catalog access.
 #
 # The shape of each statement is universal — every chronon-on-EKS deployment
 # needs roughly the same grants. The values (which buckets) vary per
 # environment and come from `terraform.tfvars` pulled out of
 # `s3://zipline-canary-vars/crucible/` by `pull_canary_config.sh`.
+#
+# Every statement is scoped to this account + region — no blanket `*`
+# resources. The KV-store (DynamoDB) grants are intentionally omitted: the
+# trial is backfills-only. Add them back behind their own toggle if/when
+# kvstore upload is in scope.
 #
 # Auto-skipped when neither bucket list is populated — clusters not running
 # chronon get nothing extra on the spark role.
@@ -52,7 +57,9 @@ data "aws_iam_policy_document" "spark_chronon" {
 
   # Glue catalog. The chronon Spark conf wires the AWS Glue Hive client, so
   # every backfill driver issues GetTable/GetPartitions/GetDatabase before
-  # writing Iceberg tables. Action set is universal; no value to scope.
+  # writing Iceberg tables. Scoped to the Glue catalog/databases/tables in
+  # this account + region — `GetDatabases` needs the `catalog` resource,
+  # `GetTables` needs `database/*`, table/partition ops need `table/*/*`.
   statement {
     effect = "Allow"
     actions = [
@@ -73,47 +80,10 @@ data "aws_iam_policy_document" "spark_chronon" {
       "glue:DeletePartition",
       "glue:BatchDeletePartition",
     ]
-    resources = ["*"]
-  }
-
-  # dynamodb:ListTables doesn't accept resource-level ARNs per AWS auth
-  # rules — has to live in its own statement with resources = ["*"].
-  statement {
-    effect    = "Allow"
-    actions   = ["dynamodb:ListTables"]
-    resources = ["*"]
-  }
-
-  # DynamoDB CRUD for chronon's BatchNodeRunner post-job action (writes
-  # partition watermarks into `_BATCH` plus per-groupBy upload registries).
-  # Scoped to tables in the current region + account.
-  statement {
-    effect = "Allow"
-    actions = [
-      "dynamodb:DescribeTable",
-      "dynamodb:CreateTable",
-      "dynamodb:UpdateTable",
-      "dynamodb:DeleteTable",
-      "dynamodb:DescribeContinuousBackups",
-      "dynamodb:UpdateContinuousBackups",
-      "dynamodb:DescribeImport",
-      "dynamodb:ImportTable",
-      "dynamodb:DescribeTimeToLive",
-      "dynamodb:UpdateTimeToLive",
-      "dynamodb:TagResource",
-      "dynamodb:UntagResource",
-      "dynamodb:GetItem",
-      "dynamodb:PutItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:DeleteItem",
-      "dynamodb:BatchGetItem",
-      "dynamodb:BatchWriteItem",
-      "dynamodb:Query",
-      "dynamodb:Scan",
-    ]
     resources = [
-      "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/*",
-      "arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/*/index/*",
+      "arn:aws:glue:${var.region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${var.region}:${data.aws_caller_identity.current.account_id}:database/*",
+      "arn:aws:glue:${var.region}:${data.aws_caller_identity.current.account_id}:table/*/*",
     ]
   }
 }

@@ -40,10 +40,26 @@ variable "shared_subnet_name_tags" {
   type        = list(string)
 }
 
-variable "node_instance_type" {
-  description = "EC2 instance type for the default node group. Graviton (arm64) keeps cost in line with the GCP c4a / AKS Standard_D4ps_v6 pools."
-  type        = string
-  default     = "m7g.large"
+variable "ingress_nlb_subnet_name_tags" {
+  description = "Optional Name tags of public subnets where the internet-facing nginx ingress NLB should be provisioned."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for tag in var.ingress_nlb_subnet_name_tags : trimspace(tag) != ""])
+    error_message = "ingress_nlb_subnet_name_tags must not contain empty subnet name tags."
+  }
+
+  validation {
+    condition     = length(var.ingress_nlb_subnet_name_tags) == length(distinct(var.ingress_nlb_subnet_name_tags))
+    error_message = "ingress_nlb_subnet_name_tags must contain unique subnet name tags."
+  }
+}
+
+variable "node_instance_types" {
+  description = "EC2 instance types for the default data-plane node group. Defaults to a single Graviton (arm64) type. Add equivalent-size types to let EKS fall back across instance families when one is capacity-constrained in an AZ — keep every entry the same vCPU/memory size so the cluster autoscaler can predict node capacity. Note: changing this on an existing node group forces a replacement."
+  type        = list(string)
+  default     = ["m7g.large"]
 }
 
 variable "node_min_size" {
@@ -60,6 +76,30 @@ variable "node_max_size" {
 
 variable "node_desired_size" {
   description = "Desired number of nodes in the default node group at apply time."
+  type        = number
+  default     = 2
+}
+
+variable "control_node_instance_types" {
+  description = "EC2 instance types for the tainted control-plane node group that runs Hub, ingress, and Crucible control-plane services. Defaults to a single Graviton (arm64) type. Add equivalent-size types for EKS instance-family fallback on AZ capacity — keep every entry the same vCPU/memory size. Note: changing this on an existing node group forces a replacement."
+  type        = list(string)
+  default     = ["m7g.large"]
+}
+
+variable "control_node_min_size" {
+  description = "Minimum number of nodes in the tainted control-plane node group."
+  type        = number
+  default     = 2
+}
+
+variable "control_node_max_size" {
+  description = "Maximum number of nodes in the tainted control-plane node group."
+  type        = number
+  default     = 3
+}
+
+variable "control_node_desired_size" {
+  description = "Desired number of nodes in the tainted control-plane node group at apply time."
   type        = number
   default     = 2
 }
