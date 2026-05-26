@@ -8,6 +8,7 @@
 {{- $dbPort = index $dbHostParts 1 }}
 {{- end }}
 ---
+{{- if .Values.starrocks.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -450,4 +451,5 @@ spec:
         - name: catalog-sql
           configMap:
             name: starrocks-catalog-sql
+{{- end }}
 {{- end }}

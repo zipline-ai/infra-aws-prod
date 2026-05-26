@@ -39,6 +39,9 @@ module "orchestration" {
   # Glue Schema Registry (optional)
   glue_schema_registry_name = var.glue_schema_registry_name
 
+  # Data Explorer
+  enable_data_explorer = var.enable_data_explorer
+
   # Databricks Unity Catalog integration (optional)
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret

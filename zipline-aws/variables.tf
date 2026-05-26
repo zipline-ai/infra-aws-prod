@@ -120,6 +120,12 @@ variable "databricks_warehouse" {
   default     = ""
 }
 
+variable "enable_data_explorer" {
+  type = bool
+  description = "Adds data explorer to the UI with catalogs based on databricks and snowflake integration"
+  default = false
+}
+
 # Snowflake Open Catalog (Polaris, Iceberg REST) integration (optional)
 variable "snowflake_polaris_client_id" {
   type        = string

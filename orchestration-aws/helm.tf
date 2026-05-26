@@ -267,6 +267,9 @@ resource "helm_release" "zipline_orchestration" {
       databricks_host          = var.databricks_host
       databricks_warehouse     = var.databricks_warehouse
 
+      # Data explorer needs Zipline auth to be enabled
+      data_explorer_enabled = var.zipline_auth_enabled && var.enable_data_explorer
+
       # Snowflake service principal secret ARN (empty if not configured)
       snowflake_polaris_sp_secret_arn  = var.snowflake_polaris_client_id != "" ? aws_secretsmanager_secret.snowflake_polaris_sp[0].arn : ""
       snowflake_account                = var.snowflake_account
