@@ -15,4 +15,5 @@ aws s3 cp s3://zipline-canary-vars/crucible.canary.auto.tf .
 aws s3 sync s3://zipline-canary-vars/crucible.canary-config ./.canary-config \
   --exclude "*.tfvars" \
   --exclude "*.tfvars.json"
+aws s3 sync s3://zipline-canary-vars/crucible.chart-values ./charts
 aws s3 cp s3://zipline-canary-vars/crucible.terraform.lock.hcl ./.terraform.lock.hcl
