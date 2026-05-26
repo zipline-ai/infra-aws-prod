@@ -1,4 +1,3 @@
-{{- if .Values.historyServer.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -62,7 +61,7 @@ spec:
                 -Dspark.history.fs.cleaner.maxAge={{ .Values.historyServer.cleanerMaxAge | default "3d" }}
                 -Dspark.history.retainedApplications={{ .Values.historyServer.retainedApplications | default 50 }}
                 -Dspark.history.ui.port=18080
-                -Dspark.ui.proxyBase={{ .Values.historyServer.proxyBase | default "/api/v1/history" }}
+                -Dspark.ui.proxyBase={{ include "crucible.historyServerProxyBase" . }}
                 {{- if eq (.Values.cloudProvider | default "aws") "aws" }}
                 -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.WebIdentityTokenCredentialsProvider
                 -Dspark.hadoop.fs.s3a.connection.maximum=200
@@ -109,4 +108,3 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-{{- end }}

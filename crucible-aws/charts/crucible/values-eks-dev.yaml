@@ -16,13 +16,6 @@ serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::011528299780:role/crucible-gateway"
 
-persistence:
-  enabled: false
-
-namespaces:
-  managed:
-    - test-ns-a
-
 sparkDefaults:
   eventLogDir: "s3a://crucible-test-nikhil/spark-events"
   executorCores: 1
@@ -43,11 +36,8 @@ flinkDefaults:
   tmMemory: "1024m"
   tmCPU: 1
 
-namespaceOnboarding:
-  clusterName: crucible-eks
-  eksOIDCIssuer: "https://oidc.eks.us-east-1.amazonaws.com/id/B9A2EDFCAF23403E202F269700473FFB"
-
 gateway:
+  defaultJobNamespace: test-ns-a
   maxJobsPerNamespace: 50
 
 warmPool:
@@ -57,7 +47,6 @@ imagePrepull:
   enabled: false
 
 historyServer:
-  enabled: true
   image: "011528299780.dkr.ecr.us-east-1.amazonaws.com/spark:4.1-crucible-latest"
   daemonMemory: "1g"
   hybridStoreMemory: "512m"
@@ -70,9 +59,3 @@ historyServer:
       memory: "2Gi"
   persistence:
     enabled: false
-
-litestream:
-  enabled: true
-  replicaType: "s3"
-  bucket: "crucible-test-nikhil"
-  region: "us-east-1"

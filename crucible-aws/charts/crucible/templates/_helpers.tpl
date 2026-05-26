@@ -51,6 +51,26 @@ Create the name of the service account to use.
 {{- end }}
 
 {{/*
+Spark observability public path. When historyServer.publicUrl is set, its path
+is the source of truth; historyServer.proxyBase is only the path-only fallback.
+*/}}
+{{- define "crucible.historyServerProxyBase" -}}
+{{- $fallback := .Values.historyServer.proxyBase | default "spark-history" -}}
+{{- $fallback = printf "/%s" (trimAll "/" $fallback) -}}
+{{- $publicURL := .Values.historyServer.publicUrl | default "" | trim -}}
+{{- if $publicURL -}}
+{{- $parsed := urlParse $publicURL -}}
+{{- $path := trimSuffix "/" ($parsed.path | default "") -}}
+{{- if or (eq $path "") (eq $path "/") -}}
+{{- fail "historyServer.publicUrl must include a non-root path such as https://example.com/spark-history" -}}
+{{- end -}}
+{{- printf "/%s" (trimAll "/" $path) -}}
+{{- else -}}
+{{- $fallback -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Derive the bucket name (without scheme prefix) from objectStore.bucket.
 Handles s3://bucket, gs://bucket, https://account.blob.core.windows.net/container, or plain "bucket".
 */}}
@@ -136,29 +156,5 @@ Handles "https://account.blob.core.windows.net/container" and "container@account
 {{- $stripped := $raw | trimPrefix "https://" | trimPrefix "http://" | trimSuffix "/" }}
 {{- $segments := splitList "/" $stripped }}
 {{- index $segments (sub (len $segments) 1) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Litestream replica type derived from cloudProvider.
-*/}}
-{{- define "crucible.litestreamReplicaType" -}}
-{{- if .Values.litestream.replicaType }}
-{{- .Values.litestream.replicaType }}
-{{- else if eq .Values.cloudProvider "aws" }}s3
-{{- else if eq .Values.cloudProvider "gcp" }}gcs
-{{- else if eq .Values.cloudProvider "azure" }}abs
-{{- else }}gcs
-{{- end }}
-{{- end }}
-
-{{/*
-Litestream bucket (plain name, no scheme). User override takes precedence.
-*/}}
-{{- define "crucible.litestreamBucket" -}}
-{{- if .Values.litestream.bucket }}
-{{- .Values.litestream.bucket }}
-{{- else }}
-{{- include "crucible.bucketName" . }}
 {{- end }}
 {{- end }}

@@ -1,0 +1,164 @@
+{{- if .Values.rayHistoryServer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ray-history-server
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ray-history-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: ray-history-server
+  ports:
+    - name: http
+      port: 30080
+      targetPort: history
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ray-history-dashboard
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ray-history-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/component: ray-history-dashboard
+  ports:
+    - name: dashboard
+      port: 8265
+      targetPort: dashboard
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ray-history-server
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ray-history-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ray-history-server
+  template:
+    metadata:
+      labels:
+        {{- include "crucible.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ray-history-server
+        {{- if index (.Values.serviceAccount.annotations | default dict) "azure.workload.identity/client-id" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "crucible.serviceAccountName" . }}
+      {{- if and .Values.systemPriorityClass.enabled .Values.systemPriorityClass.name }}
+      priorityClassName: {{ .Values.systemPriorityClass.name }}
+      {{- end }}
+      tolerations:
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+      containers:
+        - name: history-server
+          image: {{ required "rayHistoryServer.image is required when rayHistoryServer.enabled=true" .Values.rayHistoryServer.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - historyserver
+            - --runtime-class-name={{ .Values.rayHistoryServer.runtimeClass | default "s3" }}
+            - --ray-root-dir={{ .Values.rayHistoryServer.rootDir | default "log" }}
+          {{- with .Values.rayHistoryServer.env }}
+          env:
+            {{- range $k, $v := . }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - name: history
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /clusters
+              port: history
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /clusters
+              port: history
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.rayHistoryServer.resources | nindent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ray-history-dashboard
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ray-history-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: ray-history-dashboard
+  template:
+    metadata:
+      labels:
+        {{- include "crucible.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ray-history-dashboard
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8265"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: {{ include "crucible.serviceAccountName" . }}
+      {{- if and .Values.systemPriorityClass.enabled .Values.systemPriorityClass.name }}
+      priorityClassName: {{ .Values.systemPriorityClass.name }}
+      {{- end }}
+      tolerations:
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+      containers:
+        - name: dashboard
+          image: {{ required "rayHistoryServer.rayImage is required when rayHistoryServer.enabled=true" .Values.rayHistoryServer.rayImage }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/bash
+            - -lc
+            - >-
+              ray start --head --num-cpus=0 --dashboard-host=0.0.0.0
+              --proxy-server-url=http://ray-history-server.{{ .Values.gateway.namespace | default "crucible-system" }}.svc.cluster.local:30080
+              --block
+          ports:
+            - name: dashboard
+              containerPort: 8265
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: dashboard
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: dashboard
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.rayHistoryServer.dashboardProxy.resources | nindent 12 }}
+{{- end }}

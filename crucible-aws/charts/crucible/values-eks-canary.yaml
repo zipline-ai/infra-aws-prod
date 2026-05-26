@@ -8,11 +8,11 @@ replicaCount: 1
 cloudProvider: aws
 
 image:
-  # Built locally from the tchow/shs-redirect branch (PR #10) — drops the
-  # SHS body-rewriter in favor of a 302 redirect to historyServer.publicUrl.
-  # Switch back to `latest` once PR #10 lands and CI publishes a new tag.
+  # ECR `latest` is mirrored manually from main — there's no CI publish into
+  # this account today. Once PR #11 (Spark History Server /jobs/ redirect)
+  # lands and is re-mirrored, the canary picks it up on the next pull.
   repository: 345594603419.dkr.ecr.us-west-2.amazonaws.com/crucible-gateway
-  tag: "shs-redirect"
+  tag: "spark-resolve-20260514-173949"
   pullPolicy: Always
 
 objectStore:
@@ -24,22 +24,32 @@ serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::345594603419:role/crucible-gateway"
 
-persistence:
-  enabled: false
-
-namespaces:
-  managed:
-    - test-ns-a
-
 sparkDefaults:
   eventLogDir: "s3a://zipline-crucible-canary/spark-events"
   executorCores: 1
   executorMemory: "2Gi"
   driverCores: 1
   driverMemory: "1Gi"
+  # The canary EKS nodegroup is plain Graviton (no instance-attached NVMe), so
+  # leaving the default nvmeEnabled=true would pin executors to crucible.ai/nvme=true
+  # nodes that never exist and leave them Pending forever.
+  nvmeEnabled: false
   serviceAccountAnnotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::345594603419:role/crucible-spark"
-  adminConf: {}
+  adminConf:
+    # Some chronon configs emit `s3://...` URIs (vs the more common `s3a://`);
+    # without this mapping the driver fails JAR resolution with
+    # "No FileSystem for scheme s3".
+    "spark.hadoop.fs.s3.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+    "spark.hadoop.fs.AbstractFileSystem.s3.impl": "org.apache.hadoop.fs.s3a.S3A"
+    # Without this provider list the S3A driver falls back to the default chain
+    # (TemporaryAWS, SimpleAWS, EnvVar, IAMInstance) — none of which understand
+    # the IRSA AWS_WEB_IDENTITY_TOKEN_FILE that EKS injects into the driver pod.
+    # Hadoop 3.4 / S3A v2 needs the AWS SDK v2 class; the older
+    # com.amazonaws.auth.WebIdentityTokenCredentialsProvider is silently
+    # ignored ("v1 SDK entry") and the chain falls back to the v2 default
+    # list, producing NoAuthWithAWSException on the first S3 call.
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider"
 
 flinkDefaults:
   checkpointDir: "s3a://zipline-crucible-canary/flink/checkpoints"
@@ -50,10 +60,6 @@ flinkDefaults:
   jmCPU: 0.5
   tmMemory: "1024m"
   tmCPU: 1
-
-namespaceOnboarding:
-  clusterName: crucible-eks
-  eksOIDCIssuer: "https://oidc.eks.us-west-2.amazonaws.com/id/4C5B1E5B2BAB942BA62A6BE276C440F9"
 
 # Gateway ingress at /api/v1 (no rewrite — the gateway mounts /api/v1
 # routes natively). Spark History Server gets its own Ingress; see
@@ -66,6 +72,7 @@ ingress:
   pathType: Prefix
 
 gateway:
+  defaultJobNamespace: test-ns-a
   maxJobsPerNamespace: 50
 
 warmPool:
@@ -75,13 +82,8 @@ imagePrepull:
   enabled: false
 
 historyServer:
-  # Enabled now that 345594603419.dkr.ecr.us-west-2.amazonaws.com/spark is mirrored.
-  enabled: true
   image: "345594603419.dkr.ecr.us-west-2.amazonaws.com/spark:4.1-crucible-latest"
-  # SHS lives at /spark-history. proxyBase only affects the URLs SHS emits;
-  # the gateway no longer rewrites SHS responses, it 302-redirects completed
-  # Spark job UIs to publicUrl + /history/<appId>/.
-  proxyBase: "/spark-history"
+  # SHS lives at /spark-history; the chart derives the proxy path from this URL.
   publicUrl: "https://crucible-aws.zipline.ai/spark-history"
   ingress:
     enabled: true
@@ -96,9 +98,3 @@ historyServer:
       memory: "2Gi"
   persistence:
     enabled: false
-
-litestream:
-  enabled: true
-  replicaType: "s3"
-  bucket: "zipline-crucible-canary"
-  region: "us-west-2"

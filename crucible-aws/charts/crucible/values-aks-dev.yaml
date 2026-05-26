@@ -15,25 +15,13 @@ serviceAccount:
   annotations:
     azure.workload.identity/client-id: "5db0e3c1-eef7-4a78-9a60-6d759615dcf9"
 
-persistence:
-  enabled: false
-
-namespaces:
-  managed:
-    - test-ns-a
-
 sparkDefaults:
-  nvmeEnabled: true
+  nvmeEnabled: false
   nvmeSetupImage: "ziplinecanary.azurecr.io/crucible-nvme-setup:latest"
   executorNodeSelector:
     crucible.ai/arch: arm64
-  executorTolerations:
-    - key: kubernetes.azure.com/scalesetpriority
-      operator: Equal
-      value: spot
-      effect: NoSchedule
-  spotNodeSelector:
-    crucible.ai/spot: "true"
+  executorTolerations: []
+  spotNodeSelector: {}
   eventLogDir: "abfss://crucible@ziplineai2.dfs.core.windows.net/spark-events"
   executorCores: 1
   executorMemory: "1Gi"
@@ -58,15 +46,9 @@ flinkDefaults:
     "fs.azure.account.oauth2.msi.tenant": "48e0cf82-8462-48fe-b995-5accce3156d0"
     "fs.azure.account.oauth2.client.id": "5db0e3c1-eef7-4a78-9a60-6d759615dcf9"
 
-namespaceOnboarding:
-  clusterName: crucible-aks
-  azureSubscription: "3cece986-9416-439c-98a6-441ff986c88d"
-  azureResourceGroup: "crucible-rg"
-  azureTenantID: "48e0cf82-8462-48fe-b995-5accce3156d0"
-  aksOIDCIssuer: "https://westus2.oic.prod-aks.azure.com/48e0cf82-8462-48fe-b995-5accce3156d0/9351a845-b838-41d2-a190-57425619c482/"
-
 gateway:
-  maxJobsPerNamespace: 20
+  defaultJobNamespace: test-ns-a
+  maxJobsPerNamespace: 50
   externalBasePath: /api/crucible
 
 ingress:
@@ -83,7 +65,6 @@ imagePrepull:
   enabled: false
 
 historyServer:
-  enabled: true
   image: "ziplinecanary.azurecr.io/spark:4.1-crucible-latest"
   daemonMemory: "1g"
   hybridStoreMemory: "512m"
@@ -97,9 +78,14 @@ historyServer:
   persistence:
     enabled: false
 
-litestream:
+rayHistoryServer:
   enabled: true
-  image: "litestream/litestream:0.5"
-  replicaType: "abs"
-  accountName: "ziplineai2"
-  container: "crucible"
+  image: "ziplinecanary.azurecr.io/ray-historyserver:kuberay-1.6.1-ray-2.55.1-latest"
+  collectorImage: "ziplinecanary.azurecr.io/ray-history-collector:kuberay-1.6.1-ray-2.55.1-latest"
+  rayImage: "rayproject/ray:2.55.1"
+  runtimeClass: "azureblob"
+  rootDir: "log"
+  env:
+    AZURE_STORAGE_AUTH_MODE: "workload_identity"
+    AZURE_STORAGE_ACCOUNT_URL: "https://ziplineai2.blob.core.windows.net"
+    AZURE_STORAGE_CONTAINER: "crucible"
