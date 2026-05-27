@@ -1,7 +1,7 @@
 # EKS deployment — all auth via IRSA (IAM Roles for Service Accounts).
 # No static AWS keys anywhere. Customer creates two IAM roles:
-#   1. crucible-gateway — for the gateway pod (archive DB backup, log reading)
-#   2. crucible-spark   — for Spark driver/executor pods (data access, event logs, log archival)
+#   1. crucible-gateway — for the gateway/control-plane pod
+#   2. crucible-spark   — for Spark driver/executor pods (data access, event logs)
 #
 # Prerequisites:
 #   - EKS cluster with OIDC provider enabled
@@ -26,15 +26,6 @@ serviceAccount:
   create: true
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/crucible-gateway
-
-persistence:
-  enabled: true
-  storageClass: gp3          # requires EBS CSI driver addon
-  size: 10Gi
-
-namespaces:
-  managed:
-    - default                # customer's job namespaces
 
 sparkDefaults:
   eventLogDir: "s3a://BUCKET_NAME/spark-events"
@@ -61,6 +52,7 @@ sparkDefaults:
   adminConf: {}
 
 gateway:
+  defaultJobNamespace: crucible-jobs
   maxJobsPerNamespace: 0     # 0 = unlimited
 
 vector:
@@ -77,12 +69,3 @@ imagePrepull:
   enabled: true
   images:
     - ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/spark:4.1-crucible-latest
-
-historyServer:
-  enabled: true
-
-litestream:
-  enabled: true
-  replicaType: "s3"
-  bucket: "BUCKET_NAME"
-  region: "us-east-1"

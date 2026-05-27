@@ -8,6 +8,7 @@ metadata:
 spec:
   selector:
     {{- include "crucible.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
   ports:
     - port: {{ .Values.gateway.port }}
       targetPort: {{ .Values.gateway.port }}

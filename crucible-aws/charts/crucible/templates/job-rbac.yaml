@@ -1,4 +1,4 @@
-{{- range .Values.namespaces.managed }}
+{{- $defaultJobNamespace := .Values.gateway.defaultJobNamespace | default "crucible-jobs" }}
 ---
 # ServiceAccount for Spark driver and executor pods in this namespace.
 # The Spark Operator's spark-submit creates driver pods that reference this SA.
@@ -7,7 +7,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: spark-operator-spark
-  namespace: {{ . }}
+  namespace: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
     {{- if index ($.Values.sparkDefaults.serviceAccountAnnotations | default dict) "azure.workload.identity/client-id" }}
@@ -23,7 +23,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: spark-driver
-  namespace: {{ . }}
+  namespace: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
 rules:
@@ -35,7 +35,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: spark-driver
-  namespace: {{ . }}
+  namespace: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
 roleRef:
@@ -45,14 +45,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: spark-operator-spark
-    namespace: {{ . }}
+    namespace: {{ $defaultJobNamespace }}
 ---
 # ServiceAccount for Flink JobManager and TaskManager pods in this namespace.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: flink
-  namespace: {{ . }}
+  namespace: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
   {{- with $.Values.sparkDefaults.serviceAccountAnnotations }}
@@ -65,7 +65,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: flink-jobmanager
-  namespace: {{ . }}
+  namespace: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
 rules:
@@ -80,7 +80,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: flink-jobmanager
-  namespace: {{ . }}
+  namespace: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
 roleRef:
@@ -90,5 +90,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: flink
-    namespace: {{ . }}
-{{- end }}
+    namespace: {{ $defaultJobNamespace }}

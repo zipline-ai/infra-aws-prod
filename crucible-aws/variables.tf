@@ -120,6 +120,20 @@ variable "public_host" {
   type        = string
 }
 
+variable "crucible_chart_values_files" {
+  description = "Helm values files, relative to crucible-aws/, used by the Terraform-managed Crucible release. Canary values are pulled from S3 by pull_canary_config.sh."
+  type        = list(string)
+  default     = ["charts/crucible/values-eks-canary.yaml"]
+
+  validation {
+    condition = alltrue([
+      for path in var.crucible_chart_values_files :
+      !startswith(path, "/") && !strcontains(path, "..") && trimspace(path) != ""
+    ])
+    error_message = "crucible_chart_values_files must contain non-empty relative paths under crucible-aws/."
+  }
+}
+
 # EKS API server exposure. Empty list → endpoint is private-only (the secure
 # default — operators reach it through the VPC). Non-empty list → endpoint is
 # public and restricted to those CIDRs. Customers who need kubectl from

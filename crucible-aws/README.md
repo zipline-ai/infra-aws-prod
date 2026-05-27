@@ -48,13 +48,22 @@ therefore replaces the local `.terraform.lock.hcl` with
 `push_canary_config.sh` uploads that canary lockfile back to S3. Do not commit
 the S3-synced canary lockfile to this tree.
 
+The `crucible` Helm release is managed by Terraform from `crucible.tf`. Its
+default values file is `charts/crucible/values-eks-canary.yaml`, which is
+pulled from S3 by `pull_canary_config.sh`. Before the first Terraform apply
+against the existing canary deployment, import the live release once:
+
+```sh
+tofu import helm_release.crucible crucible-system/crucible
+```
+
 ## What lives in this directory (skeleton)
 
 Originally the canary AWS account (`345594603419` / `us-west-2`), sharing
 the existing canary VPC. AWS counterpart to the GCP `crucible-dev` GKE
 cluster and the Azure `crucible-aks` AKS cluster.
 
-## Scope (this PR — cluster only)
+## Scope
 
 | Resource | Notes |
 |---|---|
@@ -66,6 +75,7 @@ cluster and the Azure `crucible-aks` AKS cluster.
 | `aws_iam_role.node` + policy attachments | `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly` |
 | `aws_iam_openid_connect_provider.oidc` | Required by IRSA |
 | `aws_eks_access_entry` + access policy associations | Optional, driven by `var.personnel_arns` |
+| `helm_release.crucible` | Installs/updates the Crucible chart from `charts/crucible` with S3-backed canary values |
 
 ## Public ingress DNS
 

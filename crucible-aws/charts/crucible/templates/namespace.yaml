@@ -1,9 +1,8 @@
-{{- range .Values.namespaces.managed }}
+{{- $defaultJobNamespace := .Values.gateway.defaultJobNamespace | default "crucible-jobs" }}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ . }}
+  name: {{ $defaultJobNamespace }}
   labels:
     {{- include "crucible.labels" $ | nindent 4 }}
-{{- end }}

@@ -1,5 +1,3 @@
-# When litestream.enabled=true, replicas use emptyDir + restore from object store (HA).
-# persistence is automatically ignored when Litestream is active.
 replicaCount: 1
 
 image:
@@ -21,8 +19,8 @@ serviceAccount:
 
 gateway:
   port: 8080
-  archivePath: /data/crucible-archive.db
   namespace: crucible-system
+  defaultJobNamespace: crucible-jobs
   maxJobsPerNamespace: 0  # 0 = unlimited
   # Optional public path prefix when Crucible is mounted under another app,
   # e.g. /api/crucible on a shared browser host. Direct /api/v1 routes remain enabled.
@@ -43,32 +41,11 @@ auth:
   oidcIssuer: ""        # OIDC issuer URL (only used when mode=jwt)
   adminGroup: ""        # group name for admin access (default: crucible-admin)
 
-namespaceOnboarding:
-  clusterName: ""              # cluster name for identity naming
-  # AWS (EKS)
-  eksOIDCIssuer: ""            # EKS OIDC issuer URL
-  # Azure (AKS)
-  azureSubscription: ""        # Azure subscription ID
-  azureResourceGroup: ""       # Azure resource group
-  azureTenantID: ""            # Azure tenant ID
-  aksOIDCIssuer: ""            # AKS OIDC issuer URL
-  # GCP (GKE)
-  gcpProject: ""               # GCP project ID
-  gcpClusterLocation: ""       # GKE cluster location
-
-persistence:
-  enabled: true
-  storageClass: ""
-  size: 1Gi
-
 rbac:
   create: true
 
 crd:
   install: true
-
-namespaces:
-  managed: []
 
 sparkDefaults:
   cloudProvider: ""       # set by cloudProvider at top level
@@ -95,7 +72,7 @@ sparkDefaults:
   driverMemory: "2Gi"
   # Cloud identity annotations for Spark/Flink driver ServiceAccounts in job namespaces.
   # These are separate from the gateway SA — job pods need access to data buckets,
-  # not the gateway's archive bucket.
+  # event logs, and checkpoints.
   # GKE: iam.gke.io/gcp-service-account: spark-sa@project.iam.gserviceaccount.com
   # EKS: eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/spark-role
   serviceAccountAnnotations: {}
@@ -116,6 +93,61 @@ flinkDefaults:
   jmCPU: 2
   tmMemory: "8192m"
   tmCPU: 4
+
+rayDefaults:
+  # Ray 2.55+ / KubeRay 1.6+ defaults for RayJob-backed training.
+  # Production dependency policy is image-first: bake application deps into
+  # the submitted image and use runtimeEnv only for small, job-specific knobs.
+  requiredRayVersion: "2.55.1"
+  headNodeSelector: {}
+  workerNodeSelector: {}
+  submitterNodeSelector: {}
+  headTolerations: []
+  workerTolerations: []
+  submitterTolerations: []
+
+rayHistoryServer:
+  enabled: false
+  # Upstream Ray History Server is alpha in KubeRay 1.6 and currently expects
+  # operator-built images. Set both images explicitly when enabling.
+  image: ""
+  collectorImage: ""
+  rayImage: "rayproject/ray:2.55.1"
+  publicUrl: ""
+  proxyBase: "/api/v1/ray-history"
+  runtimeClass: "s3" # s3 | azureblob | gcs
+  rootDir: "log"
+  env: {}
+  ingress:
+    enabled: false
+    host: ""
+    className: ""
+    annotations: {}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  dashboardProxy:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
+kuberay-operator:
+  enabled: true
+  replicas: 1
+  logging:
+    stdoutEncoder: json
+  metrics:
+    enabled: true
+  leaderElectionEnabled: true
+  kubeClient:
+    qps: 100.0
+    burst: 200
 
 loki:
   enabled: true
@@ -206,21 +238,16 @@ imagePrepull:
   tolerations: []
 
 historyServer:
-  enabled: false
   image: "us-docker.pkg.dev/crucible-io/crucible/spark:4.1-crucible-latest"
-  # Path prefix the History Server believes it's served at. Passed only to
-  # the SHS JVM as -Dspark.ui.proxyBase=... — the gateway no longer cares
-  # what this value is (completed Spark jobs redirect to publicUrl).
-  # Must match the Ingress path that routes traffic to the SHS Service.
-  proxyBase: "/api/v1/history"
-  # Public URL where SHS is reachable from a browser. The gateway 302-redirects
-  # completed-Spark-job UI requests to publicUrl + /history/<appId>/. Leave
-  # empty to disable the redirect (in which case the per-job UI endpoint
-  # returns 503 for completed jobs).
+  # Path-only fallback for Spark observability when publicUrl is unset.
+  # If publicUrl is set, the chart derives this path from publicUrl instead.
+  proxyBase: "spark-history"
+  # Public URL where SHS is reachable through the gateway. When set, this is
+  # the source of truth for the Spark observability path used by Ingress, the
+  # gateway, and -Dspark.ui.proxyBase.
   publicUrl: ""
-  # Standalone Ingress for SHS at `proxyBase`. nginx strips the prefix before
-  # forwarding so SHS can serve raw paths. Falls back to the top-level
-  # ingress.host / ingress.className when not overridden here.
+  # Ingress for Spark observability. It sends the derived path and legacy /history
+  # paths to the gateway; the gateway owns the URL policy and proxies SHS.
   ingress:
     enabled: false
     host: ""
@@ -248,15 +275,9 @@ monitoring:
     labels: {}           # additional labels for ServiceMonitor (e.g., release: prometheus)
     interval: "30s"
     scrapeTimeout: "10s"
-
-litestream:
-  enabled: false
-  image: "litestream/litestream:0.5"
-  replicaType: ""        # auto-derived from cloudProvider (gcs/s3/abs); override if needed
-  bucket: ""             # auto-derived from objectStore.bucket; override if needed
-  region: ""             # only needed for S3
-  accountName: ""        # only needed for abs (Azure storage account name)
-  container: ""          # only needed for abs (Azure container name, defaults to "crucible")
+  prometheusRule:
+    enabled: false
+    labels: {}
 
 # ---------------------------------------------------------------------------
 # Prerequisite: cert-manager (required by Flink Kubernetes Operator)

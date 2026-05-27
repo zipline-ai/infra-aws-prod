@@ -18,6 +18,10 @@ dependencies:
     version: ~1.10.0
     repository: https://archive.apache.org/dist/flink/flink-kubernetes-operator-1.10.0/
     condition: flink-kubernetes-operator.enabled
+  - name: kuberay-operator
+    version: ~1.6.1
+    repository: https://ray-project.github.io/kuberay-helm/
+    condition: kuberay-operator.enabled
   - name: promtail
     version: "6.16.6"
     repository: https://grafana.github.io/helm-charts
