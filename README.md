@@ -114,6 +114,7 @@ Maintain one `*.tfvars` file per environment. The only variable that has to diff
 # canary.tfvars
 customer_name          = "your-company"
 environment            = "canary"                # → zipline-warehouse-canary-your-company
+aws_account_id         = "111111111111"          # safety check: fail apply if AWS_PROFILE points elsewhere
 region                 = "us-west-2"
 artifact_prefix        = "s3://your-zipline-artifacts-canary"
 terraform_state_bucket = "your-tfstate-canary"
@@ -126,12 +127,15 @@ terraform_state_region = "us-west-2"
 # prod.tfvars
 customer_name          = "your-company"
 environment            = ""                      # → zipline-warehouse-your-company (no prefix)
+aws_account_id         = "222222222222"
 region                 = "us-west-2"
 artifact_prefix        = "s3://your-zipline-artifacts-prod"
 terraform_state_bucket = "your-tfstate-prod"
 terraform_state_file   = "zipline-prod.tfstate"
 terraform_state_region = "us-west-2"
 ```
+
+Setting `aws_account_id` is optional but strongly recommended once you have more than one environment — it wires the value into the AWS provider's `allowed_account_ids`, so terraform refuses to act if your resolved credentials point at the wrong account. An accidental `AWS_PROFILE=zipline-prod tofu apply -var-file=canary.tfvars` (or the reverse) fails fast instead of silently mutating the wrong stack. Leave it empty to skip the check.
 
 Leaving `environment` empty in one of the envs is fine — it just means that account's S3 buckets keep the un-prefixed names, which is the safe default for upgrading an existing single-environment deployment without renaming any buckets.
 
