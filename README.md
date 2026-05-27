@@ -67,6 +67,7 @@ tofu apply
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `environment` | `""` | Optional environment qualifier (e.g. `canary`, `prod`). When set, prepended to S3 bucket names for global-namespace disambiguation (e.g. `zipline-warehouse-canary-yourcompany`). Only needed when you run more than one environment per customer — see [Multi-environment deployments](#multi-environment-deployments). |
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
 | `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
@@ -78,6 +79,87 @@ tofu apply
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
+
+## Multi-environment deployments
+
+If you run more than one environment per customer (e.g. a canary alongside production), deploy each one to a **separate AWS account**. AWS resources are isolated per account, so most resources — EKS cluster, IAM roles, DynamoDB tables, EMR Serverless apps, Secrets Manager entries, CloudWatch log groups — can keep identical names across environments with no collision. The exception is **S3 bucket names, which live in a single global namespace across all of AWS**, so you must disambiguate them with the `environment` variable.
+
+### 1. AWS account setup
+
+Create a separate AWS account per environment and configure one CLI profile per account in `~/.aws/config`:
+
+```ini
+[profile zipline-canary]
+sso_session    = your-sso
+sso_account_id = 111111111111
+sso_role_name  = AdministratorAccess
+region         = us-west-2
+
+[profile zipline-prod]
+sso_session    = your-sso
+sso_account_id = 222222222222
+sso_role_name  = AdministratorAccess
+region         = us-west-2
+```
+
+(Long-lived access keys or `assume-role` also work — match whatever your org's standard is.)
+
+Create a state-backend S3 bucket inside each account so each environment's Terraform state lives alongside the infrastructure it manages.
+
+### 2. Per-environment tfvars
+
+Maintain one `*.tfvars` file per environment. The only variable that has to differ is `environment`; the rest follow whatever you'd normally set:
+
+```hcl
+# canary.tfvars
+customer_name          = "your-company"
+environment            = "canary"                # → zipline-warehouse-canary-your-company
+region                 = "us-west-2"
+artifact_prefix        = "s3://your-zipline-artifacts-canary"
+terraform_state_bucket = "your-tfstate-canary"
+terraform_state_file   = "zipline-canary.tfstate"
+terraform_state_region = "us-west-2"
+# ... other vars
+```
+
+```hcl
+# prod.tfvars
+customer_name          = "your-company"
+environment            = ""                      # → zipline-warehouse-your-company (no prefix)
+region                 = "us-west-2"
+artifact_prefix        = "s3://your-zipline-artifacts-prod"
+terraform_state_bucket = "your-tfstate-prod"
+terraform_state_file   = "zipline-prod.tfstate"
+terraform_state_region = "us-west-2"
+```
+
+Leaving `environment` empty in one of the envs is fine — it just means that account's S3 buckets keep the un-prefixed names, which is the safe default for upgrading an existing single-environment deployment without renaming any buckets.
+
+### 3. Deploy
+
+Set the AWS profile to target the right account, then init + apply against the matching tfvars file. Use `tofu init -reconfigure` whenever you switch environments — the S3 backend bucket changes, so the local `.terraform/` cache needs to be re-pointed.
+
+```bash
+cd zipline-aws
+
+# Canary
+AWS_PROFILE=zipline-canary tofu init -reconfigure -var-file=canary.tfvars
+AWS_PROFILE=zipline-canary tofu apply -var-file=canary.tfvars
+
+# Production
+AWS_PROFILE=zipline-prod tofu init -reconfigure -var-file=prod.tfvars
+AWS_PROFILE=zipline-prod tofu apply -var-file=prod.tfvars
+```
+
+### What `environment` actually changes
+
+| Resource | `environment=""` | `environment="canary"` |
+|----------|------------------|------------------------|
+| Warehouse bucket | `zipline-warehouse-yourcompany` | `zipline-warehouse-canary-yourcompany` |
+| Logs bucket | `zipline-logs-yourcompany` | `zipline-logs-canary-yourcompany` |
+| EKS cluster, IAM roles, DynamoDB tables, EMR Serverless app, Secrets Manager, CloudWatch log groups, etc. | (unchanged — named after `customer_name`) | (unchanged — same as the env=`""` case) |
+
+Only globally-unique resources (S3) take the prefix. Everything else is named after `customer_name` alone and relies on account isolation for uniqueness.
 
 ## Custom domains (HTTPS)
 
