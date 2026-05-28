@@ -160,11 +160,9 @@ resource "aws_iam_role" "spark" {
 
 # Spark IRSA: access to the cluster's own artifacts bucket only.
 #
-# Anything beyond this (e.g. read access to a chronon canary warehouse, Glue
-# catalog grants, DynamoDB tables that chronon's BatchNodeRunner writes to)
-# is environment-specific and lives in a separate file pulled from S3 — see
-# `pull_canary_config.sh` and the README. The skeleton must work for any
-# operator pointing at any bucket, not just the canary stack.
+# Additional Chronon-on-EKS access is attached by chronon_irsa.tf when the
+# caller supplies artifact or warehouse buckets. DynamoDB KV-store grants are
+# intentionally left out until that workflow is in scope.
 data "aws_iam_policy_document" "spark_s3" {
   statement {
     effect = "Allow"

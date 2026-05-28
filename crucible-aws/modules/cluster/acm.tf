@@ -1,16 +1,15 @@
 ###############################################################################
-# ACM certificate for the crucible-aws.zipline.ai surface.
+# ACM certificate for the customer-provided Crucible public host.
 #
 # The cert is attached to the nginx-ingress NLB (see nginx.tf), which terminates
-# TLS for every Ingress on this cluster. One cert with SANs covers the apex
-# host plus the spark-history subdomain.
+# TLS for every Ingress on this cluster.
 #
 # DNS validation: ACM emits one CNAME per domain into the cert's
 # `domain_validation_options`. Add those records to your DNS provider.
 # `aws_acm_certificate_validation` then waits for ACM to confirm.
 #
-# Spark History Server is path-prefixed under the main host
-# (`crucible-aws.zipline.ai/spark-history`), so no SAN is needed for it.
+# Spark History Server is path-prefixed under the main host, so no SAN is
+# needed for it.
 ###############################################################################
 
 resource "aws_acm_certificate" "crucible_aws" {

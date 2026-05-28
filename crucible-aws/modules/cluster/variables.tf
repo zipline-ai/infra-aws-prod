@@ -1,5 +1,5 @@
 ###############################################################################
-# Customer-facing inputs for crucible-aws.
+# Customer-facing inputs for the Crucible AWS cluster module.
 #
 # The skeleton is opinionated by design — knobs that don't need to differ
 # between deployments are hardcoded in the resource blocks instead of exposed
@@ -135,20 +135,6 @@ variable "crucible_bucket_name" {
 variable "public_host" {
   description = "Public hostname for the cluster. ACM cert is issued for this exact domain."
   type        = string
-}
-
-variable "crucible_chart_values_files" {
-  description = "Optional Helm values files, relative to crucible-aws/, merged after the Terraform-generated AWS defaults for the Crucible release."
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition = alltrue([
-      for path in var.crucible_chart_values_files :
-      !startswith(path, "/") && !strcontains(path, "..") && trimspace(path) != ""
-    ])
-    error_message = "crucible_chart_values_files must contain non-empty relative paths under crucible-aws/."
-  }
 }
 
 # EKS API server exposure. Empty list → endpoint is private-only (the secure

@@ -60,6 +60,43 @@ variable "eks_version" {
   default     = "1.31"
 }
 
+# Optional Crucible deployment
+variable "deploy_crucible" {
+  type        = bool
+  description = "Whether to deploy a separate Crucible EKS cluster alongside the Zipline stack."
+  default     = false
+}
+
+variable "crucible_cluster_name" {
+  type        = string
+  description = "Optional EKS cluster name for Crucible. Defaults to <customer_name>-crucible-eks when deploy_crucible is true."
+  default     = ""
+}
+
+variable "crucible_bucket_name" {
+  type        = string
+  description = "Optional S3 bucket name for Crucible spark event logs, flink checkpoints, and jar staging. Defaults to zipline-crucible-<customer_name>."
+  default     = ""
+}
+
+variable "crucible_public_host" {
+  type        = string
+  description = "Public hostname for Crucible. Required when deploy_crucible is true; ACM issues a certificate for this exact domain."
+  default     = ""
+}
+
+variable "crucible_eks_public_access_cidrs" {
+  type        = list(string)
+  description = "CIDR ranges allowed to reach the Crucible EKS API server. Empty disables the public endpoint."
+  default     = []
+}
+
+variable "crucible_ingress_nlb_subnet_ids" {
+  type        = list(string)
+  description = "Optional public subnet IDs for the Crucible nginx ingress NLB. Defaults to the Zipline stack subnets."
+  default     = []
+}
+
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
   description = "Custom domain for the orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."

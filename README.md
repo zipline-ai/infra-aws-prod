@@ -9,6 +9,7 @@ OpenTofu infrastructure for deploying Zipline on AWS.
 | `base-aws/` | VPC, EMR cluster, DynamoDB, S3 buckets, EMR IAM roles |
 | `orchestration-aws/` | EKS cluster, IRSA roles, RDS, Helm releases, ACM certs, AMP, Flink |
 | `zipline-aws/` | Your deployment — wires together base-aws and orchestration-aws |
+| `crucible-aws/` | Optional Crucible EKS cluster and Helm charts |
 | `charts/` | Helm chart for the zipline-orchestration stack |
 
 ## Prerequisites
@@ -78,6 +79,22 @@ tofu apply
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
+| `deploy_crucible` | `false` | Deploy a separate Crucible EKS cluster alongside the Zipline stack |
+| `crucible_public_host` | `""` | Public hostname for Crucible; required when `deploy_crucible = true` |
+| `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API server; empty keeps the endpoint private-only |
+
+## Optional Crucible
+
+To install Crucible with the rest of Zipline, enable it in `zipline-aws/terraform.tfvars`:
+
+```hcl
+deploy_crucible      = true
+crucible_public_host = "crucible.yourcompany.com"
+```
+
+The Crucible cluster reuses the base Zipline VPC/subnets and grants its Spark
+role access to the Zipline artifact and warehouse buckets. See
+`crucible-aws/README.md` for DNS and Helm chart follow-up steps.
 
 ## Custom domains (HTTPS)
 

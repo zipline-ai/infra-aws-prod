@@ -35,7 +35,7 @@ resource "aws_iam_role_policy_attachment" "vpc_resource_controller" {
 resource "aws_security_group" "cluster" {
   name        = "${var.cluster_name}-cluster-sg"
   description = "Security group for ${var.cluster_name} control plane"
-  vpc_id      = data.aws_vpc.shared.id
+  vpc_id      = local.vpc_id
 
   egress {
     from_port   = 0

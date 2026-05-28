@@ -1,8 +1,8 @@
 ###############################################################################
 # Crucible artifacts bucket
 #
-# Stores: spark event logs, flink checkpoints/savepoints, jar staging for CI.
-# Counterpart to GCS gs://crucible-dev-bucket and Azure abfss://crucible@ziplineai2.
+# Stores spark event logs, flink checkpoints/savepoints, jar staging, and
+# archive backups.
 ###############################################################################
 
 resource "aws_s3_bucket" "crucible" {
