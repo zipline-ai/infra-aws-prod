@@ -255,7 +255,7 @@ auth:
 
 starrocks:
   enabled: ${data_explorer_enabled}
-  image: "starrocks/allin1-ubuntu:3.5.17"
+  image: "starrocks/allin1-ubuntu:3.5.12"
   mysqlImage: "mysql:8.0"
   utilityImage: "busybox:1.36"
   host: "starrocks-service"
