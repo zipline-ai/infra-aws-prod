@@ -41,3 +41,5 @@ terraform.rc
 # (The pulled tfvars themselves are already covered by `*.tfvars` above.)
 crucible-aws/.canary-config/
 crucible-aws/crucible.canary.auto.tf
+crucible-aws/charts/**/*-canary.yaml
+crucible-aws/charts/**/*-dev.yaml

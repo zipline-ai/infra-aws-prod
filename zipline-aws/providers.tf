@@ -31,7 +31,8 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region              = var.region
+  allowed_account_ids = var.aws_account_id != "" ? [var.aws_account_id] : null
 }
 
 # Kubernetes provider - configured after EKS cluster is created
@@ -77,6 +78,7 @@ module "base_setup" {
   source = "../base-aws"
 
   customer_name   = var.customer_name
+  environment     = var.environment
   region          = var.region
   artifact_prefix = var.artifact_prefix
   zipline_version = var.zipline_version

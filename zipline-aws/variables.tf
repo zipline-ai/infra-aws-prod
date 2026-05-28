@@ -6,6 +6,18 @@ variable "customer_name" {
   description = "Your unique company identifier. Used as a prefix for naming AWS resources."
 }
 
+variable "environment" {
+  type        = string
+  description = "Optional environment qualifier (e.g. \"canary\", \"prod\"). When set, prepended to customer_name so AWS resources are named like zipline-warehouse-<environment>-<customer_name>. Leave empty for the default single-environment naming."
+  default     = ""
+}
+
+variable "aws_account_id" {
+  type        = string
+  description = "Optional AWS account ID this stack must deploy into. When set, terraform fails fast if the resolved AWS credentials point at a different account. Recommended for multi-environment setups so an `AWS_PROFILE` mismatch can't silently mutate the wrong account. Leave empty to skip the check."
+  default     = ""
+}
+
 variable "artifact_prefix" {
   description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }
