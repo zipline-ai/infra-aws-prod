@@ -1,7 +1,8 @@
 # crucible-aws
 
-Terraform and Helm assets for deploying **Crucible** on AWS as an optional part
-of a larger Zipline stack.
+Terraform assets for deploying **Crucible** on AWS as an optional part of a
+larger Zipline stack. The Crucible Helm chart is published from the
+`zipline-ai/crucible` repo and consumed here as an OCI chart.
 
 For most customer deployments, enable Crucible from `zipline-aws/` so it reuses
 the same state, VPC, subnets, artifact bucket, warehouse bucket, and operator
@@ -38,7 +39,7 @@ When `deploy_crucible` is enabled, Terraform provisions:
 | IRSA roles | Gateway role and Spark/Flink role, with Chronon artifact and warehouse bucket access wired from the Zipline stack |
 | ACM certificate | DNS-validated certificate for `crucible_public_host` |
 | nginx ingress | Internet-facing NLB with TLS terminated by ACM |
-| Crucible Helm release | Installs the Crucible gateway, operators, metrics, logging, and history server from `charts/crucible` |
+| Crucible Helm release | Installs the Crucible gateway, operators, metrics, logging, and history server from the published Crucible OCI chart |
 
 The same flag also sets `ENABLE_CRUCIBLE=true` on the Zipline orchestration Hub
 and passes the `CRUCIBLE_*` connection settings it needs. When disabled, the Hub
@@ -65,6 +66,9 @@ NLB hostname.
 | `crucible_cluster_name` | `<customer_name>-crucible-eks` | Optional cluster name override |
 | `crucible_bucket_name` | `zipline-crucible-<customer_name>` | Optional S3 bucket name override |
 | `crucible_job_namespace` | `crucible-jobs` | Namespace where Crucible submits Spark and Flink jobs |
+| `crucible_chart_repository` | `oci://us-docker.pkg.dev/crucible-io/crucible` | OCI repository containing the Crucible Helm chart |
+| `crucible_chart_name` | `crucible` | Helm chart name inside `crucible_chart_repository` |
+| `crucible_chart_version` | `null` | Optional chart version pin; `null` lets Helm select the latest published chart |
 | `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API; empty means private-only |
 | `crucible_ingress_nlb_subnet_ids` | Zipline stack subnets | Optional public subnet IDs for the ingress NLB |
 
@@ -104,9 +108,10 @@ to `providers.tf` that matches your Terraform state bucket before applying.
 
 ## Helm Values
 
-Terraform generates the AWS-specific Helm values from the cluster outputs:
-Crucible bucket, gateway IRSA role, Spark/Flink IRSA role, public hostname, and
-EKS OIDC issuer.
+Terraform installs the published Crucible OCI chart. The chart and its default
+gateway image tag are produced by Crucible CI; Terraform supplies the
+AWS-specific Helm values from the cluster outputs: Crucible bucket, gateway
+IRSA role, Spark/Flink IRSA role, public hostname, and EKS OIDC issuer.
 
 For standalone installs, set `crucible_chart_values_files` to add one or more
 extra values files under `crucible-aws/`. Those files are merged after the
@@ -119,10 +124,7 @@ aws eks update-kubeconfig --region <region> --name <crucible-cluster-name>
 kubectl get nodes
 ```
 
-## Charts
+## Chart Ownership
 
-`charts/crucible/` contains the Crucible gateway, operators, metrics, logging,
-and Spark History Server chart.
-
-`charts/hub/` contains the Chronon Hub chart that can pair with this cluster
-when the deployment includes Hub workloads.
+The Crucible gateway chart lives in the `zipline-ai/crucible` repo under
+`helm/crucible/`. This repo only contains the Terraform wiring that installs it.

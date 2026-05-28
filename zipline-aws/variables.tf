@@ -108,6 +108,30 @@ variable "crucible_job_namespace" {
   }
 }
 
+variable "crucible_chart_repository" {
+  type        = string
+  description = "OCI repository containing the Crucible Helm chart."
+  default     = "oci://us-docker.pkg.dev/crucible-io/crucible"
+}
+
+variable "crucible_chart_name" {
+  type        = string
+  description = "Name of the Crucible Helm chart in crucible_chart_repository."
+  default     = "crucible"
+}
+
+variable "crucible_chart_version" {
+  type        = string
+  description = "Optional Crucible Helm chart version. Leave null to let Helm select the latest published chart version."
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.crucible_chart_version == null ? true : trimspace(var.crucible_chart_version) != ""
+    error_message = "crucible_chart_version must be null or a non-empty string."
+  }
+}
+
 variable "crucible_spark_image" {
   type        = string
   description = "Spark image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
@@ -117,7 +141,7 @@ variable "crucible_spark_image" {
 variable "crucible_flink_image" {
   type        = string
   description = "Flink image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
-  default     = "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+  default     = "ziplineai/flink:1.20.3"
 }
 
 variable "crucible_jar_name" {

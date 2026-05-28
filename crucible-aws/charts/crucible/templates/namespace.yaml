@@ -1,8 +1,0 @@
-{{- $defaultJobNamespace := .Values.gateway.defaultJobNamespace | default "crucible-jobs" }}
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ $defaultJobNamespace }}
-  labels:
-    {{- include "crucible.labels" $ | nindent 4 }}

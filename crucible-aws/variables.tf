@@ -148,6 +148,30 @@ variable "job_namespace" {
   }
 }
 
+variable "crucible_chart_repository" {
+  description = "OCI repository containing the Crucible Helm chart."
+  type        = string
+  default     = "oci://us-docker.pkg.dev/crucible-io/crucible"
+}
+
+variable "crucible_chart_name" {
+  description = "Name of the Crucible Helm chart in crucible_chart_repository."
+  type        = string
+  default     = "crucible"
+}
+
+variable "crucible_chart_version" {
+  description = "Optional Crucible Helm chart version. Leave null to let Helm select the latest published chart version."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.crucible_chart_version == null ? true : trimspace(var.crucible_chart_version) != ""
+    error_message = "crucible_chart_version must be null or a non-empty string."
+  }
+}
+
 variable "crucible_chart_values_files" {
   description = "Optional Helm values files, relative to crucible-aws/, merged after the Terraform-generated AWS defaults for the Crucible release."
   type        = list(string)

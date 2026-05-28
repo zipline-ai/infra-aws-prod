@@ -23,7 +23,7 @@ aws:
     url: ""
     namespace: "crucible-jobs"
     sparkImage: "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
-    flinkImage: "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+    flinkImage: "ziplineai/flink:1.20.3"
     jarName: "cloud_aws_lib_deploy.jar"
     jarUriOverride: ""
     spotExecutors: false

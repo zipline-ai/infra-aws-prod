@@ -117,7 +117,7 @@ variable "crucible_spark_image" {
 variable "crucible_flink_image" {
   type        = string
   description = "Flink image passed to CrucibleSubmitter."
-  default     = "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+  default     = "ziplineai/flink:1.20.3"
 }
 
 variable "crucible_jar_name" {
