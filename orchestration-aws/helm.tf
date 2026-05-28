@@ -1,5 +1,27 @@
 # Helm releases for Zipline Orchestration
 
+resource "terraform_data" "crucible_submitter_config_validation" {
+  input = {
+    enabled     = var.crucible_enabled
+    url         = var.crucible_url
+    namespace   = var.crucible_namespace
+    spark_image = var.crucible_spark_image
+    flink_image = var.crucible_flink_image
+  }
+
+  lifecycle {
+    precondition {
+      condition = !var.crucible_enabled || alltrue([
+        trimspace(var.crucible_url) != "",
+        trimspace(var.crucible_namespace) != "",
+        trimspace(var.crucible_spark_image) != "",
+        trimspace(var.crucible_flink_image) != "",
+      ])
+      error_message = "crucible_url, crucible_namespace, crucible_spark_image, and crucible_flink_image must be set when crucible_enabled is true."
+    }
+  }
+}
+
 # Install Secrets Store CSI Driver
 resource "helm_release" "secrets_store_csi" {
   name       = "secrets-store-csi-driver"
@@ -250,6 +272,16 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
+      # Optional Crucible submitter configuration
+      crucible_enabled          = var.crucible_enabled
+      crucible_url              = var.crucible_url
+      crucible_namespace        = var.crucible_namespace
+      crucible_spark_image      = var.crucible_spark_image
+      crucible_flink_image      = var.crucible_flink_image
+      crucible_jar_name         = var.crucible_jar_name
+      crucible_jar_uri_override = var.crucible_jar_uri_override
+      crucible_spot_executors   = var.crucible_spot_executors
+
       # EMR Serverless (execution role ARN derived by naming convention)
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"
       emr_log_uri                       = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.name_prefix}/emr/"
@@ -299,6 +331,7 @@ resource "helm_release" "zipline_orchestration" {
     aws_acm_certificate.hub_cert,
     aws_acm_certificate.fetcher_cert,
     aws_acm_certificate.eval_cert,
+    terraform_data.crucible_submitter_config_validation,
   ]
 }
 

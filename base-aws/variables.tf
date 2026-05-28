@@ -62,6 +62,54 @@ variable "eks_version" {
   description = "Kubernetes version for EKS cluster"
 }
 
+variable "crucible_enabled" {
+  type        = bool
+  description = "Whether the orchestration Hub should submit jobs through CrucibleSubmitter."
+  default     = false
+}
+
+variable "crucible_url" {
+  type        = string
+  description = "Base URL for the Crucible gateway used by the orchestration Hub."
+  default     = ""
+}
+
+variable "crucible_namespace" {
+  type        = string
+  description = "Kubernetes namespace where CrucibleSubmitter submits Spark and Flink jobs."
+  default     = "crucible-jobs"
+}
+
+variable "crucible_spark_image" {
+  type        = string
+  description = "Spark image passed to CrucibleSubmitter."
+  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+}
+
+variable "crucible_flink_image" {
+  type        = string
+  description = "Flink image passed to CrucibleSubmitter."
+  default     = "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+}
+
+variable "crucible_jar_name" {
+  type        = string
+  description = "Default Chronon jar name used by CrucibleSubmitter for AWS jobs."
+  default     = "cloud_aws_lib_deploy.jar"
+}
+
+variable "crucible_jar_uri_override" {
+  type        = string
+  description = "Optional jar URI override passed to CrucibleSubmitter."
+  default     = ""
+}
+
+variable "crucible_spot_executors" {
+  type        = bool
+  description = "Whether CrucibleSubmitter should request spot executors by default."
+  default     = false
+}
+
 # Custom domain configuration for HTTPS
 variable "ui_domain" {
   type        = string

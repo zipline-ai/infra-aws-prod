@@ -118,9 +118,9 @@ resource "aws_iam_role_policy" "gateway_iam" {
 ###############################################################################
 # IRSA: crucible-spark
 #
-# Bootstrap role for the spark-operator-spark + flink SAs in test-ns-a
-# (the chart's default managed namespace). The gateway will mint additional
-# per-namespace roles via CreateIdentity for any other managed namespaces.
+# Bootstrap role for the spark-operator-spark + flink SAs in the default
+# Crucible job namespace. The gateway will mint additional per-namespace roles
+# via CreateIdentity for any other managed namespaces.
 ###############################################################################
 
 data "aws_iam_policy_document" "spark_assume_role" {
@@ -142,8 +142,8 @@ data "aws_iam_policy_document" "spark_assume_role" {
       test     = "StringEquals"
       variable = "${local.oidc_host}:sub"
       values = [
-        "system:serviceaccount:test-ns-a:spark-operator-spark",
-        "system:serviceaccount:test-ns-a:flink",
+        "system:serviceaccount:${var.job_namespace}:spark-operator-spark",
+        "system:serviceaccount:${var.job_namespace}:flink",
       ]
     }
   }

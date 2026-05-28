@@ -5,6 +5,9 @@ locals {
   crucible_bucket_name  = var.crucible_bucket_name != "" ? var.crucible_bucket_name : "zipline-crucible-${lower(var.customer_name)}"
   crucible_subnet_ids   = [module.base_setup.primary_subnet_id, module.base_setup.secondary_subnet_id]
 
+  crucible_job_namespace = trimspace(var.crucible_job_namespace)
+  crucible_gateway_url   = var.deploy_crucible && trimspace(var.crucible_public_host) != "" ? "https://${trimspace(var.crucible_public_host)}" : ""
+
   crucible_ingress_nlb_subnet_ids = length(var.crucible_ingress_nlb_subnet_ids) > 0 ? var.crucible_ingress_nlb_subnet_ids : local.crucible_subnet_ids
   crucible_chronon_artifact_buckets = distinct(compact(concat(
     [local.artifact_bucket_name],
@@ -39,6 +42,7 @@ module "crucible_cluster" {
   personnel_arns          = var.personnel_arns
   crucible_bucket_name    = local.crucible_bucket_name
   public_host             = trimspace(var.crucible_public_host)
+  job_namespace           = local.crucible_job_namespace
   eks_public_access_cidrs = var.crucible_eks_public_access_cidrs
 
   chronon_artifact_buckets  = local.crucible_chronon_artifact_buckets
@@ -123,6 +127,10 @@ resource "helm_release" "crucible" {
       namespaceOnboarding = {
         clusterName   = module.crucible_cluster[0].cluster_name
         eksOIDCIssuer = module.crucible_cluster[0].cluster_oidc_issuer
+      }
+
+      gateway = {
+        defaultJobNamespace = local.crucible_job_namespace
       }
 
       sparkDefaults = {

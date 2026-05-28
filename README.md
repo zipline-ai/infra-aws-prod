@@ -81,6 +81,7 @@ tofu apply
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
 | `deploy_crucible` | `false` | Deploy a separate Crucible EKS cluster alongside the Zipline stack |
 | `crucible_public_host` | `""` | Public hostname for Crucible; required when `deploy_crucible = true` |
+| `crucible_job_namespace` | `crucible-jobs` | Kubernetes namespace where Crucible submits Spark and Flink jobs |
 | `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API server; empty keeps the endpoint private-only |
 
 ## Optional Crucible
@@ -93,8 +94,13 @@ crucible_public_host = "crucible.yourcompany.com"
 ```
 
 The Crucible cluster reuses the base Zipline VPC/subnets and grants its Spark
-role access to the Zipline artifact and warehouse buckets. See
-`crucible-aws/README.md` for DNS and Helm chart follow-up steps.
+role access to the Zipline artifact and warehouse buckets. Terraform also passes
+`ENABLE_CRUCIBLE=true` and the `CRUCIBLE_*` connection settings into the
+orchestration Hub. With the flag enabled, `AWSWorkflowExecutionVerticle` submits
+jobs through `CrucibleSubmitter`; with the flag disabled, it uses the regular AWS
+EMR Serverless submitter.
+
+See `crucible-aws/README.md` for DNS setup.
 
 ## Custom domains (HTTPS)
 

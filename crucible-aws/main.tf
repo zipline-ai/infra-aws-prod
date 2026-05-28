@@ -24,6 +24,7 @@ module "cluster" {
   personnel_arns            = var.personnel_arns
   crucible_bucket_name      = var.crucible_bucket_name
   public_host               = var.public_host
+  job_namespace             = var.job_namespace
   eks_public_access_cidrs   = var.eks_public_access_cidrs
   chronon_artifact_buckets  = var.chronon_artifact_buckets
   chronon_warehouse_buckets = var.chronon_warehouse_buckets

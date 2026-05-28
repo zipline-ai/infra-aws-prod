@@ -75,12 +75,32 @@ spec:
               value: "{{ .Values.aws.flinkEksNamespace }}"
             - name: EKS_CLUSTER_NAME
               value: "{{ .Values.aws.eksClusterName }}"
+            - name: ENABLE_CRUCIBLE
+              value: "{{ .Values.aws.crucible.enabled }}"
             - name: EMR_EXECUTION_ROLE_ARN
               value: "{{ .Values.aws.emrExecutionRoleArn }}"
             - name: EMR_LOG_URI
               value: "{{ .Values.aws.emrLogUri }}"
             - name: EMR_CLOUDWATCH_LOG_GROUP
               value: "{{ .Values.aws.emrCloudWatchLogGroup }}"
+            {{- if .Values.aws.crucible.enabled }}
+            - name: CRUCIBLE_URL
+              value: "{{ .Values.aws.crucible.url }}"
+            - name: CRUCIBLE_NAMESPACE
+              value: "{{ .Values.aws.crucible.namespace }}"
+            - name: CRUCIBLE_SPARK_IMAGE
+              value: "{{ .Values.aws.crucible.sparkImage }}"
+            - name: CRUCIBLE_FLINK_IMAGE
+              value: "{{ .Values.aws.crucible.flinkImage }}"
+            - name: CRUCIBLE_JAR_NAME
+              value: "{{ .Values.aws.crucible.jarName }}"
+            - name: CRUCIBLE_SPOT_EXECUTORS
+              value: "{{ .Values.aws.crucible.spotExecutors }}"
+            {{- if .Values.aws.crucible.jarUriOverride }}
+            - name: CRUCIBLE_JAR_URI_OVERRIDE
+              value: "{{ .Values.aws.crucible.jarUriOverride }}"
+            {{- end }}
+            {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
             {{- if .Values.aws.databricksSpSecretArn }}

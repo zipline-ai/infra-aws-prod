@@ -18,6 +18,15 @@ aws:
   emrExecutionRoleArn: ""
   emrLogUri: ""
   emrCloudWatchLogGroup: ""
+  crucible:
+    enabled: false
+    url: ""
+    namespace: "crucible-jobs"
+    sparkImage: "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+    flinkImage: "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+    jarName: "cloud_aws_lib_deploy.jar"
+    jarUriOverride: ""
+    spotExecutors: false
 
 # Database configuration
 database:

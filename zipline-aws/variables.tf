@@ -97,6 +97,47 @@ variable "crucible_ingress_nlb_subnet_ids" {
   default     = []
 }
 
+variable "crucible_job_namespace" {
+  type        = string
+  description = "Kubernetes namespace where Crucible submits Spark and Flink jobs."
+  default     = "crucible-jobs"
+
+  validation {
+    condition     = trimspace(var.crucible_job_namespace) != ""
+    error_message = "crucible_job_namespace must not be empty."
+  }
+}
+
+variable "crucible_spark_image" {
+  type        = string
+  description = "Spark image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
+  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+}
+
+variable "crucible_flink_image" {
+  type        = string
+  description = "Flink image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
+  default     = "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+}
+
+variable "crucible_jar_name" {
+  type        = string
+  description = "Default Chronon jar name used by CrucibleSubmitter for AWS jobs."
+  default     = "cloud_aws_lib_deploy.jar"
+}
+
+variable "crucible_jar_uri_override" {
+  type        = string
+  description = "Optional jar URI override passed to CrucibleSubmitter. Leave empty to use each workflow's submitted jar URI."
+  default     = ""
+}
+
+variable "crucible_spot_executors" {
+  type        = bool
+  description = "Whether CrucibleSubmitter should request spot executors by default."
+  default     = false
+}
+
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
   description = "Custom domain for the orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."

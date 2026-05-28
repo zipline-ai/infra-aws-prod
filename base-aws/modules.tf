@@ -29,6 +29,16 @@ module "orchestration" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # Optional Crucible submitter configuration
+  crucible_enabled          = var.crucible_enabled
+  crucible_url              = var.crucible_url
+  crucible_namespace        = var.crucible_namespace
+  crucible_spark_image      = var.crucible_spark_image
+  crucible_flink_image      = var.crucible_flink_image
+  crucible_jar_name         = var.crucible_jar_name
+  crucible_jar_uri_override = var.crucible_jar_uri_override
+  crucible_spot_executors   = var.crucible_spot_executors
+
   # Personnel access
   personnel_arns = var.personnel_arns
 

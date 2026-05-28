@@ -137,6 +137,17 @@ variable "public_host" {
   type        = string
 }
 
+variable "job_namespace" {
+  description = "Kubernetes namespace where Crucible submits Spark and Flink jobs."
+  type        = string
+  default     = "crucible-jobs"
+
+  validation {
+    condition     = trimspace(var.job_namespace) != ""
+    error_message = "job_namespace must not be empty."
+  }
+}
+
 # EKS API server exposure. Empty list → endpoint is private-only (the secure
 # default — operators reach it through the VPC). Non-empty list → endpoint is
 # public and restricted to those CIDRs. Customers who need kubectl from

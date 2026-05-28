@@ -88,6 +88,16 @@ module "base_setup" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # Optional Crucible submitter configuration for the orchestration Hub
+  crucible_enabled          = var.deploy_crucible
+  crucible_url              = local.crucible_gateway_url
+  crucible_namespace        = local.crucible_job_namespace
+  crucible_spark_image      = var.crucible_spark_image
+  crucible_flink_image      = var.crucible_flink_image
+  crucible_jar_name         = var.crucible_jar_name
+  crucible_jar_uri_override = var.crucible_jar_uri_override
+  crucible_spot_executors   = var.crucible_spot_executors
+
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain
   hub_domain       = var.hub_domain

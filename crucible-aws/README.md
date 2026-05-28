@@ -40,6 +40,10 @@ When `deploy_crucible` is enabled, Terraform provisions:
 | nginx ingress | Internet-facing NLB with TLS terminated by ACM |
 | Crucible Helm release | Installs the Crucible gateway, operators, metrics, logging, and history server from `charts/crucible` |
 
+The same flag also sets `ENABLE_CRUCIBLE=true` on the Zipline orchestration Hub
+and passes the `CRUCIBLE_*` connection settings it needs. When disabled, the Hub
+continues to use the AWS EMR Serverless submitter.
+
 ## DNS
 
 ACM requires DNS validation for `crucible_public_host`. Terraform outputs the
@@ -60,6 +64,7 @@ NLB hostname.
 | `crucible_public_host` | `""` | Required when `deploy_crucible = true`; ACM cert hostname |
 | `crucible_cluster_name` | `<customer_name>-crucible-eks` | Optional cluster name override |
 | `crucible_bucket_name` | `zipline-crucible-<customer_name>` | Optional S3 bucket name override |
+| `crucible_job_namespace` | `crucible-jobs` | Namespace where Crucible submits Spark and Flink jobs |
 | `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API; empty means private-only |
 | `crucible_ingress_nlb_subnet_ids` | Zipline stack subnets | Optional public subnet IDs for the ingress NLB |
 

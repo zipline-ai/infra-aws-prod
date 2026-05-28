@@ -21,6 +21,15 @@ aws:
   emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
   emrLogUri: "${emr_log_uri}"
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
+  crucible:
+    enabled: ${crucible_enabled}
+    url: "${crucible_url}"
+    namespace: "${crucible_namespace}"
+    sparkImage: "${crucible_spark_image}"
+    flinkImage: "${crucible_flink_image}"
+    jarName: "${crucible_jar_name}"
+    jarUriOverride: "${crucible_jar_uri_override}"
+    spotExecutors: ${crucible_spot_executors}
 
 # Database configuration
 database:

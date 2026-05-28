@@ -137,6 +137,17 @@ variable "public_host" {
   type        = string
 }
 
+variable "job_namespace" {
+  description = "Kubernetes namespace where Crucible submits Spark and Flink jobs."
+  type        = string
+  default     = "crucible-jobs"
+
+  validation {
+    condition     = trimspace(var.job_namespace) != ""
+    error_message = "job_namespace must not be empty."
+  }
+}
+
 variable "crucible_chart_values_files" {
   description = "Optional Helm values files, relative to crucible-aws/, merged after the Terraform-generated AWS defaults for the Crucible release."
   type        = list(string)

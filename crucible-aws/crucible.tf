@@ -19,6 +19,10 @@ locals {
       eksOIDCIssuer = module.cluster.cluster_oidc_issuer
     }
 
+    gateway = {
+      defaultJobNamespace = var.job_namespace
+    }
+
     sparkDefaults = {
       serviceAccountAnnotations = {
         "eks.amazonaws.com/role-arn" = module.cluster.spark_role_arn
