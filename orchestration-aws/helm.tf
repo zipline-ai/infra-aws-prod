@@ -231,9 +231,10 @@ resource "helm_release" "zipline_orchestration" {
       fetcher_replicas = var.fetcher_replicas
 
       # RDS instance + self-managed secret
-      db_host     = aws_db_instance.zipline.endpoint
-      db_name     = aws_db_instance.zipline.db_name
-      secrets_arn = aws_secretsmanager_secret.db_credentials.arn
+      db_host          = aws_db_instance.zipline.endpoint
+      db_name          = aws_db_instance.zipline.db_name
+      secrets_arn      = aws_secretsmanager_secret.db_credentials.arn
+      warehouse_bucket = var.warehouse_bucket
 
       irsa_role_arn     = aws_iam_role.orchestration_irsa.arn
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name
@@ -263,6 +264,17 @@ resource "helm_release" "zipline_orchestration" {
 
       # Databricks service principal secret ARN (empty if not configured)
       databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
+      databricks_host          = var.databricks_host
+      databricks_warehouse     = var.databricks_warehouse
+
+      # Data explorer needs Zipline auth to be enabled
+      data_explorer_enabled = var.zipline_auth_enabled && var.enable_data_explorer
+
+      # Snowflake service principal secret ARN (empty if not configured)
+      snowflake_polaris_sp_secret_arn  = var.snowflake_polaris_client_id != "" ? aws_secretsmanager_secret.snowflake_polaris_sp[0].arn : ""
+      snowflake_account                = var.snowflake_account
+      polaris_warehouse                = var.polaris_warehouse
+      polaris_principal_role           = var.polaris_principal_role
 
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")

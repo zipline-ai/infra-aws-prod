@@ -120,6 +120,57 @@ variable "databricks_client_secret" {
   default     = ""
 }
 
+variable "databricks_host" {
+  type        = string
+  description = "Databricks host for data exploration. Leave empty to skip Databricks integration."
+  default     = ""
+}
+
+variable "databricks_warehouse" {
+  type        = string
+  description = "Databricks warehouse for data exploration. Leave empty to skip Databricks integration."
+  default     = ""
+}
+
+variable "enable_data_explorer" {
+  type = bool
+  description = "Adds data explorer to the UI with catalogs based on databricks and snowflake integration"
+  default = false
+}
+
+# Snowflake Open Catalog (Polaris, Iceberg REST) integration (optional)
+variable "snowflake_polaris_client_id" {
+  type        = string
+  description = "Snowflake service principal for Catalog OAuth. Leave empty to skip Snowflake integration."
+  sensitive   = true
+  default     = ""
+}
+
+variable "snowflake_polaris_client_secret" {
+  type        = string
+  description = "Snowflake service principal client secret for Catalog OAuth. Leave empty to skip Snowflake integration."
+  sensitive   = true
+  default     = ""
+}
+
+variable "snowflake_account" {
+  type        = string
+  description = "Snowflake account for data exploration. Leave empty to skip Snowflake integration."
+  default     = ""
+}
+
+variable "polaris_warehouse" {
+  type        = string
+  description = "Polaris warehouse for data exploration. Leave empty to skip Snowflake integration."
+  default     = ""
+}
+
+variable "polaris_principal_role" {
+  type        = string
+  description = "Polaris principal role for data exploration. Leave empty to skip Snowflake integration."
+  default     = ""
+}
+
 variable "emr_custom_image_version" {
   type        = string
   description = "Optional EMR Serverless custom Docker image tag (e.g. 'v3.3.2-zipline.1'). When non-empty, provisions a sibling EMR Serverless application zipline-emr-<customer_name>-custom-image with imageConfiguration set, and attaches an ECR pull policy (scoped to that app) to the existing repo chronon-emr-<customer_name>-custom-image. The canonical zipline-emr-<customer_name> application is left untouched; opt workflows in by pointing teams.py SPARK_CLUSTER_NAME at the custom-image app. The customer must create the ECR repo and push the matching tag before applying."

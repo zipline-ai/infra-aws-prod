@@ -190,7 +190,7 @@ data "aws_iam_policy_document" "eks_node_emr_policy" {
   }
 
   statement {
-    effect = "Allow"
+    effect  = "Allow"
     actions = ["iam:PassRole"]
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role",
@@ -252,7 +252,7 @@ data "aws_iam_policy_document" "eks_node_root_key_policy" {
       type        = "AWS"
       identifiers = [aws_iam_role.eks_cluster_role.arn]
     }
-    actions = ["kms:CreateGrant"]
+    actions   = ["kms:CreateGrant"]
     resources = ["*"]
     condition {
       test     = "Bool"
@@ -397,6 +397,54 @@ resource "aws_iam_openid_connect_provider" "eks" {
   tags = {
     Name = "${var.name_prefix}-eks-oidc"
   }
+}
+
+# EBS CSI driver for dynamic provisioning of PersistentVolumeClaims.
+# Required by workloads such as StarRocks that request EBS-backed PVCs.
+data "aws_iam_policy_document" "ebs_csi_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ebs_csi" {
+  name               = "${var.name_prefix}-ebs-csi-driver"
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role.json
+
+  tags = {
+    Name = "${var.name_prefix}-ebs-csi-driver"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  role       = aws_iam_role.ebs_csi.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = aws_eks_cluster.main.name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = aws_iam_role.ebs_csi.arn
+
+  depends_on = [
+    aws_eks_node_group.default,
+    aws_iam_role_policy_attachment.ebs_csi,
+  ]
 }
 
 # Create zipline-system namespace
