@@ -23,6 +23,10 @@ module "orchestration" {
   hub_external_url = var.hub_external_url
   fetcher_domain   = var.fetcher_domain
   eval_domain      = var.eval_domain
+  ui_cert_arn      = var.ui_cert_arn
+  hub_cert_arn     = var.hub_cert_arn
+  fetcher_cert_arn = var.fetcher_cert_arn
+  eval_cert_arn    = var.eval_cert_arn
 
   # EKS Configuration
   eks_version      = var.eks_version

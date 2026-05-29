@@ -256,10 +256,10 @@ resource "helm_release" "zipline_orchestration" {
       emr_cloudwatch_log_group          = var.emr_cloudwatch_log_group
 
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
-      ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
-      hub_cert_arn     = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
-      fetcher_cert_arn = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
-      eval_cert_arn    = var.eval_domain != "" ? aws_acm_certificate.eval_cert[0].arn : ""
+      ui_cert_arn      = local.ui_cert_arn
+      hub_cert_arn     = local.hub_cert_arn
+      fetcher_cert_arn = local.fetcher_cert_arn
+      eval_cert_arn    = local.eval_cert_arn
 
       # Databricks service principal secret ARN (empty if not configured)
       databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
