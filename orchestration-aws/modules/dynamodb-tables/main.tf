@@ -1,6 +1,6 @@
 locals {
-  chronon_metadata_base_name  = "CHRONON_METADATA"
-  table_partitions_base_name  = "TABLE_PARTITIONS"
+  chronon_metadata_base_name = "CHRONON_METADATA"
+  table_partitions_base_name = "TABLE_PARTITIONS"
 }
 
 resource "aws_dynamodb_table" "chronon_metadata" {
@@ -17,6 +17,10 @@ resource "aws_dynamodb_table" "chronon_metadata" {
   ttl {
     attribute_name = "ttl"
     enabled        = false
+  }
+
+  server_side_encryption {
+    enabled = true
   }
 
   # Global Tables v2 requires streams enabled on the source table
@@ -46,5 +50,9 @@ resource "aws_dynamodb_table" "table_partitions" {
   ttl {
     attribute_name = "ttl"
     enabled        = false
+  }
+
+  server_side_encryption {
+    enabled = true
   }
 }

@@ -303,3 +303,10 @@ variable "idp_group_claim" {
   description = "Optional group claims configured for zipline authentication"
   default     = ""
 }
+
+# Encryption
+variable "encrypt_at_rest" {
+  type        = bool
+  description = "Whether to encrypt data at rest in rds"
+  default     = true
+}

@@ -6,6 +6,26 @@ resource "aws_s3_bucket" "zipline_logs_bucket" {
   bucket = "zipline-logs-${lower(local.global_resource_qualifier)}"
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "zipline_warehouse_bucket" {
+  bucket = aws_s3_bucket.zipline_warehouse_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "zipline_logs_bucket" {
+  bucket = aws_s3_bucket.zipline_logs_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 data "aws_iam_policy_document" "zipline_logs_bucket_policy" {
   statement {
     effect = "Allow"

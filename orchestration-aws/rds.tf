@@ -33,9 +33,10 @@ resource "aws_db_instance" "zipline" {
   username          = "locker_user"
   password          = random_password.db_password.result
 
+  storage_encrypted = var.encrypt_at_rest
+
   db_subnet_group_name   = aws_db_subnet_group.zipline.name
   vpc_security_group_ids = [var.security_group_id]
-  skip_final_snapshot    = true
   publicly_accessible    = false
   multi_az               = true
 }

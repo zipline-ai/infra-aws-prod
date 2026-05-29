@@ -63,4 +63,6 @@ module "orchestration" {
   sso_client_secret                   = var.sso_client_secret
   idp_role_mapping                    = var.idp_role_mapping
   idp_group_claim                     = var.idp_group_claim
+
+  encrypt_at_rest = var.encrypt_at_rest
 }

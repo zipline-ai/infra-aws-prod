@@ -24,9 +24,10 @@ terraform {
     }
   }
   backend "s3" {
-    bucket = var.terraform_state_bucket
-    key    = var.terraform_state_file
-    region = var.terraform_state_region
+    bucket  = var.terraform_state_bucket
+    key     = var.terraform_state_file
+    region  = var.terraform_state_region
+    encrypt = true
   }
 }
 
@@ -135,8 +136,10 @@ module "base_setup" {
   idp_group_claim                     = var.idp_group_claim
 
   # Optional VPC Import
-  existing_vpc_id                = var.existing_vpc_id
-  existing_vpc_primary_subnet_id = var.existing_vpc_primary_subnet_id
+  existing_vpc_id                  = var.existing_vpc_id
+  existing_vpc_primary_subnet_id   = var.existing_vpc_primary_subnet_id
   existing_vpc_secondary_subnet_id = var.existing_vpc_secondary_subnet_id
 
+  # Encryption
+  encrypt_at_rest = var.encrypt_at_rest
 }
