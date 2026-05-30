@@ -59,3 +59,46 @@ Service account name
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Kubernetes namespace used for Spark/Flink compute jobs.
+*/}}
+{{- define "zipline-orchestration.computeJobNamespace" -}}
+{{- default .Values.aws.crucible.namespace .Values.compute.jobNamespace -}}
+{{- end }}
+
+{{/*
+Namespace used for compute control-plane support services.
+*/}}
+{{- define "zipline-orchestration.computeSystemNamespace" -}}
+{{- .Release.Namespace -}}
+{{- end }}
+
+{{/*
+Bucket name without the URI scheme.
+*/}}
+{{- define "zipline-orchestration.computeBucketName" -}}
+{{- .Values.compute.objectStore.bucket | trimPrefix "s3://" | trimPrefix "s3a://" | trimPrefix "gs://" | trimSuffix "/" -}}
+{{- end }}
+
+{{/*
+Spark event log directory used by Spark History Server.
+*/}}
+{{- define "zipline-orchestration.sparkEventLogDir" -}}
+{{- if .Values.compute.sparkDefaults.eventLogDir -}}
+{{- .Values.compute.sparkDefaults.eventLogDir -}}
+{{- else if and .Values.compute.objectStore.bucket (eq (.Values.compute.cloudProvider | default "aws") "aws") -}}
+{{- printf "s3a://%s/spark-events" (include "zipline-orchestration.computeBucketName" .) -}}
+{{- else if and .Values.compute.objectStore.bucket (eq .Values.compute.cloudProvider "gcp") -}}
+{{- printf "gs://%s/spark-events" (include "zipline-orchestration.computeBucketName" .) -}}
+{{- else -}}
+{{- "" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Spark History Server proxy base path.
+*/}}
+{{- define "zipline-orchestration.historyServerProxyBase" -}}
+{{- printf "/%s" (trimAll "/" (.Values.compute.historyServer.proxyBase | default "spark-history")) -}}
+{{- end }}

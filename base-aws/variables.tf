@@ -68,6 +68,12 @@ variable "crucible_enabled" {
   default     = false
 }
 
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
+  default     = false
+}
+
 variable "crucible_url" {
   type        = string
   description = "Base URL for the Crucible gateway used by the orchestration Hub."
@@ -76,20 +82,29 @@ variable "crucible_url" {
 
 variable "crucible_namespace" {
   type        = string
-  description = "Kubernetes namespace where CrucibleSubmitter submits Spark and Flink jobs."
+  description = "Kubernetes namespace where the Kubernetes Spark compute submitter or CrucibleSubmitter submits jobs."
   default     = "crucible-jobs"
+}
+
+variable "crucible_image_registry" {
+  type        = string
+  description = "Optional private registry prefix containing Zipline/Crucible images mirrored by zipline admin install. When set, Crucible job runtime images default to this registry."
+  default     = ""
+  nullable    = false
 }
 
 variable "crucible_spark_image" {
   type        = string
   description = "Spark image passed to CrucibleSubmitter."
-  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+  default     = null
+  nullable    = true
 }
 
 variable "crucible_flink_image" {
   type        = string
   description = "Flink image passed to CrucibleSubmitter."
-  default     = "ziplineai/flink:1.20.3"
+  default     = null
+  nullable    = true
 }
 
 variable "crucible_jar_name" {

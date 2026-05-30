@@ -2,22 +2,26 @@
 
 resource "terraform_data" "crucible_submitter_config_validation" {
   input = {
-    enabled     = var.crucible_enabled
+    enabled     = var.crucible_enabled || var.spark_compute_enabled
     url         = var.crucible_url
     namespace   = var.crucible_namespace
-    spark_image = var.crucible_spark_image
-    flink_image = var.crucible_flink_image
+    spark_image = local.crucible_spark_image
+    flink_image = local.crucible_flink_image
   }
 
   lifecycle {
     precondition {
-      condition = !var.crucible_enabled || alltrue([
-        trimspace(var.crucible_url) != "",
+      condition     = !var.crucible_enabled || trimspace(var.crucible_url) != ""
+      error_message = "crucible_url must be set when crucible_enabled is true."
+    }
+
+    precondition {
+      condition = !(var.crucible_enabled || var.spark_compute_enabled) || alltrue([
         trimspace(var.crucible_namespace) != "",
-        trimspace(var.crucible_spark_image) != "",
-        trimspace(var.crucible_flink_image) != "",
+        trimspace(local.crucible_spark_image) != "",
+        trimspace(local.crucible_flink_image) != "",
       ])
-      error_message = "crucible_url, crucible_namespace, crucible_spark_image, and crucible_flink_image must be set when crucible_enabled is true."
+      error_message = "crucible_namespace, crucible_spark_image, and crucible_flink_image must be set when Crucible or Kubernetes Spark compute is enabled."
     }
   }
 }
@@ -273,14 +277,18 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
       # Optional Crucible submitter configuration
-      crucible_enabled          = var.crucible_enabled
-      crucible_url              = var.crucible_url
-      crucible_namespace        = var.crucible_namespace
-      crucible_spark_image      = var.crucible_spark_image
-      crucible_flink_image      = var.crucible_flink_image
-      crucible_jar_name         = var.crucible_jar_name
-      crucible_jar_uri_override = var.crucible_jar_uri_override
-      crucible_spot_executors   = var.crucible_spot_executors
+      spark_compute_enabled         = var.spark_compute_enabled
+      crucible_enabled              = var.crucible_enabled
+      crucible_url                  = var.crucible_url
+      crucible_namespace            = var.crucible_namespace
+      crucible_spark_image          = local.crucible_spark_image
+      crucible_flink_image          = local.crucible_flink_image
+      crucible_history_server_image = local.crucible_history_server_image
+      crucible_jar_name             = var.crucible_jar_name
+      crucible_jar_uri_override     = var.crucible_jar_uri_override
+      crucible_spot_executors       = var.crucible_spot_executors
+      warehouse_bucket              = var.warehouse_bucket
+      spark_compute_role_arn        = aws_iam_role.spark_compute_execution.arn
 
       # EMR Serverless (execution role ARN derived by naming convention)
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"

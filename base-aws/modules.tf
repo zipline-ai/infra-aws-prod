@@ -30,9 +30,11 @@ module "orchestration" {
   fetcher_replicas = var.fetcher_replicas
 
   # Optional Crucible submitter configuration
+  spark_compute_enabled     = var.spark_compute_enabled
   crucible_enabled          = var.crucible_enabled
   crucible_url              = var.crucible_url
   crucible_namespace        = var.crucible_namespace
+  crucible_image_registry   = var.crucible_image_registry
   crucible_spark_image      = var.crucible_spark_image
   crucible_flink_image      = var.crucible_flink_image
   crucible_jar_name         = var.crucible_jar_name

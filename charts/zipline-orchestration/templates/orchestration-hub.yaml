@@ -101,6 +101,22 @@ spec:
               value: "{{ .Values.aws.crucible.jarUriOverride }}"
             {{- end }}
             {{- end }}
+            {{- if .Values.compute.enabled }}
+            - name: K8S_SUBMITTER_ENABLED
+              value: "true"
+            - name: K8S_SUBMITTER_NAMESPACE
+              value: {{ include "zipline-orchestration.computeJobNamespace" . | quote }}
+            - name: K8S_SPARK_IMAGE
+              value: "{{ .Values.aws.crucible.sparkImage }}"
+            - name: K8S_SPARK_SERVICE_ACCOUNT
+              value: "{{ .Values.compute.serviceAccount.sparkName }}"
+            - name: K8S_SPARK_HISTORY_SERVER_URL
+              value: "http://spark-history-server.{{ .Release.Namespace }}.svc.cluster.local:18080"
+            - name: K8S_SPARK_EVENT_LOG_DIR
+              value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
+            - name: K8S_SPARK_DRIVER_PRIORITY_CLASS
+              value: "{{ .Values.compute.driverPriorityClass.name }}"
+            {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
             {{- if .Values.aws.databricksSpSecretArn }}

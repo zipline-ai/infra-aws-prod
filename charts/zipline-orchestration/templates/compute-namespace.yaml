@@ -1,0 +1,9 @@
+{{- if .Values.compute.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "zipline-orchestration.computeJobNamespace" . }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+    app.kubernetes.io/component: spark-compute
+{{- end }}
