@@ -20,7 +20,8 @@ resource "aws_dynamodb_table" "chronon_metadata" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
   }
 
   # Global Tables v2 requires streams enabled on the source table
@@ -53,6 +54,7 @@ resource "aws_dynamodb_table" "table_partitions" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
   }
 }

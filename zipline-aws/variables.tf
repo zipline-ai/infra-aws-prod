@@ -299,3 +299,9 @@ variable "encrypt_at_rest" {
   description = "Whether to encrypt data at rest in rds"
   default     = true
 }
+
+variable "encryption_kms_key_arn" {
+  type        = string
+  description = "Optional customer managed KMS key ARN to use for at-rest encryption. Leave empty to use AWS managed service keys."
+  default     = ""
+}

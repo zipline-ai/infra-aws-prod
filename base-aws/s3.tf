@@ -11,7 +11,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "zipline_warehouse
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      kms_master_key_id = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+      sse_algorithm     = "aws:kms"
     }
   }
 }
@@ -21,7 +22,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "zipline_logs_buck
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      kms_master_key_id = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+      sse_algorithm     = "aws:kms"
     }
   }
 }

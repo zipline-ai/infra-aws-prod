@@ -21,3 +21,9 @@ variable "replica_regions" {
   description = "Additional AWS regions to replicate these DynamoDB tables to using Global Tables v2. Empty disables replication."
   default     = []
 }
+
+variable "encryption_kms_key_arn" {
+  type        = string
+  description = "Optional customer managed KMS key ARN to use for DynamoDB at-rest encryption. Leave empty to use the default AWS managed service key."
+  default     = ""
+}
