@@ -141,12 +141,6 @@ variable "crucible_flink_image" {
   nullable    = true
 }
 
-variable "crucible_jar_name" {
-  type        = string
-  description = "Default Chronon jar name used by CrucibleSubmitter for AWS jobs."
-  default     = "cloud_aws_lib_deploy.jar"
-}
-
 variable "crucible_jar_uri_override" {
   type        = string
   description = "Optional jar URI override passed to CrucibleSubmitter."

@@ -27,7 +27,6 @@ aws:
     namespace: "${crucible_namespace}"
     sparkImage: "${crucible_spark_image}"
     flinkImage: "${crucible_flink_image}"
-    jarName: "${crucible_jar_name}"
     jarUriOverride: "${crucible_jar_uri_override}"
     spotExecutors: ${crucible_spot_executors}
 

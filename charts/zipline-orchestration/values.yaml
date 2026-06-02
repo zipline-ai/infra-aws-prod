@@ -24,7 +24,6 @@ aws:
     namespace: "crucible-jobs"
     sparkImage: "ziplineai/spark:4.1-crucible-latest"
     flinkImage: "ziplineai/flink:1.20.3"
-    jarName: "cloud_aws_lib_deploy.jar"
     jarUriOverride: ""
     spotExecutors: false
 

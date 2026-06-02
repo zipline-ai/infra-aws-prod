@@ -296,7 +296,6 @@ resource "helm_release" "zipline_orchestration" {
       crucible_spark_image          = local.crucible_spark_image
       crucible_flink_image          = local.crucible_flink_image
       crucible_history_server_image = local.crucible_history_server_image
-      crucible_jar_name             = var.crucible_jar_name
       crucible_jar_uri_override     = var.crucible_jar_uri_override
       crucible_spot_executors       = var.crucible_spot_executors
       warehouse_bucket              = var.warehouse_bucket

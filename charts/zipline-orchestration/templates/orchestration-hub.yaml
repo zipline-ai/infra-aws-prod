@@ -92,8 +92,6 @@ spec:
               value: "{{ .Values.aws.crucible.sparkImage }}"
             - name: CRUCIBLE_FLINK_IMAGE
               value: "{{ .Values.aws.crucible.flinkImage }}"
-            - name: CRUCIBLE_JAR_NAME
-              value: "{{ .Values.aws.crucible.jarName }}"
             - name: CRUCIBLE_SPOT_EXECUTORS
               value: "{{ .Values.aws.crucible.spotExecutors }}"
             {{- if .Values.aws.crucible.jarUriOverride }}

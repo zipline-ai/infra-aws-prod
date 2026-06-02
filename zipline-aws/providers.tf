@@ -97,7 +97,6 @@ module "base_setup" {
   crucible_image_registry   = var.crucible_image_registry
   crucible_spark_image      = var.crucible_spark_image
   crucible_flink_image      = var.crucible_flink_image
-  crucible_jar_name         = var.crucible_jar_name
   crucible_jar_uri_override = var.crucible_jar_uri_override
   crucible_spot_executors   = var.crucible_spot_executors
 
