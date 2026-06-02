@@ -9,7 +9,7 @@ OpenTofu infrastructure for deploying Zipline on AWS.
 | `base-aws/` | VPC, EMR cluster, DynamoDB, S3 buckets, EMR IAM roles |
 | `orchestration-aws/` | EKS cluster, IRSA roles, RDS, Helm releases, ACM certs, AMP, Flink |
 | `zipline-aws/` | Your deployment — wires together base-aws and orchestration-aws |
-| `crucible-aws/` | Optional Crucible EKS cluster Terraform; installs the Crucible OCI Helm chart published from `zipline-ai/crucible` |
+| `crucible-aws/` | Optional Crucible EKS cluster Terraform; installs the Platform-owned Crucible OCI Helm chart |
 | `charts/` | Helm chart for the zipline-orchestration stack |
 
 ## Prerequisites
@@ -83,6 +83,8 @@ tofu apply
 | `crucible_public_host` | `""` | Public hostname for Crucible; required when `deploy_crucible = true` |
 | `crucible_job_namespace` | `crucible-jobs` | Kubernetes namespace where Crucible submits Spark and Flink jobs |
 | `crucible_chart_version` | `null` | Optional Crucible OCI Helm chart version pin |
+| `crucible_gateway_image_repository` | `us-docker.pkg.dev/crucible-io/crucible/gateway` | Gateway image repository used by the Crucible Helm chart |
+| `crucible_gateway_image_tag` | `""` | Optional gateway image tag; empty uses the chart appVersion |
 | `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API server; empty keeps the endpoint private-only |
 
 ## Optional Crucible

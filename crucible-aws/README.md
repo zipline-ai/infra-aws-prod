@@ -1,8 +1,8 @@
 # crucible-aws
 
 Terraform assets for deploying **Crucible** on AWS as an optional part of a
-larger Zipline stack. The Crucible Helm chart is published from the
-`zipline-ai/crucible` repo and consumed here as an OCI chart.
+larger Zipline stack. The Crucible Helm chart is owned in `zipline-ai/platform`
+under `crucible/helm/crucible` and consumed here as an OCI chart.
 
 For most customer deployments, enable Crucible from `zipline-aws/` so it reuses
 the same state, VPC, subnets, artifact bucket, warehouse bucket, and operator
@@ -69,6 +69,8 @@ NLB hostname.
 | `crucible_chart_repository` | `oci://us-docker.pkg.dev/crucible-io/crucible` | OCI repository containing the Crucible Helm chart |
 | `crucible_chart_name` | `crucible` | Helm chart name inside `crucible_chart_repository` |
 | `crucible_chart_version` | `null` | Optional chart version pin; `null` lets Helm select the latest published chart |
+| `crucible_gateway_image_repository` | `us-docker.pkg.dev/crucible-io/crucible/gateway` | Gateway image repository used by the Crucible Helm chart |
+| `crucible_gateway_image_tag` | `""` | Optional gateway image tag; empty uses the chart appVersion |
 | `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API; empty means private-only |
 | `crucible_ingress_nlb_subnet_ids` | Zipline stack subnets | Optional public subnet IDs for the ingress NLB |
 
@@ -108,10 +110,10 @@ to `providers.tf` that matches your Terraform state bucket before applying.
 
 ## Helm Values
 
-Terraform installs the published Crucible OCI chart. The chart and its default
-gateway image tag are produced by Crucible CI; Terraform supplies the
-AWS-specific Helm values from the cluster outputs: Crucible bucket, gateway
-IRSA role, Spark/Flink IRSA role, public hostname, and EKS OIDC issuer.
+Terraform installs the published Crucible OCI chart. The chart is produced from
+the Platform repo; Terraform supplies the AWS-specific Helm values from the
+cluster outputs: Crucible bucket, gateway image, gateway IRSA role,
+Spark/Flink IRSA role, public hostname, and managed job namespace.
 
 For standalone installs, set `crucible_chart_values_files` to add one or more
 extra values files under `crucible-aws/`. Those files are merged after the

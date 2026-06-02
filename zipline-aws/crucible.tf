@@ -94,6 +94,29 @@ module "crucible_ingress_nginx" {
   depends_on = [module.crucible_cluster]
 }
 
+resource "helm_release" "crucible_cert_manager" {
+  count = var.deploy_crucible ? 1 : 0
+
+  provider = helm.crucible
+
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  namespace        = "cert-manager"
+  version          = "v1.13.3"
+  create_namespace = true
+
+  wait    = true
+  timeout = 600
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  depends_on = [module.crucible_cluster]
+}
+
 resource "helm_release" "crucible" {
   count = var.deploy_crucible ? 1 : 0
 
@@ -114,6 +137,12 @@ resource "helm_release" "crucible" {
     yamlencode({
       cloudProvider = "aws"
 
+      image = {
+        repository = var.crucible_gateway_image_repository
+        tag        = var.crucible_gateway_image_tag
+        pullPolicy = var.crucible_gateway_image_pull_policy
+      }
+
       objectStore = {
         bucket = "s3://${module.crucible_cluster[0].crucible_bucket_name}"
         region = var.region
@@ -126,12 +155,12 @@ resource "helm_release" "crucible" {
         }
       }
 
-      namespaceOnboarding = {
-        clusterName   = module.crucible_cluster[0].cluster_name
-        eksOIDCIssuer = module.crucible_cluster[0].cluster_oidc_issuer
+      namespaces = {
+        managed = [local.crucible_job_namespace]
       }
 
       gateway = {
+        namespace           = "crucible-system"
         defaultJobNamespace = local.crucible_job_namespace
       }
 
@@ -149,7 +178,7 @@ resource "helm_release" "crucible" {
 
       historyServer = {
         enabled   = true
-        publicUrl = "https://${trimspace(var.crucible_public_host)}/api/v1/history"
+        publicUrl = "https://${trimspace(var.crucible_public_host)}/spark-history"
         ingress = {
           enabled   = true
           host      = trimspace(var.crucible_public_host)
@@ -162,6 +191,7 @@ resource "helm_release" "crucible" {
   depends_on = [
     module.crucible_cluster,
     module.crucible_ingress_nginx,
+    helm_release.crucible_cert_manager,
   ]
 }
 

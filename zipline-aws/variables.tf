@@ -132,10 +132,34 @@ variable "crucible_chart_version" {
   }
 }
 
+variable "crucible_gateway_image_repository" {
+  type        = string
+  description = "Gateway image repository for the Platform-owned Crucible Helm chart."
+  default     = "us-docker.pkg.dev/crucible-io/crucible/gateway"
+}
+
+variable "crucible_gateway_image_tag" {
+  type        = string
+  description = "Optional gateway image tag. Empty lets the Crucible Helm chart use its appVersion."
+  default     = ""
+  nullable    = false
+}
+
+variable "crucible_gateway_image_pull_policy" {
+  type        = string
+  description = "Image pull policy for the Crucible gateway."
+  default     = "IfNotPresent"
+
+  validation {
+    condition     = contains(["Always", "IfNotPresent", "Never"], var.crucible_gateway_image_pull_policy)
+    error_message = "crucible_gateway_image_pull_policy must be Always, IfNotPresent, or Never."
+  }
+}
+
 variable "crucible_spark_image" {
   type        = string
   description = "Spark image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
-  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:4.1-crucible-latest"
 }
 
 variable "crucible_flink_image" {

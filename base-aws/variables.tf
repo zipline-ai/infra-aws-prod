@@ -83,7 +83,7 @@ variable "crucible_namespace" {
 variable "crucible_spark_image" {
   type        = string
   description = "Spark image passed to CrucibleSubmitter."
-  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+  default     = "us-docker.pkg.dev/crucible-io/crucible/spark:4.1-crucible-latest"
 }
 
 variable "crucible_flink_image" {
