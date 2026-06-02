@@ -98,10 +98,10 @@ spec:
               api="https://kubernetes.default.svc"
 
               current="$(curl -s --cacert "$ca" -H "Authorization: Bearer $token" \
-                "$api/api/v1/nodes/$NODE_NAME" | grep -o '"crucible.ai/nvme":"true"' || true)"
+                "$api/api/v1/nodes/$NODE_NAME" | grep -o '"zipline.ai/nvme":"true"' || true)"
 
               if [ -z "$current" ]; then
-                patch='{"metadata":{"labels":{"crucible.ai/nvme":"true"}},"spec":{"taints":[{"key":"crucible.ai/nvme","value":"true","effect":"NoSchedule"}]}}'
+                patch='{"metadata":{"labels":{"zipline.ai/nvme":"true"}},"spec":{"taints":[{"key":"zipline.ai/nvme","value":"true","effect":"NoSchedule"}]}}'
                 curl -s --cacert "$ca" -H "Authorization: Bearer $token" \
                   -H "Content-Type: application/strategic-merge-patch+json" \
                   -X PATCH "$api/api/v1/nodes/$NODE_NAME" \

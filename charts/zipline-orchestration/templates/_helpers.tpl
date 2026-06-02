@@ -61,7 +61,7 @@ Service account name
 {{- end }}
 
 {{/*
-Default Kubernetes namespace used for Spark/Flink compute jobs.
+Default Kubernetes namespace used for Spark compute jobs.
 */}}
 {{- define "zipline-orchestration.computeDefaultNamespace" -}}
 {{- $defaultNamespace := .Values.compute.defaultNamespace | default "" -}}

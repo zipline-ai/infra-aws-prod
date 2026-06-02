@@ -80,7 +80,7 @@ variable "spark_compute_enabled" {
 
 variable "spark_compute_namespace" {
   type        = string
-  description = "Initial Kubernetes namespace for in-cluster Zipline Spark and Flink compute jobs."
+  description = "Initial Kubernetes namespace for in-cluster Zipline Spark compute jobs."
   default     = "zipline-default"
 }
 
