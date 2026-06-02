@@ -59,3 +59,63 @@ Service account name
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Default Kubernetes namespace used for Spark/Flink compute jobs.
+*/}}
+{{- define "zipline-orchestration.computeDefaultNamespace" -}}
+{{- $defaultNamespace := .Values.compute.defaultNamespace | default "" -}}
+{{- if $defaultNamespace -}}
+{{- $defaultNamespace -}}
+{{- else -}}
+{{- $namespaces := .Values.compute.namespaces | default list -}}
+{{- if gt (len $namespaces) 0 -}}
+{{- (index $namespaces 0).name | default "zipline-default" -}}
+{{- else -}}
+{{- "zipline-default" -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Backward-compatible helper for the Hub's current single default namespace.
+*/}}
+{{- define "zipline-orchestration.computeJobNamespace" -}}
+{{- include "zipline-orchestration.computeDefaultNamespace" . -}}
+{{- end }}
+
+{{/*
+Namespace used for compute control-plane support services.
+*/}}
+{{- define "zipline-orchestration.computeSystemNamespace" -}}
+{{- .Release.Namespace -}}
+{{- end }}
+
+{{/*
+Bucket name without the URI scheme.
+*/}}
+{{- define "zipline-orchestration.computeBucketName" -}}
+{{- .Values.compute.objectStore.bucket | trimPrefix "s3://" | trimPrefix "s3a://" | trimPrefix "gs://" | trimSuffix "/" -}}
+{{- end }}
+
+{{/*
+Spark event log directory used by Spark History Server.
+*/}}
+{{- define "zipline-orchestration.sparkEventLogDir" -}}
+{{- if .Values.compute.sparkDefaults.eventLogDir -}}
+{{- .Values.compute.sparkDefaults.eventLogDir -}}
+{{- else if and .Values.compute.objectStore.bucket (eq (.Values.compute.cloudProvider | default "aws") "aws") -}}
+{{- printf "s3a://%s/spark-events" (include "zipline-orchestration.computeBucketName" .) -}}
+{{- else if and .Values.compute.objectStore.bucket (eq .Values.compute.cloudProvider "gcp") -}}
+{{- printf "gs://%s/spark-events" (include "zipline-orchestration.computeBucketName" .) -}}
+{{- else -}}
+{{- "" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Spark History Server proxy base path.
+*/}}
+{{- define "zipline-orchestration.historyServerProxyBase" -}}
+{{- printf "/%s" (trimAll "/" (.Values.compute.historyServer.proxyBase | default "spark-history")) -}}
+{{- end }}

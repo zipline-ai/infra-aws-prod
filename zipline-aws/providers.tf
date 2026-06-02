@@ -89,9 +89,12 @@ module "base_setup" {
   fetcher_replicas = var.fetcher_replicas
 
   # Optional Crucible submitter configuration for the orchestration Hub
+  spark_compute_enabled     = var.spark_compute_enabled
+  spark_compute_namespace   = var.spark_compute_namespace
   crucible_enabled          = var.deploy_crucible
   crucible_url              = local.crucible_gateway_url
   crucible_namespace        = local.crucible_job_namespace
+  crucible_image_registry   = var.crucible_image_registry
   crucible_spark_image      = var.crucible_spark_image
   crucible_flink_image      = var.crucible_flink_image
   crucible_jar_name         = var.crucible_jar_name

@@ -1,0 +1,37 @@
+{{- if and .Values.compute.enabled .Values.compute.driverPriorityClass.enabled }}
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.compute.driverPriorityClass.name | default "zipline-spark-driver" }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+value: {{ .Values.compute.driverPriorityClass.value | default 100 }}
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "Zipline Spark driver pods. Preempts warm pool pods and is not preempted by executors."
+{{- end }}
+{{- if and .Values.compute.enabled .Values.compute.systemPriorityClass.enabled }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.compute.systemPriorityClass.name | default "zipline-compute-system" }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+value: {{ .Values.compute.systemPriorityClass.value | default 1000 }}
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "Zipline compute support services such as Spark History Server and Loki."
+{{- end }}
+{{- if and .Values.compute.enabled .Values.compute.warmPool.enabled }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.compute.warmPool.priorityClassName | default "zipline-spark-pause" }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+value: -1
+globalDefault: false
+description: "Low-priority class for Zipline Spark warm pool placeholder pods."
+{{- end }}
