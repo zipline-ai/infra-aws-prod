@@ -9,7 +9,6 @@ OpenTofu infrastructure for deploying Zipline on AWS.
 | `base-aws/` | VPC, EMR cluster, DynamoDB, S3 buckets, EMR IAM roles |
 | `orchestration-aws/` | EKS cluster, IRSA roles, RDS, Helm releases, ACM certs, AMP, Flink |
 | `zipline-aws/` | Your deployment — wires together base-aws and orchestration-aws |
-| `crucible-aws/` | Optional Crucible EKS cluster Terraform; installs the vendored Platform-owned Crucible Helm chart |
 | `charts/` | Helm chart for the zipline-orchestration stack |
 
 ## Prerequisites
@@ -79,30 +78,26 @@ tofu apply
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
-| `deploy_crucible` | `false` | Deploy a separate Crucible EKS cluster alongside the Zipline stack |
-| `crucible_public_host` | `""` | Public hostname for Crucible; required when `deploy_crucible = true` |
-| `crucible_job_namespace` | `crucible-jobs` | Kubernetes namespace where Crucible submits Spark and Flink jobs |
-| `crucible_gateway_image_repository` | `us-docker.pkg.dev/crucible-io/crucible/gateway` | Gateway image repository used by the Crucible Helm chart |
-| `crucible_gateway_image_tag` | `""` | Optional gateway image tag; empty uses the chart appVersion |
-| `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API server; empty keeps the endpoint private-only |
+| `spark_compute_enabled` | `false` | Deploy embedded Kubernetes Spark compute resources into the orchestration cluster |
+| `spark_compute_namespace` | `zipline-default` | Initial Kubernetes namespace for Zipline Spark compute jobs |
+| `spark_compute_image_registry` | `""` | Optional private registry prefix for mirrored Zipline Spark compute images |
+| `spark_compute_image` | `null` | Optional full Spark image override for Kubernetes compute jobs |
 
-## Optional Crucible
+## Optional Spark compute
 
-To install Crucible with the rest of Zipline, enable it in `zipline-aws/terraform.tfvars`:
+To run Spark jobs through the orchestration Hub on Kubernetes, enable the embedded
+compute stack in `zipline-aws/terraform.tfvars`:
 
 ```hcl
-deploy_crucible      = true
-crucible_public_host = "crucible.yourcompany.com"
+spark_compute_enabled   = true
+spark_compute_namespace = "zipline-default"
 ```
 
-The Crucible cluster reuses the base Zipline VPC/subnets and grants its Spark
-role access to the Zipline artifact and warehouse buckets. Terraform also passes
-`ENABLE_CRUCIBLE=true` and the `CRUCIBLE_*` connection settings into the
-orchestration Hub. With the flag enabled, `AWSWorkflowExecutionVerticle` submits
-jobs through `CrucibleSubmitter`; with the flag disabled, it uses the regular AWS
-EMR Serverless submitter.
-
-See `crucible-aws/README.md` for DNS setup.
+This installs the Spark Kubernetes Operator, Spark history server, Loki, RBAC,
+resource quota, and service accounts into the existing orchestration cluster. The
+Hub receives the Kubernetes submitter settings directly, including
+`K8S_NAMESPACE`, `SPARK_IMAGE`, `SPARK_SERVICE_ACCOUNT`,
+`SPARK_HISTORY_SERVER_URL`, and `SPARK_EVENT_LOG_DIR`.
 
 ## Custom domains (HTTPS)
 

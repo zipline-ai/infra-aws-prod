@@ -1,0 +1,32 @@
+{{- if .Values.litestream.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "crucible.fullname" . }}-litestream
+  namespace: {{ .Values.gateway.namespace }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+data:
+  litestream.yml: |
+    dbs:
+      - path: {{ .Values.gateway.archivePath }}
+        replicas:
+          {{- $replicaType := include "crucible.litestreamReplicaType" . | trim }}
+          {{- $bucket := include "crucible.litestreamBucket" . | trim }}
+          {{- if eq $replicaType "s3" }}
+          - type: s3
+            bucket: {{ $bucket }}
+            path: litestream/archive
+            region: {{ .Values.litestream.region | default "us-east-1" }}
+          {{- else if eq $replicaType "abs" }}
+          - type: abs
+            account-name: {{ .Values.litestream.accountName }}
+            bucket: {{ .Values.litestream.container | default "crucible" }}
+            path: litestream/archive
+          {{- else }}
+          {{- /* Default: GCS */}}
+          - type: gcs
+            bucket: {{ $bucket }}
+            path: litestream/archive
+          {{- end }}
+{{- end }}

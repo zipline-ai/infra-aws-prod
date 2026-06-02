@@ -1,131 +1,126 @@
 # crucible-aws
 
-Terraform assets for deploying **Crucible** on AWS as an optional part of a
-larger Zipline stack. The Crucible Helm chart is owned in `zipline-ai/platform`
-under `crucible/helm/crucible` and vendored here under
-`crucible-aws/charts/crucible`.
+Terraform that provisions the **Crucible** EKS cluster. The checked-in files in
+this directory are the env-agnostic skeleton — concrete network IDs, bucket
+names, public-API CIDR allow-list, etc. live in `s3://zipline-canary-vars/`
+(shared with zipline-aws and other canary modules) and are pulled in via
+`./pull_canary_config.sh` before `terraform apply`.
 
-For most customer deployments, enable Crucible from `zipline-aws/` so it reuses
-the same state, VPC, subnets, artifact bucket, warehouse bucket, and operator
-access configuration as the rest of Zipline.
-
-## Install With Zipline
-
-Add the Crucible settings to `zipline-aws/terraform.tfvars`:
-
-```hcl
-deploy_crucible      = true
-crucible_public_host = "crucible.yourcompany.com"
-
-# Optional. Empty keeps the Crucible EKS API endpoint private-only.
-crucible_eks_public_access_cidrs = ["203.0.113.10/32"]
-```
-
-Then apply the stack from `zipline-aws/`:
-
-```sh
-tofu init
-tofu plan
-tofu apply
-```
-
-When `deploy_crucible` is enabled, Terraform provisions:
-
-| Resource | Notes |
-|---|---|
-| Crucible EKS cluster | Separate cluster named `<customer_name>-crucible-eks` unless `crucible_cluster_name` is set |
-| Control node group | Tainted Graviton pool for Crucible control-plane pods and ingress |
-| Data node group | Graviton pool for Spark and Flink workloads |
-| S3 bucket | Event logs, checkpoints, jar staging, and archive backups |
-| IRSA roles | Gateway role and Spark/Flink role, with Chronon artifact and warehouse bucket access wired from the Zipline stack |
-| ACM certificate | DNS-validated certificate for `crucible_public_host` |
-| nginx ingress | Internet-facing NLB with TLS terminated by ACM |
-| Crucible Helm release | Installs the Crucible gateway, operators, metrics, logging, and history server from the vendored Crucible chart |
-
-The same flag also sets `ENABLE_CRUCIBLE=true` on the Zipline orchestration Hub
-and passes the `CRUCIBLE_*` connection settings it needs. When disabled, the Hub
-continues to use the AWS EMR Serverless submitter.
-
-## DNS
-
-ACM requires DNS validation for `crucible_public_host`. Terraform outputs the
-records as `crucible_acm_validation_records`. Add those CNAME records to your
-DNS provider, then re-run `tofu apply` if the first apply timed out while
-waiting for validation. You can also copy the same CNAME records from the ACM
-certificate page in the AWS console.
-
-After nginx ingress is created, Terraform outputs
-`crucible_ingress_nlb_hostname`. Add a CNAME from `crucible_public_host` to that
-NLB hostname.
-
-## Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `deploy_crucible` | `false` | Enables the optional Crucible cluster from `zipline-aws/` |
-| `crucible_public_host` | `""` | Required when `deploy_crucible = true`; ACM cert hostname |
-| `crucible_cluster_name` | `<customer_name>-crucible-eks` | Optional cluster name override |
-| `crucible_bucket_name` | `zipline-crucible-<customer_name>` | Optional S3 bucket name override |
-| `crucible_job_namespace` | `crucible-jobs` | Namespace where Crucible submits Spark and Flink jobs |
-| `crucible_gateway_image_repository` | `us-docker.pkg.dev/crucible-io/crucible/gateway` | Gateway image repository used by the Crucible Helm chart |
-| `crucible_gateway_image_tag` | `""` | Optional gateway image tag; empty uses the chart appVersion |
-| `crucible_eks_public_access_cidrs` | `[]` | CIDRs allowed to reach the Crucible EKS API; empty means private-only |
-| `crucible_ingress_nlb_subnet_ids` | Zipline stack subnets | Optional public subnet IDs for the ingress NLB |
-
-## Standalone Use
-
-The preferred install path is `zipline-aws/`, but `crucible-aws/` can still be
-applied directly when you need to evaluate or operate Crucible separately.
-
-Create `crucible-aws/terraform.tfvars`:
-
-```hcl
-region       = "us-west-2"
-cluster_name = "crucible-eks"
-
-shared_vpc_id     = "vpc-0123456789abcdef0"
-shared_subnet_ids = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789"]
-
-crucible_bucket_name = "your-company-crucible"
-public_host          = "crucible.yourcompany.com"
-
-personnel_arns = [
-  "arn:aws:iam::123456789012:role/your-admin-role",
-]
-```
-
-Then run:
+## Workflow
 
 ```sh
 cd crucible-aws
-tofu init
-tofu plan
-tofu apply
+
+# First-time / new clone — fetch canary tfvars + canary-only overlay from S3.
+./pull_canary_config.sh
+
+terraform init
+terraform plan
+terraform apply
+
+# After editing canary-only local config, push back to S3 so the next operator
+# pulls your change.
+./push_canary_config.sh
 ```
 
-If you use the standalone path for a persistent environment, add an S3 backend
-to `providers.tf` that matches your Terraform state bucket before applying.
+`pull_canary_config.sh` writes `crucible.auto.tfvars` with the concrete values
+for the variables declared in `variables.tf` (VPC/subnet tags, ingress NLB
+subnet tags, bucket name, public host, public-API CIDRs, chronon bucket lists).
+It also pulls gitignored canary-only Terraform overlays and chart values for
+Zipline-managed environment details that should not become part of the
+customer-facing API. Terraform auto-loads `*.auto.tfvars` so no `-var-file`
+flag is needed.
 
-## Helm Values
+The skeleton's `chronon_irsa.tf` reads the chronon bucket lists from those
+tfvars and conditionally attaches an inline policy to the spark IAM role —
+the *shape* of the policy stays in this prod-facing tree (every
+chronon-on-EKS deployment needs the same statement structure), only the
+bucket NAMES vary per environment.
 
-Terraform installs the vendored Crucible chart at
-`crucible-aws/charts/crucible`. The chart is copied from the Platform repo;
-Terraform supplies the AWS-specific Helm values from the cluster outputs:
-Crucible bucket, gateway image, gateway IRSA role, Spark/Flink IRSA role,
-public hostname, and managed job namespace.
+`.tfvars` files, canary-only overlays, and `*-canary.yaml`/`*-dev.yaml` chart
+values are gitignored at the repo root so they can't leak into this tree.
+`.terraform.lock.hcl` stays in version control alongside the skeleton (single
+source of truth for provider versions).
 
-For standalone installs, set `crucible_chart_values_files` to add one or more
-extra values files under `crucible-aws/`. Those files are merged after the
-generated AWS defaults.
+The canary overlay has its own provider dependencies. `pull_canary_config.sh`
+therefore replaces the local `.terraform.lock.hcl` with
+`s3://zipline-canary-vars/crucible.terraform.lock.hcl`, and
+`push_canary_config.sh` uploads that canary lockfile back to S3. Do not commit
+the S3-synced canary lockfile to this tree.
 
-## Connect
+## What lives in this directory (skeleton)
+
+Originally the canary AWS account (`345594603419` / `us-west-2`), sharing
+the existing canary VPC. AWS counterpart to the GCP `crucible-dev` GKE
+cluster and the Azure `crucible-aks` AKS cluster.
+
+## Scope (this PR — cluster only)
+
+| Resource | Notes |
+|---|---|
+| `aws_eks_cluster.crucible` | `crucible-eks`, version 1.34, public+private API |
+| `aws_iam_role.cluster` + policy attachments | `AmazonEKSClusterPolicy`, `AmazonEKSVPCResourceController` |
+| `aws_security_group.cluster` + HTTPS ingress rule | Control-plane SG |
+| `aws_eks_node_group.control` | Tainted Graviton control-plane pool for Hub, ingress, and Crucible services |
+| `aws_eks_node_group.default` | Graviton data-plane pool for Chronon engine Spark/Flink pods |
+| `aws_iam_role.node` + policy attachments | `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly` |
+| `aws_iam_openid_connect_provider.oidc` | Required by IRSA |
+| `aws_eks_access_entry` + access policy associations | Optional, driven by `var.personnel_arns` |
+
+## Public ingress DNS
+
+The nginx ingress controller provisions an AWS NLB. Set
+`ingress_nlb_subnet_name_tags` to public subnet Name tags when you need to pin
+the public ingress NLB to specific subnets. When unset, Terraform leaves subnet
+selection to Kubernetes/AWS.
+
+This skeleton does not manage DNS records. After apply, point `public_host` at
+the `ingress_nlb_hostname` output using your DNS provider.
+
+## Follow-up PRs
+
+- **IRSA roles**: `crucible-gateway-irsa` (S3 + EKS access; trust `crucible-system/crucible`), `crucible-spark-irsa` (S3 RW; trust `test-ns-*/{spark-operator-spark,flink}`). Mirrors `crucible-spark@crucible-io.iam.gserviceaccount.com` on GCP and `crucible-spark-identity` on Azure.
+- **S3 bucket**: `crucible-artifacts-canary` for jar staging + spark event logs + flink checkpoints. Counterpart to GCS `crucible-dev-bucket` and the `ziplineai2/crucible` Azure container.
+- **GitHub OIDC role**: `github_actions_crucible` with trust to GitHub Actions OIDC and permissions to push jars to S3 + assume into the IRSA roles. Wires into `crucible_integration_test_aws.yaml` in platform.
+- **NVMe + spot node groups**: mirrors AKS `nvme` / `spotnvme` pools.
+
+## Apply
 
 ```sh
-aws eks update-kubeconfig --region <region> --name <crucible-cluster-name>
+cd crucible-aws
+terraform init
+terraform plan
+terraform apply
+```
+
+State lives in `s3://zipline-ai-opentofu-state-bucket/opentofu-crucible-state`
+(separate key from canary so they're decoupled).
+
+After apply:
+
+```sh
+aws eks update-kubeconfig --region us-west-2 --name crucible-eks
 kubectl get nodes
 ```
 
-## Chart Ownership
+## VPC
 
-The Crucible gateway chart lives in the `zipline-ai/crucible` repo under
-`helm/crucible/`. This repo only contains the Terraform wiring that installs it.
+Shares the canary VPC (looked up by Name tag `zipline-canary-vpc` plus subnet
+Name tags). If/when crucible warrants isolation, switch to a dedicated VPC by
+adding the network resources here and dropping the data lookups in `vpc.tf`.
+
+## Hub chart
+
+`charts/hub/` is the Helm chart for the Chronon Hub that pairs with this
+cluster. It is kept under `crucible-aws/` rather than the top-level `charts/`
+directory because it is Crucible-specific — deployments that don't run
+Crucible never render it. It lands service pods on the tainted control node
+group (`aws_eks_node_group.control`); Spark/Flink engine pods stay on the
+default data-plane pool. Install it after `terraform apply`:
+
+```sh
+helm install hub crucible-aws/charts/hub \
+  -f crucible-aws/charts/hub/hub-values-eks-dev.yaml \
+  --set hub.jarUri=s3://<bucket>/release/<version>/jars/k8s_assembly.jar \
+  -n crucible-system
+```

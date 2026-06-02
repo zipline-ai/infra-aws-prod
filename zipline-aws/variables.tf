@@ -60,16 +60,9 @@ variable "eks_version" {
   default     = "1.31"
 }
 
-# Optional Crucible deployment
-variable "deploy_crucible" {
-  type        = bool
-  description = "Whether to deploy a separate Crucible EKS cluster alongside the Zipline stack."
-  default     = false
-}
-
 variable "spark_compute_enabled" {
   type        = bool
-  description = "Whether to deploy Spark Kubernetes Operator compute resources into the main Zipline orchestration cluster."
+  description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
   default     = false
 }
 
@@ -79,102 +72,18 @@ variable "spark_compute_namespace" {
   default     = "zipline-default"
 }
 
-variable "crucible_cluster_name" {
+variable "spark_compute_image_registry" {
   type        = string
-  description = "Optional EKS cluster name for Crucible. Defaults to <customer_name>-crucible-eks when deploy_crucible is true."
-  default     = ""
-}
-
-variable "crucible_bucket_name" {
-  type        = string
-  description = "Optional S3 bucket name for Crucible spark event logs, flink checkpoints, and jar staging. Defaults to zipline-crucible-<customer_name>."
-  default     = ""
-}
-
-variable "crucible_public_host" {
-  type        = string
-  description = "Public hostname for Crucible. Required when deploy_crucible is true; ACM issues a certificate for this exact domain."
-  default     = ""
-}
-
-variable "crucible_eks_public_access_cidrs" {
-  type        = list(string)
-  description = "CIDR ranges allowed to reach the Crucible EKS API server. Empty disables the public endpoint."
-  default     = []
-}
-
-variable "crucible_ingress_nlb_subnet_ids" {
-  type        = list(string)
-  description = "Optional public subnet IDs for the Crucible nginx ingress NLB. Defaults to the Zipline stack subnets."
-  default     = []
-}
-
-variable "crucible_job_namespace" {
-  type        = string
-  description = "Kubernetes namespace where Crucible submits Spark and Flink jobs."
-  default     = "crucible-jobs"
-
-  validation {
-    condition     = trimspace(var.crucible_job_namespace) != ""
-    error_message = "crucible_job_namespace must not be empty."
-  }
-}
-
-variable "crucible_gateway_image_repository" {
-  type        = string
-  description = "Gateway image repository for the Platform-owned Crucible Helm chart."
-  default     = "us-docker.pkg.dev/crucible-io/crucible/gateway"
-}
-
-variable "crucible_gateway_image_tag" {
-  type        = string
-  description = "Optional gateway image tag. Empty lets the Crucible Helm chart use its appVersion."
+  description = "Optional private registry prefix containing Zipline Spark compute images mirrored by zipline admin install."
   default     = ""
   nullable    = false
 }
 
-variable "crucible_gateway_image_pull_policy" {
+variable "spark_compute_image" {
   type        = string
-  description = "Image pull policy for the Crucible gateway."
-  default     = "IfNotPresent"
-
-  validation {
-    condition     = contains(["Always", "IfNotPresent", "Never"], var.crucible_gateway_image_pull_policy)
-    error_message = "crucible_gateway_image_pull_policy must be Always, IfNotPresent, or Never."
-  }
-}
-
-variable "crucible_image_registry" {
-  type        = string
-  description = "Optional private registry prefix containing Zipline/Crucible images mirrored by zipline admin install. When set, Crucible gateway, history-server, and job runtime images default to this registry."
-  default     = ""
-  nullable    = false
-}
-
-variable "crucible_spark_image" {
-  type        = string
-  description = "Spark image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
+  description = "Optional Spark image override for Kubernetes compute jobs."
   default     = null
   nullable    = true
-}
-
-variable "crucible_flink_image" {
-  type        = string
-  description = "Flink image the orchestration Hub passes to CrucibleSubmitter when deploy_crucible is true."
-  default     = null
-  nullable    = true
-}
-
-variable "crucible_jar_uri_override" {
-  type        = string
-  description = "Optional jar URI override passed to CrucibleSubmitter. Leave empty to use each workflow's submitted jar URI."
-  default     = ""
-}
-
-variable "crucible_spot_executors" {
-  type        = bool
-  description = "Whether CrucibleSubmitter should request spot executors by default."
-  default     = false
 }
 
 # Custom domains for HTTPS (optional)

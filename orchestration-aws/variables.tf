@@ -90,12 +90,6 @@ variable "eks_disk_size" {
   default     = 100
 }
 
-variable "crucible_enabled" {
-  type        = bool
-  description = "Whether the orchestration Hub should submit jobs through CrucibleSubmitter instead of EMR Serverless."
-  default     = false
-}
-
 variable "spark_compute_enabled" {
   type        = bool
   description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
@@ -108,49 +102,18 @@ variable "spark_compute_namespace" {
   default     = "zipline-default"
 }
 
-variable "crucible_url" {
+variable "spark_compute_image_registry" {
   type        = string
-  description = "Base URL for the Crucible gateway used by the orchestration Hub."
-  default     = ""
-}
-
-variable "crucible_namespace" {
-  type        = string
-  description = "Kubernetes namespace where CrucibleSubmitter submits jobs."
-  default     = "crucible-jobs"
-}
-
-variable "crucible_image_registry" {
-  type        = string
-  description = "Optional private registry prefix containing Zipline/Crucible images mirrored by zipline admin install. When set, Crucible job runtime images default to this registry."
+  description = "Optional private registry prefix containing Zipline Spark compute images mirrored by zipline admin install."
   default     = ""
   nullable    = false
 }
 
-variable "crucible_spark_image" {
+variable "spark_compute_image" {
   type        = string
-  description = "Spark image passed to CrucibleSubmitter."
+  description = "Optional Spark image override for Kubernetes compute jobs."
   default     = null
   nullable    = true
-}
-
-variable "crucible_flink_image" {
-  type        = string
-  description = "Flink image passed to CrucibleSubmitter."
-  default     = null
-  nullable    = true
-}
-
-variable "crucible_jar_uri_override" {
-  type        = string
-  description = "Optional jar URI override passed to CrucibleSubmitter."
-  default     = ""
-}
-
-variable "crucible_spot_executors" {
-  type        = bool
-  description = "Whether CrucibleSubmitter should request spot executors by default."
-  default     = false
 }
 
 # Domain Configuration (optional)

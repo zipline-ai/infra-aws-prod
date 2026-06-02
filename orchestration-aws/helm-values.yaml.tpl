@@ -21,14 +21,6 @@ aws:
   emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
   emrLogUri: "${emr_log_uri}"
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
-  crucible:
-    enabled: ${crucible_enabled}
-    url: "${crucible_url}"
-    namespace: "${crucible_namespace}"
-    sparkImage: "${crucible_spark_image}"
-    flinkImage: "${crucible_flink_image}"
-    jarUriOverride: "${crucible_jar_uri_override}"
-    spotExecutors: ${crucible_spot_executors}
 
 compute:
   enabled: ${spark_compute_enabled}
@@ -44,13 +36,14 @@ compute:
     annotations:
       eks.amazonaws.com/role-arn: "${spark_compute_role_arn}"
   sparkDefaults:
+    image: "${spark_compute_image}"
     eventLogDir: "s3a://${warehouse_bucket}/spark-events"
   historyServer:
-    image: "${crucible_history_server_image}"
+    image: "${spark_history_server_image}"
   imagePrepull:
     enabled: ${spark_compute_enabled}
     images:
-      - "${crucible_spark_image}"
+      - "${spark_compute_image}"
 
 spark-operator:
   spark:

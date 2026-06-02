@@ -1,14 +1,3 @@
-{{- $defaultJobNamespace := .Values.gateway.defaultJobNamespace | default "crucible-jobs" -}}
-{{- $managedNamespaces := list -}}
-{{- with .Values.namespaces -}}
-{{- with .managed -}}
-{{- $managedNamespaces = . -}}
-{{- end -}}
-{{- end -}}
-{{- $gatewayDefaultNamespace := $defaultJobNamespace -}}
-{{- if gt (len $managedNamespaces) 0 -}}
-{{- $gatewayDefaultNamespace = index $managedNamespaces 0 -}}
-{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,6 +7,10 @@ metadata:
     {{- include "crucible.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  {{- if or .Values.persistence.enabled .Values.litestream.enabled }}
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "crucible.selectorLabels" . | nindent 6 }}
@@ -29,7 +22,6 @@ spec:
         prometheus.io/path: "/metrics"
       labels:
         {{- include "crucible.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: gateway
         {{- if index (.Values.serviceAccount.annotations | default dict) "azure.workload.identity/client-id" }}
         azure.workload.identity/use: "true"
         {{- end }}
@@ -48,23 +40,51 @@ spec:
             value: "45"
           - name: net.ipv4.tcp_keepalive_probes
             value: "5"
-      {{- with .Values.gateway.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.gateway.tolerations }}
+      # ARM arch toleration (GKE taints arm64 nodes by default).
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+{{- if .Values.litestream.enabled }}
+      initContainers:
+        - name: litestream-restore
+          image: {{ .Values.litestream.image | default "litestream/litestream:0.3" }}
+          args: ["restore", "-if-db-not-exists", "-if-replica-exists", "{{ .Values.gateway.archivePath }}"]
+          {{- if eq (.Values.litestream.replicaType | default "gcs") "abs" }}
+          env:
+            - name: LITESTREAM_AZURE_ACCOUNT_NAME
+              value: {{ .Values.litestream.accountName }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
+{{- end }}
       containers:
         - name: gateway
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.gateway.port }}
           env:
-            - name: CRUCIBLE_DEFAULT_NAMESPACE
-              value: {{ $gatewayDefaultNamespace | quote }}
+            - name: CRUCIBLE_ARCHIVE_PATH
+              value: {{ .Values.gateway.archivePath }}
+            - name: CRUCIBLE_NAMESPACE
+              value: {{ .Values.gateway.namespace }}
+            {{- if .Values.objectStore.bucket }}
+            - name: CRUCIBLE_BUCKET
+              value: {{ .Values.objectStore.bucket }}
+            {{- end }}
             - name: CRUCIBLE_CLOUD_PROVIDER
               value: {{ .Values.cloudProvider | default "" }}
             {{- $eventLogDir := include "crucible.sparkEventLogDir" . }}
@@ -117,13 +137,9 @@ spec:
             - name: CRUCIBLE_DRIVER_NODE_SELECTOR
               value: {{ $driverNS | toJson | quote }}
             {{- end }}
-            {{- $driverTolerations := (.Values.sparkDefaults.driverTolerations | default (list)) }}
-            {{- if and (not $driverTolerations) .Values.warmPool.taintKey }}
-            {{- $driverTolerations = list (dict "key" .Values.warmPool.taintKey "operator" "Equal" "value" (.Values.warmPool.taintValue | default "driver") "effect" "NoSchedule") }}
-            {{- end }}
-            {{- if $driverTolerations }}
+            {{- if .Values.warmPool.taintKey }}
             - name: CRUCIBLE_DRIVER_TOLERATIONS
-              value: {{ $driverTolerations | toJson | quote }}
+              value: {{ list (dict "key" .Values.warmPool.taintKey "operator" "Equal" "value" (.Values.warmPool.taintValue | default "driver") "effect" "NoSchedule") | toJson | quote }}
             {{- end }}
             {{- if .Values.auth.mode }}
             - name: CRUCIBLE_AUTH_MODE
@@ -140,6 +156,42 @@ spec:
             {{- if .Values.auth.adminGroup }}
             - name: CRUCIBLE_ADMIN_GROUP
               value: {{ .Values.auth.adminGroup }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.clusterName }}
+            - name: CRUCIBLE_CLUSTER_NAME
+              value: {{ .Values.namespaceOnboarding.clusterName }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.eksOIDCIssuer }}
+            - name: CRUCIBLE_EKS_OIDC_ISSUER
+              value: {{ .Values.namespaceOnboarding.eksOIDCIssuer }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.azureSubscription }}
+            - name: CRUCIBLE_AZURE_SUBSCRIPTION
+              value: {{ .Values.namespaceOnboarding.azureSubscription }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.azureResourceGroup }}
+            - name: CRUCIBLE_AZURE_RESOURCE_GROUP
+              value: {{ .Values.namespaceOnboarding.azureResourceGroup }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.azureTenantID }}
+            - name: CRUCIBLE_AZURE_TENANT_ID
+              value: {{ .Values.namespaceOnboarding.azureTenantID }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.aksOIDCIssuer }}
+            - name: CRUCIBLE_AKS_OIDC_ISSUER
+              value: {{ .Values.namespaceOnboarding.aksOIDCIssuer }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.gcpProject }}
+            - name: CRUCIBLE_GCP_PROJECT
+              value: {{ .Values.namespaceOnboarding.gcpProject }}
+            {{- end }}
+            {{- if .Values.namespaceOnboarding.gcpClusterLocation }}
+            - name: CRUCIBLE_GCP_CLUSTER_LOCATION
+              value: {{ .Values.namespaceOnboarding.gcpClusterLocation }}
+            {{- end }}
+            {{- if .Values.litestream.enabled }}
+            - name: CRUCIBLE_ARCHIVE_READONLY
+              value: "{{ .Values.litestream.readOnly | default "false" }}"
             {{- end }}
             - name: CRUCIBLE_EXECUTOR_CORES
               value: {{ .Values.sparkDefaults.executorCores | default 14 | quote }}
@@ -162,53 +214,6 @@ spec:
             {{- if .Values.flinkDefaults.adminConf }}
             - name: CRUCIBLE_FLINK_ADMIN_CONF
               value: {{ .Values.flinkDefaults.adminConf | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayDefaults.headNodeSelector }}
-            - name: CRUCIBLE_RAY_HEAD_NODE_SELECTOR
-              value: {{ .Values.rayDefaults.headNodeSelector | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayDefaults.workerNodeSelector }}
-            - name: CRUCIBLE_RAY_WORKER_NODE_SELECTOR
-              value: {{ .Values.rayDefaults.workerNodeSelector | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayDefaults.submitterNodeSelector }}
-            - name: CRUCIBLE_RAY_SUBMITTER_NODE_SELECTOR
-              value: {{ .Values.rayDefaults.submitterNodeSelector | toJson | quote }}
-            {{- end }}
-            {{- if index (.Values.serviceAccount.annotations | default dict) "azure.workload.identity/client-id" }}
-            - name: CRUCIBLE_RAY_POD_LABELS
-              value: {{ dict "azure.workload.identity/use" "true" | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayDefaults.headTolerations }}
-            - name: CRUCIBLE_RAY_HEAD_TOLERATIONS
-              value: {{ .Values.rayDefaults.headTolerations | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayDefaults.workerTolerations }}
-            - name: CRUCIBLE_RAY_WORKER_TOLERATIONS
-              value: {{ .Values.rayDefaults.workerTolerations | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayDefaults.submitterTolerations }}
-            - name: CRUCIBLE_RAY_SUBMITTER_TOLERATIONS
-              value: {{ .Values.rayDefaults.submitterTolerations | toJson | quote }}
-            {{- end }}
-            {{- if .Values.rayHistoryServer.enabled }}
-            - name: CRUCIBLE_RAY_HISTORY_ENABLED
-              value: "true"
-            - name: CRUCIBLE_RAY_HISTORY_COLLECTOR_IMAGE
-              value: {{ required "rayHistoryServer.collectorImage is required when rayHistoryServer.enabled=true" .Values.rayHistoryServer.collectorImage | quote }}
-            - name: CRUCIBLE_RAY_HISTORY_RUNTIME_CLASS
-              value: {{ .Values.rayHistoryServer.runtimeClass | quote }}
-            - name: CRUCIBLE_RAY_HISTORY_ROOT_DIR
-              value: {{ .Values.rayHistoryServer.rootDir | quote }}
-            {{- $rayHistoryEnvJson := include "crucible.rayHistoryEnv" . }}
-            {{- if ne $rayHistoryEnvJson "{}" }}
-            - name: CRUCIBLE_RAY_HISTORY_ENV
-              value: {{ $rayHistoryEnvJson | quote }}
-            {{- end }}
-            {{- if .Values.rayHistoryServer.publicUrl }}
-            - name: CRUCIBLE_RAY_HISTORY_PUBLIC_URL
-              value: {{ .Values.rayHistoryServer.publicUrl | quote }}
-            {{- end }}
             {{- end }}
             - name: CRUCIBLE_FLINK_PARALLELISM
               value: {{ .Values.flinkDefaults.parallelism | default 1 | quote }}
@@ -234,16 +239,21 @@ spec:
             - name: CRUCIBLE_SHS_PUBLIC_URL
               value: {{ .Values.historyServer.publicUrl | quote }}
             {{- end }}
-            {{- $historyProxyBase := include "crucible.historyServerProxyBase" . }}
-            # Single source of truth for the Spark observability prefix. nginx
-            # forwards this public subtree unchanged; the gateway decides which
-            # routes are live UI/API/logs and which routes proxy SHS.
-            - name: CRUCIBLE_SPARK_PROXY_PREFIX
-              value: {{ $historyProxyBase | quote }}
+            {{- if .Values.gateway.k8sQPS }}
+            - name: CRUCIBLE_K8S_QPS
+              value: {{ .Values.gateway.k8sQPS | quote }}
+            {{- end }}
+            {{- if .Values.gateway.k8sBurst }}
+            - name: CRUCIBLE_K8S_BURST
+              value: {{ .Values.gateway.k8sBurst | quote }}
+            {{- end }}
             {{- if and .Values.driverPriorityClass.enabled .Values.driverPriorityClass.name }}
             - name: CRUCIBLE_DRIVER_PRIORITY_CLASS
               value: {{ .Values.driverPriorityClass.name }}
             {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
           readinessProbe:
             httpGet:
               path: /healthz
@@ -260,3 +270,39 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+{{- if .Values.litestream.enabled }}
+        - name: litestream
+          image: {{ .Values.litestream.image | default "litestream/litestream:0.3" }}
+          args: ["replicate"]
+          {{- if eq (.Values.litestream.replicaType | default "gcs") "abs" }}
+          env:
+            - name: LITESTREAM_AZURE_ACCOUNT_NAME
+              value: {{ .Values.litestream.accountName }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+{{- end }}
+      volumes:
+        - name: data
+          {{- if and .Values.persistence.enabled (not .Values.litestream.enabled) }}
+          persistentVolumeClaim:
+            claimName: {{ include "crucible.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- if .Values.litestream.enabled }}
+        - name: litestream-config
+          configMap:
+            name: {{ include "crucible.fullname" . }}-litestream
+{{- end }}

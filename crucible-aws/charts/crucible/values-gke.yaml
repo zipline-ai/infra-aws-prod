@@ -1,6 +1,0 @@
-cloudProvider: gcp
-
-image:
-  repository: us-docker.pkg.dev/crucible-io/crucible/gateway
-  tag: ""
-  pullPolicy: IfNotPresent

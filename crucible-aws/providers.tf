@@ -18,6 +18,14 @@ terraform {
       version = "~> 2.33"
     }
   }
+
+  # Reuse the same state bucket as zipline-aws/ but under a separate key so
+  # crucible can plan/apply independently of the canary stack.
+  backend "s3" {
+    bucket = "zipline-ai-opentofu-state-bucket"
+    key    = "opentofu-crucible-state"
+    region = "us-west-1"
+  }
 }
 
 provider "aws" {
@@ -25,23 +33,23 @@ provider "aws" {
 }
 
 provider "kubernetes" {
-  host                   = module.cluster.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
+  host                   = aws_eks_cluster.crucible.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.crucible.certificate_authority[0].data)
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.cluster.cluster_name, "--region", var.region]
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.crucible.name, "--region", var.region]
   }
 }
 
 provider "helm" {
   kubernetes {
-    host                   = module.cluster.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
+    host                   = aws_eks_cluster.crucible.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.crucible.certificate_authority[0].data)
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.cluster.cluster_name, "--region", var.region]
+      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.crucible.name, "--region", var.region]
     }
   }
 }

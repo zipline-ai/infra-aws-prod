@@ -1,52 +1,36 @@
-{{- if .Values.historyServer.ingress.enabled }}
-{{- $base := include "crucible.historyServerProxyBase" . -}}
-{{- $host := .Values.historyServer.ingress.host | default .Values.ingress.host -}}
-# Spark observability has one browser-facing owner: the Crucible gateway.
-# nginx only selects the gateway for the public subtree; it does not strip
-# prefixes, split routes, or rewrite Spark History Server Location headers.
-#
-# Gateway URL policy:
-#   {proxyBase}/spark/<ns>/<id>[/...]      -> live Spark UI or SHS redirect
-#   {proxyBase}/flink/<ns>/<id>/ui[/...]   -> live Flink UI proxy
-#   {proxyBase}/jobs/<ns>/<id>/ui[/...]    -> live Spark UI proxy back-compat
-#   {proxyBase}/pods/<ns>/<pod>/logs       -> executor pod logs
-#   {proxyBase}/api/v1/namespaces/...      -> Crucible API mirror
-#   {proxyBase}/<everything-else>          -> Spark History Server proxy
-#   /history/...                           -> gateway canonical redirect
+{{- if and .Values.historyServer.enabled .Values.historyServer.ingress.enabled }}
+# Spark History Server direct passthrough. nginx strips the path prefix before
+# forwarding; SHS only sees raw paths (its spark.ui.proxyBase only affects
+# what it emits, not what it accepts).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: spark-history-gateway
+  name: spark-history-server
   namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
   labels:
     {{- include "crucible.labels" . | nindent 4 }}
-    app.kubernetes.io/component: spark-history-gateway
-  {{- with .Values.historyServer.ingress.annotations }}
+    app.kubernetes.io/component: spark-history-server
   annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    {{- with .Values.historyServer.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   {{- with (.Values.historyServer.ingress.className | default .Values.ingress.className) }}
   ingressClassName: {{ . | quote }}
   {{- end }}
   rules:
-    - {{- with $host }}
+    - {{- with (.Values.historyServer.ingress.host | default .Values.ingress.host) }}
       host: {{ . | quote }}
       {{- end }}
       http:
         paths:
-          - path: {{ $base | quote }}
-            pathType: Prefix
+          - path: {{ printf "%s(/|$)(.*)" (trimSuffix "/" .Values.historyServer.proxyBase) }}
+            pathType: ImplementationSpecific
             backend:
               service:
-                name: {{ include "crucible.fullname" . }}
+                name: spark-history-server
                 port:
-                  number: {{ .Values.gateway.port }}
-          - path: "/history"
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "crucible.fullname" . }}
-                port:
-                  number: {{ .Values.gateway.port }}
+                  number: 18080
 {{- end }}

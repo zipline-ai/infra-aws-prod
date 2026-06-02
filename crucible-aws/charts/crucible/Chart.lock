@@ -5,14 +5,8 @@ dependencies:
 - name: flink-kubernetes-operator
   repository: https://archive.apache.org/dist/flink/flink-kubernetes-operator-1.10.0/
   version: 1.10.0
-- name: kuberay-operator
-  repository: https://ray-project.github.io/kuberay-helm/
-  version: 1.6.1
 - name: promtail
   repository: https://grafana.github.io/helm-charts
   version: 6.16.6
-- name: karpenter
-  repository: oci://public.ecr.aws/karpenter
-  version: 1.12.1
-digest: sha256:dac4e6e50189aaf82f12a11212082e85cd7727eda3d0410cd017947aea547101
-generated: "2026-05-29T20:30:30.188409767Z"
+digest: sha256:eef64757b710d9224e508ec1fd154d757cf9eda5b23c26d87f3805be716f75f6
+generated: "2026-04-15T18:51:13.721031211Z"

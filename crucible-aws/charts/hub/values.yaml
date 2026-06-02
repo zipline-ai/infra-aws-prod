@@ -1,0 +1,128 @@
+# Hub deployment
+hub:
+  image:
+    repository: ""  # set per-environment (e.g., GCS jar download or pre-built image)
+    tag: "latest"
+    pullPolicy: Always
+
+  # The Hub jar is downloaded from GCS at startup via an init container.
+  # Set this to the full gs:// path of the cloud_k8s assembly jar.
+  jarUri: ""
+
+  port: 3903
+
+  # Crucible gateway URL (internal K8s service)
+  crucibleUrl: "http://crucible.crucible-system:8080"
+  crucibleNamespace: "default"
+
+  # Cloud provider: gcp, aws, or azure
+  cloudProvider: "gcp"
+
+  # Hub main verticle classes (cloud-specific). Defaults to GCP.
+  mainClasses: "ai.chronon.hub.GCPOrchestrationVerticle,ai.chronon.hub.GCPWorkflowExecutionVerticle"
+
+  # Spark/Flink images used for job submission
+  sparkImage: "us-docker.pkg.dev/crucible-io/crucible/spark:3.5-crucible-latest"
+  flinkImage: "us-docker.pkg.dev/crucible-io/crucible/flink:1.19-crucible-latest"
+  jarName: "cloud_gcp_deploy.jar"
+
+  # Online API class (cloud-specific)
+  onlineClass: ""
+
+  # Databricks service-principal OAuth creds — needed when confs read/write
+  # Unity Catalog tables. When clientId is set, the chart renders a Secret and
+  # injects DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET / DATABRICKS_CREDENTIAL
+  # so the Hub can fill {DATABRICKS_*} conf placeholders. Pass via --set at
+  # install time — do not commit real values here.
+  databricks:
+    clientId: ""
+    clientSecret: ""
+
+  # KV store properties
+  gcpProjectId: ""
+  gcpBigtableInstanceId: ""
+  gcpRegion: ""
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+
+  # Service account for workload identity (GCS, BigTable, PubSub access)
+  serviceAccount:
+    create: false
+    name: "spark-operator-spark"
+    annotations: {}
+
+# Scheduling for Hub control-plane pods (Hub API, frontend, and Postgres).
+# Use this to pin Hub away from Crucible job pods, for example onto a small
+# tainted system node group.
+placement:
+  priorityClassName: ""
+  nodeSelector: {}
+  tolerations:
+    - key: kubernetes.io/arch
+      operator: Exists
+      effect: NoSchedule
+  affinity: {}
+
+# Postgres database
+postgres:
+  enabled: true
+  image: "postgres:16-alpine"
+  database: "orchestration"
+  username: "hub"
+  password: "hub123"
+  port: 5432
+  persistence:
+    enabled: false       # false = emptyDir (CI), true = PVC (prod)
+    storageClass: ""
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# Frontend (web UI) — optional. Talks to the Hub REST API in-cluster.
+frontend:
+  enabled: false
+  replicas: 1
+  port: 3000
+  image:
+    repository: ziplineai/web-ui
+    tag: latest
+    pullPolicy: Always
+  env:
+    authEnabled: "false"
+    authUrl: ""
+    logProvider: loki
+    lokiUrl: "http://crucible-loki.crucible-system.svc.cluster.local:3100"
+    lokiNamespace: "test-ns-a"
+    cruciblePublicUrl: ""
+    logServiceWorkflowProfile: crucible
+    logServiceNodeStepRunProfile: crucible
+    logServiceEngineProfile: crucible-spark
+    readOnly: "false"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# Ingress — exposes both the frontend (at /) and the Hub REST API (at /hub).
+# Cloud-specific TLS termination happens at the LB the IngressClass provisions
+# (e.g., nginx-ingress + ACM-terminated NLB on AWS); this chart is unaware.
+ingress:
+  enabled: false
+  ingressClassName: nginx
+  host: ""
+  annotations: {}
+
+# Namespace to deploy into
+namespace: "default"

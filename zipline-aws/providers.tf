@@ -88,17 +88,11 @@ module "base_setup" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
-  # Optional Crucible submitter configuration for the orchestration Hub
-  spark_compute_enabled     = var.spark_compute_enabled
-  spark_compute_namespace   = var.spark_compute_namespace
-  crucible_enabled          = var.deploy_crucible
-  crucible_url              = local.crucible_gateway_url
-  crucible_namespace        = local.crucible_job_namespace
-  crucible_image_registry   = var.crucible_image_registry
-  crucible_spark_image      = var.crucible_spark_image
-  crucible_flink_image      = var.crucible_flink_image
-  crucible_jar_uri_override = var.crucible_jar_uri_override
-  crucible_spot_executors   = var.crucible_spot_executors
+  # Optional Kubernetes Spark compute configuration
+  spark_compute_enabled        = var.spark_compute_enabled
+  spark_compute_namespace      = var.spark_compute_namespace
+  spark_compute_image_registry = var.spark_compute_image_registry
+  spark_compute_image          = var.spark_compute_image
 
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain

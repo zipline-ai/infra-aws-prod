@@ -18,14 +18,6 @@ aws:
   emrExecutionRoleArn: ""
   emrLogUri: ""
   emrCloudWatchLogGroup: ""
-  crucible:
-    enabled: false
-    url: ""
-    namespace: "crucible-jobs"
-    sparkImage: "ziplineai/spark:4.1-crucible-latest"
-    flinkImage: "ziplineai/flink:1.20.3"
-    jarUriOverride: ""
-    spotExecutors: false
 
 compute:
   enabled: false
@@ -87,6 +79,9 @@ compute:
     create: true
   sparkDefaults:
     eventLogDir: "" # Defaults to s3a://<objectStore.bucket>/spark-events
+    image: "ziplineai/spark:4.1-crucible-latest"
+    imagePullPolicy: "Always"
+    chrononJarPath: "/opt/chronon/chronon-spark.jar"
     nvmeEnabled: true
     nvmeSetupImage: "amazon/aws-cli:2.27.33"
     executorCores: 14

@@ -1,11 +1,10 @@
 # EKS deployment — all auth via IRSA (IAM Roles for Service Accounts).
 # No static AWS keys anywhere. Customer creates two IAM roles:
-#   1. crucible-gateway — for the gateway/control-plane pod
-#   2. crucible-spark   — for Spark driver/executor pods (data access, event logs)
+#   1. crucible-gateway — for the gateway pod (archive DB backup, log reading)
+#   2. crucible-spark   — for Spark driver/executor pods (data access, event logs, log archival)
 #
 # Prerequisites:
 #   - EKS cluster with OIDC provider enabled
-#   - Karpenter controller IAM role and node role created
 #   - cert-manager installed (required by Flink operator)
 #   - S3 bucket created with spark-events/ prefix
 #   - IAM roles with trust policy for the EKS OIDC provider
@@ -17,7 +16,7 @@ cloudProvider: aws
 
 image:
   repository: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/crucible-gateway
-  tag: ""
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
 
 objectStore:
@@ -28,241 +27,62 @@ serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/crucible-gateway
 
-karpenter-controller:
+persistence:
   enabled: true
-  settings:
-    clusterName: crucible-eks
-    eksControlPlane: true
-    interruptionQueue: crucible-eks
-  serviceAccount:
-    annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/crucible-karpenter
+  storageClass: gp3          # requires EBS CSI driver addon
+  size: 10Gi
 
-karpenter:
-  enabled: true
-  clusterName: crucible-eks
-  ec2NodeClass:
-    name: crucible
-    role: KarpenterNodeRole-crucible-eks
-    amiFamily: "AL2023"
-    amiAlias: "al2023@latest"
-    tags:
-      karpenter.sh/discovery: crucible-eks
-  nodePools:
-    # Untainted on-demand capacity for Flink, operators, history services, and
-    # any workload that does not opt into a dedicated Crucible pool.
-    general:
-      enabled: true
-      name: crucible-general
-      requirements:
-        - key: kubernetes.io/os
-          operator: In
-          values: ["linux"]
-        - key: kubernetes.io/arch
-          operator: In
-          values: ["amd64"]
-        - key: karpenter.sh/capacity-type
-          operator: In
-          values: ["on-demand"]
-        - key: karpenter.k8s.aws/instance-category
-          operator: In
-          values: ["c", "m", "r"]
-        - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
-    # Driver pool is on-demand and tainted. Spark drivers, Ray heads, Ray
-    # submitters, and warm-pool placeholders explicitly target and tolerate it.
-    drivers:
-      enabled: true
-      name: crucible-drivers
-      labels:
-        crucible.ai/role: driver
-      taints:
-        - key: crucible.ai/role
-          value: driver
-          effect: NoSchedule
-      requirements:
-        - key: kubernetes.io/os
-          operator: In
-          values: ["linux"]
-        - key: kubernetes.io/arch
-          operator: In
-          values: ["amd64"]
-        - key: karpenter.sh/capacity-type
-          operator: In
-          values: ["on-demand"]
-        - key: karpenter.k8s.aws/instance-category
-          operator: In
-          values: ["c", "m", "r"]
-        - key: karpenter.k8s.aws/instance-generation
-          operator: Gt
-          values: ["2"]
-    # Default executor pool is restricted to on-demand instance-store families
-    # and tainted for NVMe shuffle. A startup taint keeps Spark/Ray workers off
-    # fresh nodes until the NVMe setup DaemonSet has mounted /mnt/nvme and
-    # removed the startup taint.
-    executors:
-      enabled: true
-      name: crucible-executors
-      labels:
-        crucible.ai/node-pool: executors
-        crucible.ai/nvme: "true"
-      taints:
-        - key: crucible.ai/nvme
-          value: "true"
-          effect: NoSchedule
-      startupTaints:
-        - key: crucible.ai/nvme-init
-          value: "true"
-          effect: NoSchedule
-      expireAfter: 720h
-      limits:
-        cpu: 1000
-      disruption:
-        consolidationPolicy: WhenEmptyOrUnderutilized
-        consolidateAfter: 1m
-      requirements:
-        - key: kubernetes.io/os
-          operator: In
-          values: ["linux"]
-        - key: kubernetes.io/arch
-          operator: In
-          values: ["amd64"]
-        - key: karpenter.sh/capacity-type
-          operator: In
-          values: ["on-demand"]
-        - key: node.kubernetes.io/instance-type
-          operator: In
-          values:
-            - r6id.4xlarge
-            - i4i.4xlarge
-    # Spot executors are kept as an explicit opt-in path. Jobs with spot=true
-    # add karpenter.sh/capacity-type=spot, which selects this pool. Default jobs
-    # select on-demand executors and cannot land here.
-    spotExecutors:
-      enabled: true
-      name: crucible-spot-executors
-      labels:
-        crucible.ai/node-pool: executors
-        crucible.ai/nvme: "true"
-      taints:
-        - key: crucible.ai/nvme
-          value: "true"
-          effect: NoSchedule
-        - key: crucible.ai/spot
-          value: "true"
-          effect: NoSchedule
-      startupTaints:
-        - key: crucible.ai/nvme-init
-          value: "true"
-          effect: NoSchedule
-      expireAfter: 720h
-      limits:
-        cpu: 1000
-      disruption:
-        consolidationPolicy: WhenEmptyOrUnderutilized
-        consolidateAfter: 1m
-      requirements:
-        - key: kubernetes.io/os
-          operator: In
-          values: ["linux"]
-        - key: kubernetes.io/arch
-          operator: In
-          values: ["amd64"]
-        - key: karpenter.sh/capacity-type
-          operator: In
-          values: ["spot"]
-        - key: node.kubernetes.io/instance-type
-          operator: In
-          values:
-            - r6id.4xlarge
-            - i4i.4xlarge
+namespaces:
+  managed:
+    - default                # customer's job namespaces
 
 sparkDefaults:
   eventLogDir: "s3a://BUCKET_NAME/spark-events"
+  logArchiveDir: "s3://BUCKET_NAME/jobs"
   executorCores: 14
   executorMemory: "48Gi"
   driverCores: 2
   driverMemory: "4Gi"
   nvmeEnabled: true
-  nvmeSetupImage: "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/crucible-gateway:nvme-setup"
-  nvmeSetupNodeSelector:
-    crucible.ai/node-pool: executors
   executorAZ: ""             # e.g., "us-east-1a" — pin executors to single AZ
   # IRSA annotation for Spark driver/executor pods.
   # This role needs: s3:GetObject, s3:PutObject, s3:ListBucket on the data bucket.
+  # Vector sidecar inherits this SA, so the role also needs s3:PutObject on the log archive prefix.
   serviceAccountAnnotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/crucible-spark
   # Pin Spark drivers to on-demand nodes. Spot interruption kills the driver and
   # the entire job; executors are recoverable via decommissioning but drivers are not.
   # karpenter.sh/capacity-type is set by Karpenter on all nodes it provisions.
   driverNodeSelector:
-    crucible.ai/role: driver
     karpenter.sh/capacity-type: on-demand
-  driverTolerations:
-    - key: crucible.ai/role
-      operator: Equal
-      value: driver
-      effect: NoSchedule
-  executorNodeSelector:
-    crucible.ai/node-pool: executors
-    karpenter.sh/capacity-type: on-demand
-  spotNodeSelector:
-    karpenter.sh/capacity-type: spot
   # No adminConf needed — the cloud overlay already sets:
   #   spark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.WebIdentityTokenCredentialsProvider
   # IRSA injects AWS_ROLE_ARN + AWS_WEB_IDENTITY_TOKEN_FILE into every pod with the annotated SA.
   adminConf: {}
 
-rayDefaults:
-  headNodeSelector:
-    crucible.ai/role: driver
-    karpenter.sh/capacity-type: on-demand
-  submitterNodeSelector:
-    crucible.ai/role: driver
-    karpenter.sh/capacity-type: on-demand
-  workerNodeSelector:
-    crucible.ai/node-pool: executors
-    karpenter.sh/capacity-type: on-demand
-  headTolerations:
-    - key: crucible.ai/role
-      operator: Equal
-      value: driver
-      effect: NoSchedule
-  submitterTolerations:
-    - key: crucible.ai/role
-      operator: Equal
-      value: driver
-      effect: NoSchedule
-  workerTolerations:
-    - key: crucible.ai/nvme
-      operator: Equal
-      value: "true"
-      effect: NoSchedule
-
 gateway:
-  defaultJobNamespace: crucible-jobs
   maxJobsPerNamespace: 0     # 0 = unlimited
-  nodeSelector:
-    kubernetes.io/arch: amd64
+
+vector:
+  image: "timberio/vector:0.43.1-alpine"
 
 warmPool:
   enabled: true
   replicas: 2
-  taintKey: crucible.ai/role
-  taintValue: driver
   resources:
     cpu: "2"
     memory: "4Gi"
 
 imagePrepull:
   enabled: true
-  nodeSelector:
-    crucible.ai/node-pool: executors
-  tolerations:
-    - key: crucible.ai/nvme
-      operator: Equal
-      value: "true"
-      effect: NoSchedule
   images:
     - ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/spark:4.1-crucible-latest
+
+historyServer:
+  enabled: true
+
+litestream:
+  enabled: true
+  replicaType: "s3"
+  bucket: "BUCKET_NAME"
+  region: "us-east-1"

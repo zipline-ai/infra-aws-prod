@@ -1,38 +1,19 @@
 # Helm releases for Zipline Orchestration
 
-resource "terraform_data" "crucible_submitter_config_validation" {
+resource "terraform_data" "spark_compute_config_validation" {
   input = {
-    crucible_enabled        = var.crucible_enabled
     spark_compute_enabled   = var.spark_compute_enabled
-    crucible_url            = var.crucible_url
-    crucible_namespace      = var.crucible_namespace
     spark_compute_namespace = var.spark_compute_namespace
-    spark_image             = local.crucible_spark_image
-    flink_image             = local.crucible_flink_image
+    spark_compute_image     = local.spark_compute_image
   }
 
   lifecycle {
     precondition {
-      condition     = !var.crucible_enabled || trimspace(var.crucible_url) != ""
-      error_message = "crucible_url must be set when crucible_enabled is true."
-    }
-
-    precondition {
-      condition = !var.crucible_enabled || alltrue([
-        trimspace(var.crucible_namespace) != "",
-        trimspace(local.crucible_spark_image) != "",
-        trimspace(local.crucible_flink_image) != "",
-      ])
-      error_message = "crucible_namespace, crucible_spark_image, and crucible_flink_image must be set when crucible_enabled is true."
-    }
-
-    precondition {
       condition = !var.spark_compute_enabled || alltrue([
         trimspace(var.spark_compute_namespace) != "",
-        trimspace(local.crucible_spark_image) != "",
-        trimspace(local.crucible_flink_image) != "",
+        trimspace(local.spark_compute_image) != "",
       ])
-      error_message = "spark_compute_namespace, crucible_spark_image, and crucible_flink_image must be set when spark_compute_enabled is true."
+      error_message = "spark_compute_namespace and spark_compute_image must be set when spark_compute_enabled is true."
     }
   }
 }
@@ -287,19 +268,13 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
-      # Optional Crucible submitter configuration
-      spark_compute_enabled         = var.spark_compute_enabled
-      spark_compute_namespace       = var.spark_compute_namespace
-      crucible_enabled              = var.crucible_enabled
-      crucible_url                  = var.crucible_url
-      crucible_namespace            = var.crucible_namespace
-      crucible_spark_image          = local.crucible_spark_image
-      crucible_flink_image          = local.crucible_flink_image
-      crucible_history_server_image = local.crucible_history_server_image
-      crucible_jar_uri_override     = var.crucible_jar_uri_override
-      crucible_spot_executors       = var.crucible_spot_executors
-      warehouse_bucket              = var.warehouse_bucket
-      spark_compute_role_arn        = aws_iam_role.spark_compute_execution.arn
+      # Optional Kubernetes Spark compute configuration
+      spark_compute_enabled      = var.spark_compute_enabled
+      spark_compute_namespace    = var.spark_compute_namespace
+      spark_compute_image        = local.spark_compute_image
+      spark_history_server_image = local.spark_history_server_image
+      warehouse_bucket           = var.warehouse_bucket
+      spark_compute_role_arn     = aws_iam_role.spark_compute_execution.arn
 
       # EMR Serverless (execution role ARN derived by naming convention)
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"
@@ -350,7 +325,7 @@ resource "helm_release" "zipline_orchestration" {
     aws_acm_certificate.hub_cert,
     aws_acm_certificate.fetcher_cert,
     aws_acm_certificate.eval_cert,
-    terraform_data.crucible_submitter_config_validation,
+    terraform_data.spark_compute_config_validation,
   ]
 }
 

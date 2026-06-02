@@ -2,9 +2,13 @@
 # Customer-facing inputs for crucible-aws.
 #
 # The skeleton is opinionated by design — knobs that don't need to differ
-# between deployments are hardcoded in the resource blocks instead of exposed
-# here. Each variable below either has a sensible default that works everywhere
-# or is required because the value is genuinely environment-specific.
+# between our canary and a customer's deployment are hardcoded in the resource
+# blocks instead of exposed here. Each variable below either has a sensible
+# default that works everywhere, or is required because the value is genuinely
+# environment-specific (VPC tag, bucket name, public host).
+#
+# Concrete values for the required vars live in `terraform.tfvars` pulled from
+# `s3://zipline-canary-vars/crucible/` by `./pull_canary_config.sh`.
 ###############################################################################
 
 variable "region" {
@@ -25,40 +29,19 @@ variable "eks_version" {
   default     = "1.34"
 }
 
-# Shared network. Prefer direct IDs when this module is wired into the larger
-# Zipline stack. Tags remain supported for standalone installs.
-variable "shared_vpc_id" {
-  description = "Optional VPC ID that the cluster joins. When set, shared_vpc_name_tag is ignored."
-  type        = string
-  default     = ""
-}
-
+# Shared network. Supplied per-environment via tfvars.
 variable "shared_vpc_name_tag" {
-  description = "Name tag of the VPC that the cluster joins when shared_vpc_id is not set."
+  description = "Name tag of the VPC that the cluster joins."
   type        = string
-  default     = ""
-}
-
-variable "shared_subnet_ids" {
-  description = "Optional subnet IDs to attach to the cluster. When set, shared_subnet_name_tags is ignored."
-  type        = list(string)
-  default     = []
 }
 
 variable "shared_subnet_name_tags" {
-  description = "Name tags of the subnets to attach to the cluster when shared_subnet_ids is not set. Order is not significant."
+  description = "Name tags of the subnets to attach to the cluster. Order is not significant."
   type        = list(string)
-  default     = []
-}
-
-variable "ingress_nlb_subnet_ids" {
-  description = "Optional public subnet IDs where the internet-facing nginx ingress NLB should be provisioned. When set, ingress_nlb_subnet_name_tags is ignored."
-  type        = list(string)
-  default     = []
 }
 
 variable "ingress_nlb_subnet_name_tags" {
-  description = "Optional Name tags of public subnets where the internet-facing nginx ingress NLB should be provisioned when ingress_nlb_subnet_ids is not set."
+  description = "Optional Name tags of public subnets where the internet-facing nginx ingress NLB should be provisioned."
   type        = list(string)
   default     = []
 
@@ -88,7 +71,7 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum number of nodes in the default node group."
   type        = number
-  default     = 15
+  default     = 5
 }
 
 variable "node_desired_size" {
@@ -135,55 +118,6 @@ variable "crucible_bucket_name" {
 variable "public_host" {
   description = "Public hostname for the cluster. ACM cert is issued for this exact domain."
   type        = string
-}
-
-variable "job_namespace" {
-  description = "Kubernetes namespace where Crucible submits Spark and Flink jobs."
-  type        = string
-  default     = "crucible-jobs"
-
-  validation {
-    condition     = trimspace(var.job_namespace) != ""
-    error_message = "job_namespace must not be empty."
-  }
-}
-
-variable "crucible_chart_values_files" {
-  description = "Optional Helm values files, relative to crucible-aws/, merged after the Terraform-generated AWS defaults for the Crucible release."
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition = alltrue([
-      for path in var.crucible_chart_values_files :
-      !startswith(path, "/") && !strcontains(path, "..") && trimspace(path) != ""
-    ])
-    error_message = "crucible_chart_values_files must contain non-empty relative paths under crucible-aws/."
-  }
-}
-
-variable "crucible_gateway_image_repository" {
-  description = "Gateway image repository for the vendored Crucible Helm chart."
-  type        = string
-  default     = "us-docker.pkg.dev/crucible-io/crucible/gateway"
-}
-
-variable "crucible_gateway_image_tag" {
-  description = "Optional gateway image tag. Empty lets the Crucible Helm chart use its appVersion."
-  type        = string
-  default     = ""
-  nullable    = false
-}
-
-variable "crucible_gateway_image_pull_policy" {
-  description = "Image pull policy for the Crucible gateway."
-  type        = string
-  default     = "IfNotPresent"
-
-  validation {
-    condition     = contains(["Always", "IfNotPresent", "Never"], var.crucible_gateway_image_pull_policy)
-    error_message = "crucible_gateway_image_pull_policy must be Always, IfNotPresent, or Never."
-  }
 }
 
 # EKS API server exposure. Empty list → endpoint is private-only (the secure

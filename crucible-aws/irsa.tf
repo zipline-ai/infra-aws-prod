@@ -118,9 +118,9 @@ resource "aws_iam_role_policy" "gateway_iam" {
 ###############################################################################
 # IRSA: crucible-spark
 #
-# Bootstrap role for the spark-operator-spark + flink SAs in the default
-# Crucible job namespace. The gateway will mint additional per-namespace roles
-# via CreateIdentity for any other managed namespaces.
+# Bootstrap role for the spark-operator-spark + flink SAs in test-ns-a
+# (the chart's default managed namespace). The gateway will mint additional
+# per-namespace roles via CreateIdentity for any other managed namespaces.
 ###############################################################################
 
 data "aws_iam_policy_document" "spark_assume_role" {
@@ -142,8 +142,8 @@ data "aws_iam_policy_document" "spark_assume_role" {
       test     = "StringEquals"
       variable = "${local.oidc_host}:sub"
       values = [
-        "system:serviceaccount:${var.job_namespace}:spark-operator-spark",
-        "system:serviceaccount:${var.job_namespace}:flink",
+        "system:serviceaccount:test-ns-a:spark-operator-spark",
+        "system:serviceaccount:test-ns-a:flink",
       ]
     }
   }
@@ -160,9 +160,11 @@ resource "aws_iam_role" "spark" {
 
 # Spark IRSA: access to the cluster's own artifacts bucket only.
 #
-# Additional Chronon-on-EKS access is attached by chronon_irsa.tf when the
-# caller supplies artifact or warehouse buckets. DynamoDB KV-store grants are
-# intentionally left out until that workflow is in scope.
+# Anything beyond this (e.g. read access to a chronon canary warehouse, Glue
+# catalog grants, DynamoDB tables that chronon's BatchNodeRunner writes to)
+# is environment-specific and lives in a separate file pulled from S3 — see
+# `pull_canary_config.sh` and the README. The skeleton must work for any
+# operator pointing at any bucket, not just the canary stack.
 data "aws_iam_policy_document" "spark_s3" {
   statement {
     effect = "Allow"

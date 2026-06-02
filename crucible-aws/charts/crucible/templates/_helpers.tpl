@@ -51,35 +51,6 @@ Create the name of the service account to use.
 {{- end }}
 
 {{/*
-Karpenter cluster name shared by the controller subchart and NodePool resources.
-*/}}
-{{- define "crucible.karpenterClusterName" -}}
-{{- $controller := index .Values "karpenter-controller" | default dict -}}
-{{- $controllerSettings := index $controller "settings" | default dict -}}
-{{- .Values.karpenter.clusterName | default (index $controllerSettings "clusterName") | default "" -}}
-{{- end }}
-
-{{/*
-Spark observability public path. When historyServer.publicUrl is set, its path
-is the source of truth; historyServer.proxyBase is only the path-only fallback.
-*/}}
-{{- define "crucible.historyServerProxyBase" -}}
-{{- $fallback := .Values.historyServer.proxyBase | default "spark-history" -}}
-{{- $fallback = printf "/%s" (trimAll "/" $fallback) -}}
-{{- $publicURL := .Values.historyServer.publicUrl | default "" | trim -}}
-{{- if $publicURL -}}
-{{- $parsed := urlParse $publicURL -}}
-{{- $path := trimSuffix "/" ($parsed.path | default "") -}}
-{{- if or (eq $path "") (eq $path "/") -}}
-{{- fail "historyServer.publicUrl must include a non-root path such as https://example.com/spark-history" -}}
-{{- end -}}
-{{- printf "/%s" (trimAll "/" $path) -}}
-{{- else -}}
-{{- $fallback -}}
-{{- end -}}
-{{- end }}
-
-{{/*
 Derive the bucket name (without scheme prefix) from objectStore.bucket.
 Handles s3://bucket, gs://bucket, https://account.blob.core.windows.net/container, or plain "bucket".
 */}}
@@ -133,17 +104,6 @@ Flink savepoint directory. User override takes precedence.
 {{- end }}
 
 {{/*
-Ray history storage environment shared by the gateway and the history server.
-S3_ENDPOINT is intentionally not derived for AWS S3: KubeRay's alpha S3 backend
-passes this endpoint to the AWS SDK session, which also affects IRSA credential
-resolution. Set S3_ENDPOINT explicitly only for S3-compatible stores.
-*/}}
-{{- define "crucible.rayHistoryEnv" -}}
-{{- $env := deepCopy (.Values.rayHistoryServer.env | default dict) -}}
-{{- toJson $env -}}
-{{- end }}
-
-{{/*
 Azure storage account name extracted from objectStore.bucket.
 Handles "https://account.blob.core.windows.net/container" and "container@account.dfs.core.windows.net".
 */}}
@@ -176,5 +136,29 @@ Handles "https://account.blob.core.windows.net/container" and "container@account
 {{- $stripped := $raw | trimPrefix "https://" | trimPrefix "http://" | trimSuffix "/" }}
 {{- $segments := splitList "/" $stripped }}
 {{- index $segments (sub (len $segments) 1) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Litestream replica type derived from cloudProvider.
+*/}}
+{{- define "crucible.litestreamReplicaType" -}}
+{{- if .Values.litestream.replicaType }}
+{{- .Values.litestream.replicaType }}
+{{- else if eq .Values.cloudProvider "aws" }}s3
+{{- else if eq .Values.cloudProvider "gcp" }}gcs
+{{- else if eq .Values.cloudProvider "azure" }}abs
+{{- else }}gcs
+{{- end }}
+{{- end }}
+
+{{/*
+Litestream bucket (plain name, no scheme). User override takes precedence.
+*/}}
+{{- define "crucible.litestreamBucket" -}}
+{{- if .Values.litestream.bucket }}
+{{- .Values.litestream.bucket }}
+{{- else }}
+{{- include "crucible.bucketName" . }}
 {{- end }}
 {{- end }}

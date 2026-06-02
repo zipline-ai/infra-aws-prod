@@ -37,7 +37,7 @@ data:
         cache_location: /loki/tsdb-cache
       aws:
         bucketnames: {{ include "crucible.bucketName" . }}
-        region: {{ .Values.objectStore.region | default "us-east-1" }}
+        region: {{ .Values.objectStore.region | default .Values.litestream.region | default "us-east-1" }}
         s3forcepathstyle: false
     {{- else if and $bucket (eq $cloud "gcp") }}
     storage_config:

@@ -12,8 +12,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      {{- include "crucible.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: gateway
+      app: crucible-gateway
   endpoints:
     - port: http
       path: /metrics

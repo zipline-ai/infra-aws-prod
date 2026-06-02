@@ -29,17 +29,11 @@ module "orchestration" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
-  # Optional Crucible submitter configuration
-  spark_compute_enabled     = var.spark_compute_enabled
-  spark_compute_namespace   = var.spark_compute_namespace
-  crucible_enabled          = var.crucible_enabled
-  crucible_url              = var.crucible_url
-  crucible_namespace        = var.crucible_namespace
-  crucible_image_registry   = var.crucible_image_registry
-  crucible_spark_image      = var.crucible_spark_image
-  crucible_flink_image      = var.crucible_flink_image
-  crucible_jar_uri_override = var.crucible_jar_uri_override
-  crucible_spot_executors   = var.crucible_spot_executors
+  # Optional Kubernetes Spark compute configuration
+  spark_compute_enabled        = var.spark_compute_enabled
+  spark_compute_namespace      = var.spark_compute_namespace
+  spark_compute_image_registry = var.spark_compute_image_registry
+  spark_compute_image          = var.spark_compute_image
 
   # Personnel access
   personnel_arns = var.personnel_arns

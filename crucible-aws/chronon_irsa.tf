@@ -5,7 +5,8 @@
 #
 # The shape of each statement is universal — every chronon-on-EKS deployment
 # needs roughly the same grants. The values (which buckets) vary per
-# environment and are supplied by the caller.
+# environment and come from `terraform.tfvars` pulled out of
+# `s3://zipline-canary-vars/crucible/` by `pull_canary_config.sh`.
 #
 # Every statement is scoped to this account + region — no blanket `*`
 # resources. The KV-store (DynamoDB) grants are intentionally omitted: the

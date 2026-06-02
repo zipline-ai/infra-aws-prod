@@ -2,7 +2,7 @@ cloudProvider: azure
 
 image:
   repository: REGISTRY_NAME.azurecr.io/crucible-gateway
-  tag: ""
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
 
 objectStore:
@@ -13,10 +13,11 @@ serviceAccount:
   annotations:
     azure.workload.identity/client-id: CLIENT_ID
 
+persistence:
+  enabled: true
+  storageClass: managed-premium
+  size: 10Gi
+
 flinkDefaults:
   checkpointDir: "abfss://crucible@STORAGE_ACCOUNT.dfs.core.windows.net/flink/checkpoints"
   savepointDir: "abfss://crucible@STORAGE_ACCOUNT.dfs.core.windows.net/flink/savepoints"
-
-historyServer:
-  persistence:
-    storageClass: managed-premium
