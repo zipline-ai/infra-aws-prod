@@ -1,0 +1,105 @@
+{{- $defaultJobNamespace := .Values.gateway.defaultJobNamespace | default "crucible-jobs" -}}
+{{- $managedNamespaces := list -}}
+{{- with .Values.namespaces -}}
+{{- with .managed -}}
+{{- $managedNamespaces = . -}}
+{{- end -}}
+{{- end -}}
+{{- $jobNamespaces := $managedNamespaces -}}
+{{- if eq (len $jobNamespaces) 0 -}}
+{{- $jobNamespaces = list $defaultJobNamespace -}}
+{{- end -}}
+{{- range $ns := $jobNamespaces }}
+---
+# ServiceAccount for Spark driver and executor pods in this namespace.
+# The Spark Operator's spark-submit creates driver pods that reference this SA.
+# All containers in the driver pod inherit this identity.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spark-operator-spark
+  namespace: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+    {{- if index ($.Values.sparkDefaults.serviceAccountAnnotations | default dict) "azure.workload.identity/client-id" }}
+    azure.workload.identity/use: "true"
+    {{- end }}
+  {{- with $.Values.sparkDefaults.serviceAccountAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+# The Spark driver needs to create executor pods, services, and PVCs in its namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-driver
+  namespace: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-driver
+  namespace: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-driver
+subjects:
+  - kind: ServiceAccount
+    name: spark-operator-spark
+    namespace: {{ $ns }}
+---
+# ServiceAccount for Flink JobManager and TaskManager pods in this namespace.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flink
+  namespace: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+  {{- with $.Values.sparkDefaults.serviceAccountAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+# Flink JobManager needs to create/manage TaskManager pods and services.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flink-jobmanager
+  namespace: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flink-jobmanager
+  namespace: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flink-jobmanager
+subjects:
+  - kind: ServiceAccount
+    name: flink
+    namespace: {{ $ns }}
+{{- end }}

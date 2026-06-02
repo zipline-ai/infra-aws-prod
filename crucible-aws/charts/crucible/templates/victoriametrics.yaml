@@ -1,0 +1,125 @@
+{{- if .Values.victoriametrics.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "crucible.fullname" . }}-victoriametrics
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-victoriametrics
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  scrape.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: crucible-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            target_label: component
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "crucible.fullname" . }}-victoriametrics
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-victoriametrics
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8428
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-victoriametrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crucible.fullname" . }}-victoriametrics
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    app.kubernetes.io/name: {{ include "crucible.fullname" . }}-victoriametrics
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "crucible.fullname" . }}-victoriametrics
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "crucible.fullname" . }}-victoriametrics
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- if index (.Values.serviceAccount.annotations | default dict) "azure.workload.identity/client-id" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "crucible.serviceAccountName" . }}
+      tolerations:
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+      containers:
+        - name: victoriametrics
+          image: {{ .Values.victoriametrics.image | default "victoriametrics/victoria-metrics:v1.108.1" }}
+          args:
+            - -promscrape.config=/etc/vm/scrape.yml
+            - -retentionPeriod={{ .Values.victoriametrics.retention | default "90d" }}
+            - -storageDataPath=/data
+            - -httpListenAddr=:8428
+          ports:
+            - name: http
+              containerPort: 8428
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.victoriametrics.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vm
+            - name: storage
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "crucible.fullname" . }}-victoriametrics
+        - name: storage
+          emptyDir:
+            sizeLimit: {{ .Values.victoriametrics.storage.size | default "10Gi" }}
+{{- end }}

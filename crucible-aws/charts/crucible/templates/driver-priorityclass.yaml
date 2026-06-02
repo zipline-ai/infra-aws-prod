@@ -1,0 +1,18 @@
+{{- if .Values.driverPriorityClass.enabled }}
+# crucible-driver PriorityClass (value: 100) sits above the default (0) and
+# above warm pool pause pods (-1), so under memory pressure:
+#   executors (default 0) are evicted before drivers (100)
+#   drivers (100) preempt warm pool pods (-1) to claim pre-warmed nodes
+# Killing the driver kills the entire job; killing an executor is graceful
+# via spark.decommission.enabled shuffle block migration.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.driverPriorityClass.name | default "crucible-driver" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+value: {{ .Values.driverPriorityClass.value | default 100 }}
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "Crucible Spark driver pods. Preempts warm pool pods; not preempted by executors."
+{{- end }}

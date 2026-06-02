@@ -1,0 +1,461 @@
+replicaCount: 1
+
+image:
+  repository: crucible-gateway
+  # Empty defaults to Chart.appVersion. CI packages the chart with appVersion
+  # set to the same git SHA used for the gateway image tag.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+cloudProvider: ""  # aws | gcp | azure
+
+objectStore:
+  bucket: ""   # e.g., "my-bucket" (S3/GCS) or "container@account.dfs.core.windows.net" (Azure)
+               # All storage paths are auto-derived from this + cloudProvider.
+               # Override individual paths below only if you need a custom layout.
+  region: ""   # AWS region for S3 (e.g., "us-east-1"). Auto-detected if empty.
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+# Karpenter is the AWS node lifecycle controller. It is disabled in the base
+# chart and enabled by values-eks.yaml.
+karpenter-controller:
+  enabled: false
+  settings:
+    clusterName: ""
+    eksControlPlane: false
+    interruptionQueue: ""
+  serviceAccount:
+    annotations: {}
+  controller:
+    resources:
+      requests:
+        cpu: 1
+        memory: 1Gi
+      limits:
+        cpu: 1
+        memory: 1Gi
+
+karpenter:
+  enabled: false
+  clusterName: ""
+  ec2NodeClass:
+    name: crucible
+    # Karpenter requires exactly one of role or instanceProfile. Use role for
+    # standard EKS clusters and instanceProfile for private clusters without IAM
+    # endpoint access.
+    role: ""
+    instanceProfile: ""
+    amiFamily: "AL2023"
+    amiAlias: "al2023@latest"
+    subnetSelectorTerms: []
+    securityGroupSelectorTerms: []
+    tags: {}
+    metadataOptions:
+      httpEndpoint: enabled
+      httpProtocolIPv6: disabled
+      httpPutResponseHopLimit: 1
+      httpTokens: required
+    blockDeviceMappings: []
+    userData: ""
+  nodePools:
+    general:
+      enabled: true
+      name: crucible-general
+      labels: {}
+      annotations: {}
+      taints: []
+      startupTaints: []
+      expireAfter: 720h
+      limits:
+        cpu: 1000
+      disruption:
+        consolidationPolicy: WhenEmptyOrUnderutilized
+        consolidateAfter: 1m
+      requirements:
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+    drivers:
+      enabled: true
+      name: crucible-drivers
+      labels: {}
+      annotations: {}
+      taints: []
+      startupTaints: []
+      expireAfter: 720h
+      limits:
+        cpu: 1000
+      disruption:
+        consolidationPolicy: WhenEmptyOrUnderutilized
+        consolidateAfter: 1m
+      requirements:
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+    executors:
+      enabled: true
+      name: crucible-executors
+      labels: {}
+      annotations: {}
+      taints: []
+      startupTaints: []
+      expireAfter: 720h
+      limits:
+        cpu: 1000
+      disruption:
+        consolidationPolicy: WhenEmptyOrUnderutilized
+        consolidateAfter: 1m
+      requirements:
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["r", "i"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+
+gateway:
+  port: 8080
+  namespace: crucible-system
+  defaultJobNamespace: crucible-jobs
+  maxJobsPerNamespace: 0  # 0 = unlimited
+  nodeSelector: {}
+  # GKE taints arm64 nodes by default. Keep the historical default toleration,
+  # while allowing cloud overlays to constrain gateway placement when images are
+  # not multi-arch.
+  tolerations:
+    - key: kubernetes.io/arch
+      operator: Equal
+      value: arm64
+      effect: NoSchedule
+  # Optional public path prefix when Crucible is mounted under another app,
+  # e.g. /api/crucible on a shared browser host. Direct /api/v1 routes remain enabled.
+  externalBasePath: ""
+
+namespaces:
+  # Optional managed job namespaces. When set, the standalone Scala gateway uses
+  # the first namespace as its accepted/default namespace and job RBAC is created
+  # for every listed namespace.
+  managed: []
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  path: /
+  pathType: Prefix
+  annotations: {}
+  tls: []
+
+auth:
+  mode: "none"          # "none", "header", or "jwt"
+  headerName: ""        # default: X-Forwarded-User (only used when mode=header)
+  oidcIssuer: ""        # OIDC issuer URL (only used when mode=jwt)
+  adminGroup: ""        # group name for admin access (default: crucible-admin)
+
+rbac:
+  create: true
+
+crd:
+  install: true
+
+sparkDefaults:
+  eventLogDir: ""         # auto-derived from objectStore.bucket; override for custom path
+  adminConf: {}           # arbitrary spark config overrides from cluster admin
+  nvmeEnabled: false      # auto-detect NVMe local SSD for shuffle (3x faster, isolated from root disk)
+                          # when enabled, set nvmeSetupImage to an image with
+                          # curl, jq, nvme-cli, e2fsprogs, util-linux/nsenter.
+                          # A DaemonSet discovers NVMe hardware on all nodes,
+                          # formats+mounts the drive, labels the node, and taints it.
+                          # executors are automatically routed to NVMe nodes.
+  nvmeSetupImage: ""
+  # Optional nodeSelector for the NVMe setup DaemonSet. Leave empty to probe
+  # every node; set this to the executor pool on clusters where only executors
+  # need local NVMe shuffle.
+  nvmeSetupNodeSelector: {}
+  executorAZ: ""          # e.g., "us-east-1a" — pin all executors to single AZ
+  # nodeSelector merged into all Spark executor pods. Use this for architecture
+  # placement such as { "crucible.ai/arch": "arm64" } on scale-from-zero pools.
+  executorNodeSelector: {}
+  # Extra tolerations merged into all Spark executor pods.
+  executorTolerations: []
+  # nodeSelector merged into Spark executor pods only when the job has
+  # spot=true. Leave empty to preserve "tolerate spot but do not require it".
+  spotNodeSelector: {}
+  # Multi-arch image used by the ABFS main-jar localizer init container.
+  azureLocalizerImage: "mcr.microsoft.com/azure-cli:2.77.0"
+  executorCores: 2        # override for production (e.g., 14 for r6id.4xlarge)
+  executorMemory: "4Gi"   # override for production (e.g., 48Gi for r6id.4xlarge)
+  driverCores: 1
+  driverMemory: "2Gi"
+  # Cloud identity annotations for Spark/Flink driver ServiceAccounts in job namespaces.
+  # These are separate from the gateway SA — job pods need access to data buckets,
+  # event logs, and checkpoints.
+  # GKE: iam.gke.io/gcp-service-account: spark-sa@project.iam.gserviceaccount.com
+  # EKS: eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/spark-role
+  serviceAccountAnnotations: {}
+  # nodeSelector applied to all Spark driver pods.
+  # Use this to pin drivers to on-demand nodes so spot interruptions can't kill the job.
+  # Example (EKS/Karpenter): { "karpenter.sh/capacity-type": "on-demand" }
+  # Example (GKE):            { "cloud.google.com/gke-spot": "false" }
+  # This is merged with warmPool.taintKey nodeSelector (warm pool takes precedence on conflicts).
+  driverNodeSelector: {}
+  # Extra tolerations merged into all Spark driver pods. Use this with tainted
+  # driver pools such as EKS/Karpenter on-demand driver nodes.
+  driverTolerations: []
+
+flinkDefaults:
+  checkpointDir: ""      # auto-derived from objectStore.bucket; override for custom path
+  savepointDir: ""       # auto-derived from objectStore.bucket; override for custom path
+  adminConf: {}          # arbitrary Flink config overrides from admin
+  parallelism: 1
+  taskSlots: 2
+  jmMemory: "4096m"
+  jmCPU: 2
+  tmMemory: "8192m"
+  tmCPU: 4
+
+rayDefaults:
+  # Ray 2.55+ / KubeRay 1.6+ defaults for RayJob-backed training.
+  # Production dependency policy is image-first: bake application deps into
+  # the submitted image and use runtimeEnv only for small, job-specific knobs.
+  headNodeSelector: {}
+  workerNodeSelector: {}
+  submitterNodeSelector: {}
+  headTolerations: []
+  workerTolerations: []
+  submitterTolerations: []
+
+rayHistoryServer:
+  enabled: false
+  # Upstream Ray History Server is alpha in KubeRay 1.6 and currently expects
+  # operator-built images. Set both images explicitly when enabling.
+  image: ""
+  collectorImage: ""
+  rayImage: "rayproject/ray:2.55.1"
+  publicUrl: ""
+  proxyBase: "/api/v1/ray-history"
+  runtimeClass: "s3" # s3 | azureblob | gcs
+  rootDir: "log"
+  env: {}
+  ingress:
+    enabled: false
+    host: ""
+    className: ""
+    annotations: {}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  dashboardProxy:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
+kuberay-operator:
+  enabled: true
+  replicas: 1
+  logging:
+    stdoutEncoder: json
+  metrics:
+    enabled: true
+  leaderElectionEnabled: true
+  kubeClient:
+    qps: 100.0
+    burst: 200
+
+loki:
+  enabled: true
+  retention: "168h"  # 7 days default
+  image: "grafana/loki:3.4.2"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  storage:
+    size: 10Gi
+
+victoriametrics:
+  enabled: true
+  image: "victoriametrics/victoria-metrics:v1.108.1"
+  retention: "90d"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  storage:
+    size: 10Gi
+
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://crucible-loki:3100/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - cri: {}
+      # Drop system namespaces to reduce ingestion volume
+      extraRelabelConfigs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: drop
+          regex: kube-system|kube-public|kube-node-lease|cert-manager|gke-managed-.*|gmp-.*|default
+  tolerations:
+    - operator: Exists  # Run on all nodes including NVMe, spot, ARM
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+driverPriorityClass:
+  enabled: true                        # creates the crucible-driver PriorityClass
+  name: "crucible-driver"
+  value: 100                           # above default (0) and warm pool (-1); below system classes
+
+systemPriorityClass:
+  enabled: true                        # protects Crucible control-plane pods from Spark driver preemption
+  name: "crucible-system"
+  value: 1000                          # above drivers; below Kubernetes system-critical classes
+
+warmPool:
+  enabled: false
+  replicas: 2                          # number of driver-sized slots to keep warm
+  priorityClassName: "crucible-pause"
+  namespace: ""  # defaults to gateway.namespace
+  resources:
+    cpu: "2"       # driver-sized — NOT executor-sized
+    memory: "4Gi"  # keeps a small node warm for fast driver scheduling
+  # Taint key applied to warm pool nodes. When set, the warm pool deployment
+  # uses this as a nodeSelector label AND toleration, and Spark drivers get a
+  # matching toleration + nodeSelector so only drivers land on these nodes.
+  taintKey: ""             # e.g., "crucible.ai/role"
+  taintValue: "driver"     # e.g., "driver"
+  nodeSelector: {}
+  tolerations: []
+
+imagePrepull:
+  enabled: false
+  images: []
+  nodeSelector: {}
+  tolerations: []
+
+historyServer:
+  image: "us-docker.pkg.dev/crucible-io/crucible/spark:4.1-crucible-latest"
+  # Path-only fallback for Spark observability when publicUrl is unset.
+  # If publicUrl is set, the chart derives this path from publicUrl instead.
+  proxyBase: "spark-history"
+  # Public URL where SHS is reachable through the gateway. When set, this is
+  # the source of truth for the Spark observability path used by Ingress, the
+  # gateway, and -Dspark.ui.proxyBase.
+  publicUrl: ""
+  # Ingress for Spark observability. It sends the derived path and legacy /history
+  # paths to the gateway; the gateway owns the URL policy and proxies SHS.
+  ingress:
+    enabled: false
+    host: ""
+    className: ""
+    annotations: {}
+  daemonMemory: "5g"
+  hybridStoreMemory: "4g"
+  maxDiskUsage: "50g"
+  cleanerMaxAge: "3d"          # event log retention — keep short to limit scan time
+  retainedApplications: 50     # max cached apps in memory/disk
+  resources:
+    requests:
+      cpu: "2"
+      memory: "6Gi"
+    limits:
+      memory: "8Gi"
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+    labels: {}           # additional labels for ServiceMonitor (e.g., release: prometheus)
+    interval: "30s"
+    scrapeTimeout: "10s"
+  prometheusRule:
+    enabled: false
+    labels: {}
+
+# ---------------------------------------------------------------------------
+# Prerequisite: cert-manager (required by Flink Kubernetes Operator)
+# Install separately before this chart:
+#   helm install cert-manager jetstack/cert-manager --set crds.enabled=true -n cert-manager --create-namespace
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Sub-chart: Spark Operator (oci://ghcr.io/kubeflow/spark-operator)
+# ---------------------------------------------------------------------------
+spark-operator:
+  enabled: true
+  controller:
+    replicas: 2          # active-passive HA via leader election
+    workers: 20          # goroutines reconciling SparkApplications concurrently
+    kubeAPIQPS: 100      # operator's own K8s API client rate limit
+    kubeAPIBurst: 200
+  spark:
+    jobNamespaces:
+      - ""               # empty string = watch all namespaces
+
+# ---------------------------------------------------------------------------
+# Sub-chart: Flink Kubernetes Operator (oci://registry-1.docker.io/apache)
+# ---------------------------------------------------------------------------
+flink-kubernetes-operator:
+  enabled: true

@@ -1,0 +1,14 @@
+{{- if .Values.systemPriorityClass.enabled }}
+# Crucible control-plane pods sit above Spark drivers so high-concurrency job
+# bursts cannot preempt the API gateway or history server.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.systemPriorityClass.name | default "crucible-system" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+value: {{ .Values.systemPriorityClass.value | default 1000 }}
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "Crucible control-plane pods. Prevents Spark drivers from preempting gateway services."
+{{- end }}

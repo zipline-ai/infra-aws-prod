@@ -2,6 +2,12 @@ locals {
   default_crucible_chart_values = yamlencode({
     cloudProvider = "aws"
 
+    image = {
+      repository = var.crucible_gateway_image_repository
+      tag        = var.crucible_gateway_image_tag
+      pullPolicy = var.crucible_gateway_image_pull_policy
+    }
+
     objectStore = {
       bucket = "s3://${module.cluster.crucible_bucket_name}"
       region = var.region
@@ -14,12 +20,12 @@ locals {
       }
     }
 
-    namespaceOnboarding = {
-      clusterName   = module.cluster.cluster_name
-      eksOIDCIssuer = module.cluster.cluster_oidc_issuer
+    namespaces = {
+      managed = [var.job_namespace]
     }
 
     gateway = {
+      namespace           = "crucible-system"
       defaultJobNamespace = var.job_namespace
     }
 
@@ -37,7 +43,7 @@ locals {
 
     historyServer = {
       enabled   = true
-      publicUrl = "https://${var.public_host}/api/v1/history"
+      publicUrl = "https://${var.public_host}/spark-history"
       ingress = {
         enabled   = true
         host      = var.public_host
@@ -51,14 +57,31 @@ locals {
   ]
 }
 
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  namespace        = "cert-manager"
+  version          = "v1.13.3"
+  create_namespace = true
+
+  wait    = true
+  timeout = 600
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  depends_on = [module.cluster]
+}
+
 resource "helm_release" "crucible" {
   name             = "crucible"
   namespace        = "crucible-system"
   create_namespace = true
 
-  repository = var.crucible_chart_repository
-  chart      = var.crucible_chart_name
-  version    = var.crucible_chart_version
+  chart = "${path.module}/charts/crucible"
 
   wait    = true
   timeout = 600
@@ -68,5 +91,6 @@ resource "helm_release" "crucible" {
   depends_on = [
     module.cluster,
     module.ingress_nginx,
+    helm_release.cert_manager,
   ]
 }

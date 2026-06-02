@@ -1,0 +1,20 @@
+{{- $defaultJobNamespace := .Values.gateway.defaultJobNamespace | default "crucible-jobs" -}}
+{{- $managedNamespaces := list -}}
+{{- with .Values.namespaces -}}
+{{- with .managed -}}
+{{- $managedNamespaces = . -}}
+{{- end -}}
+{{- end -}}
+{{- $jobNamespaces := $managedNamespaces -}}
+{{- if eq (len $jobNamespaces) 0 -}}
+{{- $jobNamespaces = list $defaultJobNamespace -}}
+{{- end -}}
+{{- range $ns := $jobNamespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+{{- end }}

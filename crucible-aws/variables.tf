@@ -148,30 +148,6 @@ variable "job_namespace" {
   }
 }
 
-variable "crucible_chart_repository" {
-  description = "OCI repository containing the Crucible Helm chart."
-  type        = string
-  default     = "oci://us-docker.pkg.dev/crucible-io/crucible"
-}
-
-variable "crucible_chart_name" {
-  description = "Name of the Crucible Helm chart in crucible_chart_repository."
-  type        = string
-  default     = "crucible"
-}
-
-variable "crucible_chart_version" {
-  description = "Optional Crucible Helm chart version. Leave null to let Helm select the latest published chart version."
-  type        = string
-  default     = null
-  nullable    = true
-
-  validation {
-    condition     = var.crucible_chart_version == null ? true : trimspace(var.crucible_chart_version) != ""
-    error_message = "crucible_chart_version must be null or a non-empty string."
-  }
-}
-
 variable "crucible_chart_values_files" {
   description = "Optional Helm values files, relative to crucible-aws/, merged after the Terraform-generated AWS defaults for the Crucible release."
   type        = list(string)
@@ -183,6 +159,30 @@ variable "crucible_chart_values_files" {
       !startswith(path, "/") && !strcontains(path, "..") && trimspace(path) != ""
     ])
     error_message = "crucible_chart_values_files must contain non-empty relative paths under crucible-aws/."
+  }
+}
+
+variable "crucible_gateway_image_repository" {
+  description = "Gateway image repository for the vendored Crucible Helm chart."
+  type        = string
+  default     = "us-docker.pkg.dev/crucible-io/crucible/gateway"
+}
+
+variable "crucible_gateway_image_tag" {
+  description = "Optional gateway image tag. Empty lets the Crucible Helm chart use its appVersion."
+  type        = string
+  default     = ""
+  nullable    = false
+}
+
+variable "crucible_gateway_image_pull_policy" {
+  description = "Image pull policy for the Crucible gateway."
+  type        = string
+  default     = "IfNotPresent"
+
+  validation {
+    condition     = contains(["Always", "IfNotPresent", "Never"], var.crucible_gateway_image_pull_policy)
+    error_message = "crucible_gateway_image_pull_policy must be Always, IfNotPresent, or Never."
   }
 }
 

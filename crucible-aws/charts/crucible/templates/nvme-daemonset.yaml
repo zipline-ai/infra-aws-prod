@@ -1,0 +1,324 @@
+{{- if .Values.sparkDefaults.nvmeEnabled }}
+{{- $nvmeSetupImage := required "sparkDefaults.nvmeSetupImage is required when sparkDefaults.nvmeEnabled=true" .Values.sparkDefaults.nvmeSetupImage }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "crucible.fullname" . }}-nvme-setup
+  namespace: {{ .Values.gateway.namespace | default "crucible-system" }}
+  labels:
+    {{- include "crucible.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nvme-setup
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "crucible.name" . }}-nvme-setup
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "crucible.name" . }}-nvme-setup
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      # Run on selected nodes. The init container detects NVMe and exits cleanly on non-NVMe nodes.
+      {{- with .Values.sparkDefaults.nvmeSetupNodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+        - operator: Exists
+      hostPID: false
+      serviceAccountName: {{ include "crucible.serviceAccountName" . }}
+      initContainers:
+        - name: nvme-setup
+          image: {{ $nvmeSetupImage }}
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Detect NVMe instance store and set up the node if found.
+              # Non-NVMe nodes: exit 0 cleanly.
+              FOUND_NVME=false
+
+              KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              KUBE_CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              KUBE_API="https://kubernetes.default.svc"
+
+              if ! command -v jq >/dev/null 2>&1; then
+                echo "Error: jq is required for structured Kubernetes node patching" >&2
+                exit 1
+              fi
+
+              node_json() {
+                curl -fsS --cacert "$KUBE_CA" -H "Authorization: Bearer $KUBE_TOKEN" \
+                  "$KUBE_API/api/v1/nodes/$NODE_NAME"
+              }
+
+              patch_node_merge() {
+                patch="$1"
+                curl -fsS --cacert "$KUBE_CA" -H "Authorization: Bearer $KUBE_TOKEN" \
+                  -H "Content-Type: application/strategic-merge-patch+json" \
+                  -X PATCH "$KUBE_API/api/v1/nodes/$NODE_NAME" \
+                  -d "$patch" >/dev/null
+              }
+
+              patch_node_json() {
+                patch="$1"
+                curl -fsS --cacert "$KUBE_CA" -H "Authorization: Bearer $KUBE_TOKEN" \
+                  -H "Content-Type: application/json-patch+json" \
+                  -X PATCH "$KUBE_API/api/v1/nodes/$NODE_NAME" \
+                  -d "$patch" >/dev/null
+              }
+
+              delete_nodeclaim() {
+                claim="$1"
+                [ -n "$claim" ] || return 0
+                if curl -fsS --cacert "$KUBE_CA" -H "Authorization: Bearer $KUBE_TOKEN" \
+                  -X DELETE "$KUBE_API/apis/karpenter.sh/v1/nodeclaims/$claim" >/dev/null; then
+                  echo "Deleted invalid Karpenter NodeClaim $claim for non-NVMe executor node $NODE_NAME"
+                else
+                  echo "Warning: failed to delete invalid Karpenter NodeClaim $claim for non-NVMe executor node $NODE_NAME" >&2
+                fi
+              }
+
+              nodeclaim_name() {
+                json="$1"
+                [ -n "$json" ] || return 0
+                printf '%s' "$json" | jq -r '
+                  (.metadata.ownerReferences // [] | map(select(.kind == "NodeClaim")) | .[0].name) //
+                  .metadata.labels["karpenter.sh/nodeclaim"] //
+                  empty
+                ' 2>/dev/null | head -1
+              }
+
+              node_label_equals() {
+                json="$1"
+                key="$2"
+                value="$3"
+                [ -n "$json" ] || return 1
+                printf '%s' "$json" | jq -e --arg key "$key" --arg value "$value" \
+                  '.metadata.labels[$key] == $value' >/dev/null 2>&1
+              }
+
+              node_has_taint() {
+                json="$1"
+                key="$2"
+                [ -n "$json" ] || return 1
+                printf '%s' "$json" | jq -e --arg key "$key" \
+                  '(.spec.taints // []) | any(.key == $key)' >/dev/null 2>&1
+              }
+
+              is_executor_nvme_candidate() {
+                json="$1"
+                claim="$2"
+
+                if node_label_equals "$json" "crucible.ai/node-pool" "executors"; then
+                  return 0
+                fi
+                if node_label_equals "$json" "crucible.ai/nvme" "true"; then
+                  return 0
+                fi
+                if node_has_taint "$json" "crucible.ai/nvme-init"; then
+                  return 0
+                fi
+                if node_label_equals "$json" "karpenter.sh/nodepool" "crucible-executors" ||
+                   node_label_equals "$json" "karpenter.sh/nodepool" "crucible-spot-executors"; then
+                  return 0
+                fi
+                case "$claim" in
+                  crucible-executors-*|crucible-spot-executors-*) return 0 ;;
+                esac
+
+                return 1
+              }
+
+              remove_taint() {
+                key="$1"
+                while true; do
+                  NODE_JSON=$(node_json)
+                  index=$(printf '%s' "$NODE_JSON" | jq -r --arg key "$key" '
+                    (.spec.taints // []) |
+                    to_entries |
+                    map(select(.value.key == $key)) |
+                    last |
+                    .key // empty
+                  ')
+                  [ -n "$index" ] || return 0
+                  patch=$(printf '[{"op":"remove","path":"/spec/taints/%s"}]' "$index")
+                  patch_node_json "$patch"
+                done
+              }
+
+              host_nsenter() {
+                if command -v nsenter >/dev/null 2>&1; then
+                  nsenter --mount=/host-proc/1/ns/mnt -- "$@"
+                  return $?
+                fi
+                for candidate in /host-proc/1/root/usr/bin/nsenter /host-proc/1/root/bin/nsenter; do
+                  if [ -x "$candidate" ]; then
+                    "$candidate" --mount=/host-proc/1/ns/mnt -- "$@"
+                    return $?
+                  fi
+                done
+
+                echo "Error: nsenter is required to mount NVMe on the host" >&2
+                return 1
+              }
+
+              host_nvme_mounted() {
+                host_nsenter /bin/sh -c 'mountpoint -q /mnt/nvme 2>/dev/null || awk '"'"'$2 == "/mnt/nvme" { found = 1 } END { exit found ? 0 : 1 }'"'"' /proc/self/mounts'
+              }
+
+              ensure_nvme_permissions() {
+                host_nsenter /bin/sh -c 'mkdir -p /mnt/nvme && chmod 1777 /mnt/nvme && touch /mnt/nvme/.crucible-nvme-check && rm -f /mnt/nvme/.crucible-nvme-check'
+              }
+
+              mount_nvme() {
+                dev="$1"
+                REAL_DEV=$(echo "$dev" | sed 's|/host-dev/|/dev/|')
+                if host_nvme_mounted; then
+                  echo "$REAL_DEV already mounted at /mnt/nvme"
+                  ensure_nvme_permissions || return 1
+                  return 0
+                fi
+
+                mkfs.ext4 -F "$dev" 2>/dev/null || true
+                host_nsenter /bin/sh -c "mkdir -p /mnt/nvme && mount '$REAL_DEV' /mnt/nvme" || return 1
+                host_nvme_mounted || {
+                  echo "Error: $REAL_DEV did not appear in host /mnt/nvme mounts" >&2
+                  return 1
+                }
+                ensure_nvme_permissions || return 1
+                echo "Formatted and mounted $REAL_DEV at /mnt/nvme"
+              }
+
+              # --- Detection method 1: nvme id-ctrl model string (EKS) ---
+              if command -v nvme >/dev/null 2>&1; then
+                for dev in /host-dev/nvme*n1; do
+                  [ -b "$dev" ] || continue
+                  MODEL=$(nvme id-ctrl "$dev" -o json 2>/dev/null | grep -o '"mn" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/".*//' | xargs 2>/dev/null || true)
+                  if echo "$MODEL" | grep -qi "Instance Storage"; then
+                    # EKS: format + mount the instance store at /mnt/nvme
+                    if mount_nvme "$dev"; then
+                      FOUND_NVME=true
+                      break
+                    fi
+                    echo "Warning: failed to mount $dev as NVMe instance store" >&2
+                  fi
+                done
+              fi
+
+              # --- Detection method 2: GKE auto-mounted local SSD ---
+              if [ "$FOUND_NVME" = "false" ] && grep -q "kube-ephemeral-ssd" /host-proc/mounts 2>/dev/null; then
+                # GKE local SSD is already mounted by the node. The gateway
+                # auto-detects the path via cloudProvider=gcp. No mount needed.
+                echo "GKE local SSD detected (auto-mounted)"
+                FOUND_NVME=true
+              fi
+
+              # --- Detection method 3: sysfs model string (AKS/other) ---
+              if [ "$FOUND_NVME" = "false" ]; then
+                for dev in /host-dev/nvme*n1; do
+                  [ -b "$dev" ] || continue
+                  devname=$(basename "$dev")
+                  model=$(cat "/host-sys/block/$devname/device/model" 2>/dev/null | xargs 2>/dev/null || true)
+                  if echo "$model" | grep -qi "Instance\|NVMe SSD\|NVMe Direct Disk\|Local"; then
+                    if mount_nvme "$dev"; then
+                      FOUND_NVME=true
+                      break
+                    fi
+                    echo "Warning: failed to mount $dev as NVMe local storage" >&2
+                  fi
+                done
+              fi
+
+              # --- No NVMe: exit cleanly ---
+              if [ "$FOUND_NVME" = "false" ]; then
+                NODE_JSON=$(node_json || true)
+                NODECLAIM=$(nodeclaim_name "$NODE_JSON")
+                if is_executor_nvme_candidate "$NODE_JSON" "$NODECLAIM"; then
+                  NO_NVME_PATCH='{"metadata":{"labels":{"crucible.ai/nvme":null}},"spec":{"taints":[{"key":"crucible.ai/nvme-missing","value":"true","effect":"NoSchedule"}]}}'
+                  patch_node_merge "$NO_NVME_PATCH"
+                  remove_taint "crucible.ai/nvme-init"
+                  remove_taint "crucible.ai/nvme"
+                  echo "Marked node $NODE_NAME as missing NVMe instance store"
+
+                  if [ -n "$NODECLAIM" ]; then
+                    delete_nodeclaim "$NODECLAIM"
+                  elif printf '%s' "$NODE_JSON" | jq -e '.metadata.labels["karpenter.sh/nodepool"] != null' >/dev/null 2>&1; then
+                    echo "Warning: could not determine Karpenter NodeClaim for non-NVMe executor node $NODE_NAME" >&2
+                  fi
+                fi
+                echo "No NVMe instance store on this node, skipping"
+                exit 0
+              fi
+
+              # --- Label + taint the node, then remove the Karpenter startup taint ---
+              NODE_READY_JSON=$(node_json)
+              PATCH='{"metadata":{"labels":{"crucible.ai/nvme":"true"}},"spec":{"taints":[{"key":"crucible.ai/nvme","value":"true","effect":"NoSchedule"}]}}'
+              patch_node_merge "$PATCH"
+
+              if ! node_label_equals "$NODE_READY_JSON" "crucible.ai/nvme" "true"; then
+                echo "Labeled and tainted node $NODE_NAME"
+              else
+                echo "Node $NODE_NAME already labeled and tainted"
+              fi
+
+              remove_taint "crucible.ai/nvme-init"
+              remove_taint "crucible.ai/nvme-missing"
+              NODE_READY_JSON=$(node_json)
+              if node_has_taint "$NODE_READY_JSON" "crucible.ai/nvme-init" ||
+                 node_has_taint "$NODE_READY_JSON" "crucible.ai/nvme-missing"; then
+                echo "Error: failed to clear NVMe setup taints from node $NODE_NAME" >&2
+                exit 1
+              fi
+              echo "Removed NVMe startup taint from node $NODE_NAME"
+          volumeMounts:
+            - name: host-dev
+              mountPath: /host-dev
+            - name: host-mnt
+              mountPath: /host-mnt
+              mountPropagation: Bidirectional
+            - name: host-proc
+              mountPath: /host-proc
+              readOnly: true
+            - name: host-sys
+              mountPath: /host-sys
+              readOnly: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "10m"
+              memory: "16Mi"
+      volumes:
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+        - name: host-proc
+          hostPath:
+            path: /proc
+        - name: host-sys
+          hostPath:
+            path: /sys
+{{- end }}

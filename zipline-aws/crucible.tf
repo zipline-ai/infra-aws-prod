@@ -126,9 +126,7 @@ resource "helm_release" "crucible" {
   namespace        = "crucible-system"
   create_namespace = true
 
-  repository = var.crucible_chart_repository
-  chart      = var.crucible_chart_name
-  version    = var.crucible_chart_version
+  chart = "${path.module}/../crucible-aws/charts/crucible"
 
   wait    = true
   timeout = 600

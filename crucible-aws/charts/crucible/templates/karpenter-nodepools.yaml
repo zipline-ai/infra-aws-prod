@@ -1,0 +1,57 @@
+{{- if and .Values.karpenter.enabled (eq (.Values.cloudProvider | default "") "aws") }}
+{{- $nodeClassName := required "karpenter.ec2NodeClass.name is required when karpenter.enabled=true" .Values.karpenter.ec2NodeClass.name }}
+{{- range $poolKey, $pool := .Values.karpenter.nodePools }}
+{{- if $pool.enabled }}
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: {{ required (printf "karpenter.nodePools.%s.name is required when enabled" $poolKey) $pool.name }}
+  labels:
+    {{- include "crucible.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: karpenter-nodepool
+    crucible.ai/karpenter-pool: {{ $poolKey | quote }}
+spec:
+  template:
+    {{- if or $pool.labels $pool.annotations }}
+    metadata:
+      {{- with $pool.labels }}
+      labels:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pool.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: {{ $nodeClassName }}
+      {{- with $pool.requirements }}
+      requirements:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pool.taints }}
+      taints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pool.startupTaints }}
+      startupTaints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pool.expireAfter }}
+      expireAfter: {{ . | quote }}
+      {{- end }}
+  {{- with $pool.limits }}
+  limits:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $pool.disruption }}
+  disruption:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

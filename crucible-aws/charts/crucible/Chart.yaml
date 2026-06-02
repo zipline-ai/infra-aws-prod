@@ -1,0 +1,33 @@
+apiVersion: v2
+name: crucible
+description: A Helm chart for the Crucible gateway
+type: application
+version: 0.1.0
+appVersion: "latest"
+
+dependencies:
+  # NOTE: cert-manager must be installed separately BEFORE this chart.
+  # The Flink Kubernetes Operator creates Certificate/Issuer resources that
+  # require cert-manager CRDs to exist at template-render time.
+  # Install with: helm install cert-manager jetstack/cert-manager --set crds.enabled=true -n cert-manager --create-namespace
+  - name: spark-operator
+    version: ~2.5.0
+    repository: https://kubeflow.github.io/spark-operator
+    condition: spark-operator.enabled
+  - name: flink-kubernetes-operator
+    version: ~1.10.0
+    repository: https://archive.apache.org/dist/flink/flink-kubernetes-operator-1.10.0/
+    condition: flink-kubernetes-operator.enabled
+  - name: kuberay-operator
+    version: ~1.6.1
+    repository: https://ray-project.github.io/kuberay-helm/
+    condition: kuberay-operator.enabled
+  - name: promtail
+    version: "6.16.6"
+    repository: https://grafana.github.io/helm-charts
+    condition: promtail.enabled
+  - name: karpenter
+    alias: karpenter-controller
+    version: ~1.12.0
+    repository: oci://public.ecr.aws/karpenter
+    condition: karpenter-controller.enabled

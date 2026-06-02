@@ -108,30 +108,6 @@ variable "crucible_job_namespace" {
   }
 }
 
-variable "crucible_chart_repository" {
-  type        = string
-  description = "OCI repository containing the Crucible Helm chart."
-  default     = "oci://us-docker.pkg.dev/crucible-io/crucible"
-}
-
-variable "crucible_chart_name" {
-  type        = string
-  description = "Name of the Crucible Helm chart in crucible_chart_repository."
-  default     = "crucible"
-}
-
-variable "crucible_chart_version" {
-  type        = string
-  description = "Optional Crucible Helm chart version. Leave null to let Helm select the latest published chart version."
-  default     = null
-  nullable    = true
-
-  validation {
-    condition     = var.crucible_chart_version == null ? true : trimspace(var.crucible_chart_version) != ""
-    error_message = "crucible_chart_version must be null or a non-empty string."
-  }
-}
-
 variable "crucible_gateway_image_repository" {
   type        = string
   description = "Gateway image repository for the Platform-owned Crucible Helm chart."
