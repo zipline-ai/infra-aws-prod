@@ -39,7 +39,7 @@ module "orchestration" {
   personnel_arns = var.personnel_arns
 
   # EMR Serverless
-  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.customer_name}/emr/"
+  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${local.global_resource_qualifier}/emr/"
   emr_cloudwatch_log_group = aws_cloudwatch_log_group.emr_logs.name
 
   # Glue Schema Registry (optional)
