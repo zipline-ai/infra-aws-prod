@@ -260,7 +260,12 @@ compute:
 
   historyServer:
     enabled: true
-    image: "ziplineai/spark:4.1-crucible-latest"
+    # Match sparkDefaults.image — keep driver/executor and history server on
+    # the same Spark major version so event-log format and UI render align.
+    # Crucible 3.5 image lineage is what the in-cluster path uses; bump to a
+    # UC-bearing 3.5 tag once the crucible-side image PR lands (mirrors
+    # zipline-ai/chronon#1898 UC bake-in for the EMR Serverless image).
+    image: "ziplineai/spark:3.5-crucible-latest"
     proxyBase: "spark-history"
     daemonMemory: "5g"
     hybridStoreMemory: "4g"
