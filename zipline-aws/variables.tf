@@ -98,6 +98,30 @@ variable "eval_domain" {
   default     = ""
 }
 
+variable "ui_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the orchestration UI domain. Leave empty to create a certificate when ui_domain is set."
+  default     = ""
+}
+
+variable "hub_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the orchestration Hub API domain. Leave empty to create a certificate when hub_domain is set."
+  default     = ""
+}
+
+variable "fetcher_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to create a certificate when fetcher_domain is set."
+  default     = ""
+}
+
+variable "eval_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the Chronon eval domain. Leave empty to create a certificate when eval_domain is set."
+  default     = ""
+}
+
 # Glue Schema Registry (optional)
 variable "glue_schema_registry_name" {
   type        = string

@@ -1,6 +1,6 @@
 # Zipline AWS Infrastructure
 
-OpenTofu infrastructure for deploying Zipline on AWS.
+Terraform infrastructure for deploying Zipline on AWS through HCP Terraform.
 
 ## Module structure
 
@@ -74,6 +74,10 @@ tofu apply
 | `fetcher_replicas` | `3` | Number of fetcher pod replicas |
 | `fetcher_domain` | `""` | Custom domain for the Chronon fetcher service |
 | `eval_domain` | `""` | Custom domain for the eval service |
+| `ui_cert_arn` | `""` | ARN of an existing ACM certificate for the UI domain. Leave empty to let Terraform create a certificate when `ui_domain` is set. |
+| `hub_cert_arn` | `""` | ARN of an existing ACM certificate for the Hub API domain. Leave empty to let Terraform create a certificate when `hub_domain` is set. |
+| `fetcher_cert_arn` | `""` | ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to let Terraform create a certificate when `fetcher_domain` is set. |
+| `eval_cert_arn` | `""` | ARN of an existing ACM certificate for the eval domain. Leave empty to let Terraform create a certificate when `eval_domain` is set. |
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |
 | `databricks_client_secret` | `""` | Databricks service principal client secret for Unity Catalog (optional) |
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
@@ -179,7 +183,19 @@ tofu apply \
   -var 'eval_domain=zipline-eval.yourcompany.com'
 ```
 
-This creates ACM certificates for each domain (initially in `Pending validation` state).
+By default, Terraform creates ACM certificates for each domain (initially in `Pending validation` state).
+
+To attach existing ACM certificates instead, pass the matching certificate ARN alongside each domain:
+
+```bash
+tofu apply \
+  -var 'ui_domain=zipline.yourcompany.com' \
+  -var 'ui_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example' \
+  -var 'hub_domain=zipline-hub.yourcompany.com' \
+  -var 'hub_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example'
+```
+
+For any service with a `*_cert_arn` value, Terraform skips creating the ACM certificate and attaches the supplied certificate to the NLB. The certificate must be in the same AWS region as the NLB and cover the configured domain.
 
 ### 2. Add ACM validation DNS records
 
