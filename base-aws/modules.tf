@@ -23,21 +23,21 @@ module "orchestration" {
   hub_external_url = var.hub_external_url
   fetcher_domain   = var.fetcher_domain
   eval_domain      = var.eval_domain
-  ui_cert_arn      = var.ui_cert_arn
-  hub_cert_arn     = var.hub_cert_arn
-  fetcher_cert_arn = var.fetcher_cert_arn
-  eval_cert_arn    = var.eval_cert_arn
 
   # EKS Configuration
   eks_version      = var.eks_version
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # In-cluster Spark Operator compute (migration flag).
+  spark_compute_enabled         = var.spark_compute_enabled
+  compute_team_namespace_prefix = var.compute_team_namespace_prefix
+
   # Personnel access
   personnel_arns = var.personnel_arns
 
   # EMR Serverless
-  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${local.global_resource_qualifier}/emr/"
+  emr_log_uri              = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.customer_name}/emr/"
   emr_cloudwatch_log_group = aws_cloudwatch_log_group.emr_logs.name
 
   # Glue Schema Registry (optional)

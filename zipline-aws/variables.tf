@@ -6,18 +6,6 @@ variable "customer_name" {
   description = "Your unique company identifier. Used as a prefix for naming AWS resources."
 }
 
-variable "environment" {
-  type        = string
-  description = "Optional environment qualifier (e.g. \"canary\", \"prod\"). When set, prepended to customer_name so AWS resources are named like zipline-warehouse-<environment>-<customer_name>. Leave empty for the default single-environment naming."
-  default     = ""
-}
-
-variable "aws_account_id" {
-  type        = string
-  description = "Optional AWS account ID this stack must deploy into. When set, terraform fails fast if the resolved AWS credentials point at a different account. Recommended for multi-environment setups so an `AWS_PROFILE` mismatch can't silently mutate the wrong account. Leave empty to skip the check."
-  default     = ""
-}
-
 variable "artifact_prefix" {
   description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }
@@ -72,6 +60,28 @@ variable "eks_version" {
   default     = "1.31"
 }
 
+# Migration flag: flip a customer from external-cloud Spark (EMR Serverless /
+# Dataproc) to in-cluster Spark Operator compute. When true, Terraform
+# provisions the Spark compute IRSA role and team/mode node groups, and the
+# Zipline orchestration chart renders the team namespace, RBAC, ResourceQuotas,
+# spark-operator subchart, history server, NVMe daemonset, and warm pool.
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Migration flag. Enables in-cluster Spark Operator compute: provisions the spark IRSA role and compute node groups in Terraform, and gates the chart's compute namespaces, RBAC, and operator. One-time per-customer flip."
+  default     = false
+}
+
+variable "compute_team_namespace_prefix" {
+  type        = string
+  description = "Prefix for team namespaces (e.g. \"zipline-\" produces zipline-default, zipline-<team>). Used to scope the spark_compute IRSA trust policy. Changing this requires re-applying terraform and matches the chart's compute.teams[].namespace prefix."
+  default     = "zipline-"
+
+  validation {
+    condition     = length(trimspace(var.compute_team_namespace_prefix)) > 0 && endswith(var.compute_team_namespace_prefix, "-")
+    error_message = "compute_team_namespace_prefix must be non-empty and end with '-' (e.g. 'zipline-')."
+  }
+}
+
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
   description = "Custom domain for the orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."
@@ -95,30 +105,6 @@ variable "fetcher_domain" {
 
 variable "eval_domain" {
   description = "Custom domain for the Chronon eval service (e.g., zipline-eval.yourcompany.com). Leave empty to use the default load balancer DNS."
-  default     = ""
-}
-
-variable "ui_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the orchestration UI domain. Leave empty to create a certificate when ui_domain is set."
-  default     = ""
-}
-
-variable "hub_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the orchestration Hub API domain. Leave empty to create a certificate when hub_domain is set."
-  default     = ""
-}
-
-variable "fetcher_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to create a certificate when fetcher_domain is set."
-  default     = ""
-}
-
-variable "eval_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the Chronon eval domain. Leave empty to create a certificate when eval_domain is set."
   default     = ""
 }
 

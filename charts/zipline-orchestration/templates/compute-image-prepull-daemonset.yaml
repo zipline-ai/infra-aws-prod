@@ -1,33 +1,37 @@
-{{- if .Values.imagePrepull.enabled }}
+{{- if and .Values.compute.enabled .Values.compute.imagePrepull.enabled }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ include "crucible.fullname" . }}-image-prepull
-  namespace: {{ .Values.gateway.namespace }}
+  name: {{ include "zipline-orchestration.fullname" . }}-image-prepull
+  namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "crucible.labels" . | nindent 4 }}
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
     app.kubernetes.io/component: image-prepull
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "crucible.name" . }}-image-prepull
+      app.kubernetes.io/name: {{ include "zipline-orchestration.name" . }}-image-prepull
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ include "crucible.name" . }}-image-prepull
+        app.kubernetes.io/name: {{ include "zipline-orchestration.name" . }}-image-prepull
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      {{- with .Values.imagePrepull.nodeSelector }}
+      {{- with .Values.platform.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.compute.imagePrepull.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.imagePrepull.tolerations }}
+      {{- with .Values.compute.imagePrepull.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       initContainers:
-        {{- range $i, $image := .Values.imagePrepull.images }}
+        {{- range $i, $image := .Values.compute.imagePrepull.images }}
         - name: pull-{{ $i }}
           image: {{ $image }}
           command: ["sh", "-c", "exit 0"]

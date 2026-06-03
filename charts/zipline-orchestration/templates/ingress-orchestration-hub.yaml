@@ -7,14 +7,14 @@ metadata:
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
-    {{- with .Values.ingress.hub.annotations }}
+    {{- with .Values.platform.ingress.hub.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.hub.className }}
+  ingressClassName: {{ .Values.platform.ingress.hub.className }}
   rules:
-    {{- if .Values.ingress.hub.host }}
-    - host: {{ .Values.ingress.hub.host }}
+    {{- if .Values.infra.domains.hub }}
+    - host: {{ .Values.infra.domains.hub }}
       http:
     {{- else }}
     - http:

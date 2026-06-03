@@ -6,12 +6,6 @@ variable "customer_name" {
   description = "Your unique company identifier. Used as a prefix for naming AWS resources."
 }
 
-variable "environment" {
-  type        = string
-  description = "Optional environment qualifier (e.g. \"canary\", \"prod\"). When set, prepended to customer_name when naming AWS resources (e.g. zipline-warehouse-canary-salesforce). When empty, omitted — names match the pre-existing single-environment scheme."
-  default     = ""
-}
-
 variable "artifact_prefix" {
   description = "The S3 URI where Zipline artifacts are stored (e.g., s3://your-zipline-artifacts)."
 }
@@ -68,6 +62,18 @@ variable "eks_version" {
   description = "Kubernetes version for EKS cluster"
 }
 
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Migration flag. Enables in-cluster Spark Operator compute: provisions spark IRSA + team/mode node groups in Terraform and gates the chart's compute machinery."
+  default     = false
+}
+
+variable "compute_team_namespace_prefix" {
+  type        = string
+  description = "Prefix for team namespaces (e.g. \"zipline-\"). Scopes the spark_compute IRSA trust policy. Must match the chart's compute.teams[].namespace prefix."
+  default     = "zipline-"
+}
+
 # Custom domain configuration for HTTPS
 variable "ui_domain" {
   type        = string
@@ -96,30 +102,6 @@ variable "fetcher_domain" {
 variable "eval_domain" {
   type        = string
   description = "Custom domain for eval service"
-  default     = ""
-}
-
-variable "ui_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the orchestration UI domain. Leave empty to create a certificate when ui_domain is set."
-  default     = ""
-}
-
-variable "hub_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the orchestration Hub API domain. Leave empty to create a certificate when hub_domain is set."
-  default     = ""
-}
-
-variable "fetcher_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to create a certificate when fetcher_domain is set."
-  default     = ""
-}
-
-variable "eval_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the Chronon eval domain. Leave empty to create a certificate when eval_domain is set."
   default     = ""
 }
 

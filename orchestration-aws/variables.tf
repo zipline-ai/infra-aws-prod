@@ -90,6 +90,18 @@ variable "eks_disk_size" {
   default     = 100
 }
 
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Migration flag. Enables in-cluster Spark Operator compute: provisions spark IRSA + team/mode node groups in Terraform and gates the chart's compute machinery."
+  default     = false
+}
+
+variable "compute_team_namespace_prefix" {
+  type        = string
+  description = "Prefix for team namespaces (e.g. \"zipline-\"). Scopes the spark_compute IRSA trust policy. Must match the chart's compute.teams[].namespace prefix."
+  default     = "zipline-"
+}
+
 # Domain Configuration (optional)
 variable "hub_domain" {
   type        = string
@@ -118,30 +130,6 @@ variable "fetcher_domain" {
 variable "eval_domain" {
   type        = string
   description = "Custom domain for eval service (optional)"
-  default     = ""
-}
-
-variable "ui_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the orchestration UI domain. Leave empty to create a certificate when ui_domain is set."
-  default     = ""
-}
-
-variable "hub_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the orchestration Hub API domain. Leave empty to create a certificate when hub_domain is set."
-  default     = ""
-}
-
-variable "fetcher_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to create a certificate when fetcher_domain is set."
-  default     = ""
-}
-
-variable "eval_cert_arn" {
-  type        = string
-  description = "ARN of an existing ACM certificate for the eval domain. Leave empty to create a certificate when eval_domain is set."
   default     = ""
 }
 

@@ -1,4 +1,4 @@
-{{- if and (not .Values.ingress.hub.host) (not .Values.ingress.hub.externalUrl) }}
+{{- if and (not .Values.infra.domains.hub) (not .Values.platform.ingress.hub.externalUrl) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -10,7 +10,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.platform.serviceAccount.name }}
       restartPolicy: Never
       containers:
       - name: set-hub-url

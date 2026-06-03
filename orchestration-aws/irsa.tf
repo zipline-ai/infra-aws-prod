@@ -446,6 +446,199 @@ resource "aws_iam_role_policy" "flink_dynamodb" {
   policy = data.aws_iam_policy_document.flink_dynamodb_policy.json
 }
 
+# ===================================================================
+# IRSA Role for Spark Compute Jobs (gated on var.spark_compute_enabled)
+# Allows Spark driver/executor pods created by the Spark Kubernetes Operator
+# in any zipline-* team namespace to access AWS resources without using the
+# orchestration Hub's identity.
+#
+# Trust uses StringLike on compute_team_namespace_prefix so future team
+# namespaces created by the Hub (zipline-<team>) inherit the trust without
+# a terraform re-apply. Kubernetes RBAC controls who can create zipline-*
+# namespaces, so the wildcard is bounded by cluster-level authority.
+# ===================================================================
+
+data "aws_iam_policy_document" "spark_compute_assume_role" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringLike"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
+      values = [
+        "system:serviceaccount:${var.compute_team_namespace_prefix}*:spark-operator-spark",
+        "system:serviceaccount:${var.compute_team_namespace_prefix}*:flink",
+      ]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "spark_compute_execution" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  name               = "${var.name_prefix}-spark-compute-execution"
+  assume_role_policy = data.aws_iam_policy_document.spark_compute_assume_role[0].json
+  description        = "IAM role for Spark compute jobs submitted through the Kubernetes operator"
+
+  tags = {
+    Name = "${var.name_prefix}-spark-compute-execution"
+  }
+}
+
+data "aws_iam_policy_document" "spark_compute_s3_policy" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:DeleteObject",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = concat(
+      [
+        "arn:aws:s3:::${var.warehouse_bucket}",
+        "arn:aws:s3:::${var.warehouse_bucket}/*",
+        "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}",
+        "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}/*",
+        "arn:aws:s3:::zipline-spark-libs",
+        "arn:aws:s3:::zipline-spark-libs/*",
+        "arn:aws:s3:::zipline-logs-${var.name_prefix}",
+        "arn:aws:s3:::zipline-logs-${var.name_prefix}/*",
+      ],
+      flatten([
+        for bucket in var.additional_data_buckets : [
+          "arn:aws:s3:::${bucket}",
+          "arn:aws:s3:::${bucket}/*",
+        ]
+      ]),
+    )
+  }
+}
+
+resource "aws_iam_policy" "spark_compute_s3" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  name        = "${var.name_prefix}-spark-compute-s3-policy"
+  description = "S3 access policy for Spark compute jobs"
+  policy      = data.aws_iam_policy_document.spark_compute_s3_policy[0].json
+}
+
+resource "aws_iam_role_policy_attachment" "spark_compute_s3" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  role       = aws_iam_role.spark_compute_execution[0].name
+  policy_arn = aws_iam_policy.spark_compute_s3[0].arn
+}
+
+data "aws_iam_policy_document" "spark_compute_dynamodb_policy" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:CreateTable",
+      "dynamodb:DescribeTable",
+      "dynamodb:UpdateTable",
+      "dynamodb:UpdateTimeToLive",
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "spark_compute_dynamodb" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  name   = "${var.name_prefix}-spark-compute-dynamodb"
+  role   = aws_iam_role.spark_compute_execution[0].id
+  policy = data.aws_iam_policy_document.spark_compute_dynamodb_policy[0].json
+}
+
+data "aws_iam_policy_document" "spark_compute_glue_policy" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartition",
+      "glue:GetPartitions",
+      "glue:BatchGetPartition",
+      "glue:CreateTable",
+      "glue:UpdateTable",
+      "glue:CreatePartition",
+      "glue:BatchCreatePartition",
+      "glue:UpdatePartition",
+      "glue:BatchUpdatePartition",
+      "glue:DeleteTable",
+      "glue:DeletePartition",
+      "glue:BatchDeletePartition",
+    ]
+    resources = [
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/*",
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "spark_compute_glue" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  name   = "${var.name_prefix}-spark-compute-glue"
+  role   = aws_iam_role.spark_compute_execution[0].id
+  policy = data.aws_iam_policy_document.spark_compute_glue_policy[0].json
+}
+
+data "aws_iam_policy_document" "spark_compute_cloudwatch_policy" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams",
+      "cloudwatch:PutMetricData",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "spark_compute_cloudwatch" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  name   = "${var.name_prefix}-spark-compute-cloudwatch"
+  role   = aws_iam_role.spark_compute_execution[0].id
+  policy = data.aws_iam_policy_document.spark_compute_cloudwatch_policy[0].json
+}
+
 # Glue Data Catalog access for orchestration pods (staging queries / exports)
 data "aws_iam_policy_document" "orchestration_glue_policy" {
   statement {

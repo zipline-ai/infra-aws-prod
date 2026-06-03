@@ -53,9 +53,55 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Service account name
 */}}
 {{- define "zipline-orchestration.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "zipline-orchestration.fullname" .) .Values.serviceAccount.name }}
+{{- if .Values.platform.serviceAccount.create }}
+{{- default (include "zipline-orchestration.fullname" .) .Values.platform.serviceAccount.name }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- default "default" .Values.platform.serviceAccount.name }}
 {{- end }}
+{{- end }}
+
+{{/*
+Kubernetes namespace used for Spark/Flink compute jobs.
+Returns the first team's namespace from compute.teams; future Hub-managed
+CRDs will replace this single-team bootstrap path.
+*/}}
+{{- define "zipline-orchestration.computeJobNamespace" -}}
+{{- (index .Values.compute.teams 0).namespace -}}
+{{- end }}
+
+{{/*
+Namespace used for compute control-plane support services.
+*/}}
+{{- define "zipline-orchestration.computeSystemNamespace" -}}
+{{- .Release.Namespace -}}
+{{- end }}
+
+{{/*
+S3 warehouse bucket name. infra.storage.warehouseBucket is already
+name-only (no scheme), so it is returned as-is.
+*/}}
+{{- define "zipline-orchestration.computeBucketName" -}}
+{{- .Values.infra.storage.warehouseBucket -}}
+{{- end }}
+
+{{/*
+Spark event log directory used by Spark History Server.
+Defaults to s3a://<infra.storage.warehouseBucket>/spark-events when
+compute.sparkDefaults.eventLogDir is empty.
+*/}}
+{{- define "zipline-orchestration.sparkEventLogDir" -}}
+{{- if .Values.compute.sparkDefaults.eventLogDir -}}
+{{- .Values.compute.sparkDefaults.eventLogDir -}}
+{{- else if .Values.infra.storage.warehouseBucket -}}
+{{- printf "s3a://%s/spark-events" .Values.infra.storage.warehouseBucket -}}
+{{- else -}}
+{{- "" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Spark History Server proxy base path.
+*/}}
+{{- define "zipline-orchestration.historyServerProxyBase" -}}
+{{- printf "/%s" (trimAll "/" (.Values.compute.historyServer.proxyBase | default "spark-history")) -}}
 {{- end }}

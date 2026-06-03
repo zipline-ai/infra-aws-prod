@@ -7,7 +7,7 @@ metadata:
     app: zipline-ui
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.orchestration.ui.replicas }}
+  replicas: {{ .Values.platform.orchestration.ui.replicas }}
   selector:
     matchLabels:
       app: zipline-ui
@@ -16,59 +16,59 @@ spec:
       labels:
         app: zipline-ui
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
-      {{- with .Values.imagePullSecrets }}
+      serviceAccountName: {{ .Values.platform.serviceAccount.name }}
+      {{- with .Values.platform.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: web-ui
-          image: "{{ .Values.orchestration.ui.image }}:{{ .Values.global.version }}"
+          image: "{{ .Values.platform.orchestration.ui.image }}:{{ .Values.platform.version }}"
           imagePullPolicy: Always
           env:
             - name: API_BASE_URL
               value: "http://orchestration-hub-service"
-            {{- if .Values.global.deploy_fetcher }}
+            {{- if .Values.platform.deployFetcher }}
             - name: FETCHER_BASE_URL
               value: "http://fetcher-service"
             {{- end }}
             - name: DB_HOST
-              value: {{ .Values.database.host | quote }}
+              value: {{ .Values.infra.database.host | quote }}
             - name: DB_NAME
-              value: {{ .Values.database.name | quote }}
+              value: {{ .Values.infra.database.name | quote }}
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: password
             - name: AWS_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: AWS_DEFAULT_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: PUBLIC_ORCH_SERVER_NAME
-              value: "{{ .Values.global.customer_name }}-zipline-orchestration"
+              value: "{{ .Values.infra.global.customerName }}-zipline-orchestration"
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: username
             - name: DATABASE_URL
-              value: "postgres://$(DB_USERNAME)@{{ .Values.database.host }}/{{ .Values.database.name }}?sslmode=require"
+              value: "postgres://$(DB_USERNAME)@{{ .Values.infra.database.host }}/{{ .Values.infra.database.name }}?sslmode=require"
             - name: AWS_EKS_LOG_GROUP
-              value: "/aws/eks/{{ .Values.aws.eksClusterName }}/containers"
+              value: "/aws/eks/{{ .Values.infra.aws.eksClusterName }}/containers"
             - name: AWS_EMR_LOG_GROUP
-              value: "/emr/zipline-{{ .Values.global.customer_name }}"
+              value: "/emr/zipline-{{ .Values.infra.global.customerName }}"
             - name: ORCH_CONTAINER_NAME
               value: "orchestration-hub"
             - name: PROMETHEUS_QUERY_ENDPOINT
-              value: "{{ .Values.prometheus.queryEndpoint }}"
+              value: "{{ .Values.infra.prometheus.queryEndpoint }}"
             - name: PROMETHEUS_NAMESPACE
-              value: "{{ .Values.prometheus.namespace }}"
+              value: "{{ .Values.infra.prometheus.namespace }}"
             - name: AUTH_ENABLED
-              value: "{{ .Values.auth.enabled }}"
-            {{- if .Values.auth.enabled }}
+              value: "{{ .Values.platform.auth.enabled }}"
+            {{- if .Values.platform.auth.enabled }}
             - name: AUTH_URL
-              value: "{{ .Values.auth.url }}"
+              value: "{{ .Values.platform.auth.url }}"
             - name: AUTH_SECRET
               valueFrom:
                 secretKeyRef:
@@ -79,47 +79,47 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             - name: AUTH_ALLOWED_HOSTS
-              value: "$(POD_IP):{{ .Values.orchestration.ui.port }}"
+              value: "$(POD_IP):{{ .Values.platform.orchestration.ui.port }}"
             - name: GOOGLE_OAUTH_CLIENT_ID
-              value: "{{ .Values.auth.google_oauth_client_id }}"
+              value: "{{ .Values.platform.auth.googleOauthClientId }}"
             - name: GOOGLE_OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: auth-secret
                   key: google-oauth-client-secret
             - name: GITHUB_OAUTH_CLIENT_ID
-              value: "{{ .Values.auth.github_oauth_client_id }}"
+              value: "{{ .Values.platform.auth.githubOauthClientId }}"
             - name: GITHUB_OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: auth-secret
                   key: github-oauth-client-secret
             - name: MICROSOFT_ENTRA_TENANT_ID
-              value: "{{ .Values.auth.microsoft_entra_tenant_id }}"
+              value: "{{ .Values.platform.auth.microsoftEntraTenantId }}"
             - name: MICROSOFT_ENTRA_OAUTH_CLIENT_ID
-              value: "{{ .Values.auth.microsoft_entra_oauth_client_id }}"
+              value: "{{ .Values.platform.auth.microsoftEntraOauthClientId }}"
             - name: MICROSOFT_ENTRA_OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: auth-secret
                   key: microsoft-entra-oauth-client-secret
             - name: SSO_PROVIDER_ID
-              value: "{{ .Values.auth.sso_provider_id }}"
+              value: "{{ .Values.platform.auth.ssoProviderId }}"
             - name: SSO_DOMAIN
-              value: "{{ .Values.auth.sso_domain }}"
+              value: "{{ .Values.platform.auth.ssoDomain }}"
             - name: SSO_ISSUER
-              value: "{{ .Values.auth.sso_issuer }}"
+              value: "{{ .Values.platform.auth.ssoIssuer }}"
             - name: SSO_CLIENT_ID
-              value: "{{ .Values.auth.sso_client_id }}"
+              value: "{{ .Values.platform.auth.ssoClientId }}"
             - name: SSO_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: auth-secret
                   key: sso-client-secret
             - name: IDP_ROLE_MAPPING
-              value: "{{ .Values.auth.idp_role_mapping }}"
+              value: "{{ .Values.platform.auth.idpRoleMapping }}"
             - name: IDP_GROUP_CLAIM
-              value: "{{ .Values.auth.idp_group_claim }}"
+              value: "{{ .Values.platform.auth.idpGroupClaim }}"
             {{- end }}
 
           volumeMounts:
@@ -127,19 +127,19 @@ spec:
               mountPath: "/mnt/secrets-store"
               readOnly: true
           resources:
-          {{- toYaml .Values.orchestration.ui.resources | nindent 12 }}
+          {{- toYaml .Values.platform.orchestration.ui.resources | nindent 12 }}
           ports:
-            - containerPort: {{ .Values.orchestration.ui.port }}
+            - containerPort: {{ .Values.platform.orchestration.ui.port }}
           livenessProbe:
             httpGet:
               path: /
-              port: {{ .Values.orchestration.ui.port }}
+              port: {{ .Values.platform.orchestration.ui.port }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /
-              port: {{ .Values.orchestration.ui.port }}
+              port: {{ .Values.platform.orchestration.ui.port }}
             initialDelaySeconds: 10
             periodSeconds: 5
       volumes:
@@ -163,6 +163,6 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: {{ .Values.orchestration.ui.port }}
+      targetPort: {{ .Values.platform.orchestration.ui.port }}
       protocol: TCP
   type: ClusterIP

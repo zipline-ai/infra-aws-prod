@@ -31,8 +31,7 @@ terraform {
 }
 
 provider "aws" {
-  region              = var.region
-  allowed_account_ids = var.aws_account_id != "" ? [var.aws_account_id] : null
+  region = var.region
 }
 
 # Kubernetes provider - configured after EKS cluster is created
@@ -78,7 +77,6 @@ module "base_setup" {
   source = "../base-aws"
 
   customer_name   = var.customer_name
-  environment     = var.environment
   region          = var.region
   artifact_prefix = var.artifact_prefix
   zipline_version = var.zipline_version
@@ -90,16 +88,17 @@ module "base_setup" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # In-cluster Spark Operator compute (migration flag).
+  # See variables.tf "spark_compute_enabled" for details.
+  spark_compute_enabled         = var.spark_compute_enabled
+  compute_team_namespace_prefix = var.compute_team_namespace_prefix
+
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain
   hub_domain       = var.hub_domain
   hub_external_url = var.hub_external_url
   fetcher_domain   = var.fetcher_domain
   eval_domain      = var.eval_domain
-  ui_cert_arn      = var.ui_cert_arn
-  hub_cert_arn     = var.hub_cert_arn
-  fetcher_cert_arn = var.fetcher_cert_arn
-  eval_cert_arn    = var.eval_cert_arn
 
   # Glue Schema Registry (optional)
   glue_schema_registry_name = var.glue_schema_registry_name
@@ -139,8 +138,8 @@ module "base_setup" {
   idp_group_claim                     = var.idp_group_claim
 
   # Optional VPC Import
-  existing_vpc_id                = var.existing_vpc_id
-  existing_vpc_primary_subnet_id = var.existing_vpc_primary_subnet_id
+  existing_vpc_id                  = var.existing_vpc_id
+  existing_vpc_primary_subnet_id   = var.existing_vpc_primary_subnet_id
   existing_vpc_secondary_subnet_id = var.existing_vpc_secondary_subnet_id
 
 }

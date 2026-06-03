@@ -1,0 +1,201 @@
+{{- if and .Values.compute.enabled .Values.compute.rbac.create }}
+{{- $defaultSparkSa := .Values.compute.serviceAccount.sparkName -}}
+{{- $defaultFlinkSa := .Values.compute.serviceAccount.flinkName -}}
+{{- $sparkRoleArn := .Values.infra.iam.sparkComputeRoleArn -}}
+{{- $hubSaName := .Values.platform.serviceAccount.name -}}
+{{- $hubReleaseNamespace := .Release.Namespace -}}
+{{- $labels := include "zipline-orchestration.labels" . -}}
+{{- $fullname := include "zipline-orchestration.fullname" . -}}
+{{- range $team := .Values.compute.teams }}
+{{- $sparkSa := default $defaultSparkSa $team.sparkServiceAccountName -}}
+{{- $flinkSa := default $defaultFlinkSa $team.flinkServiceAccountName -}}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: spark-compute
+    zipline.ai/team: {{ $team.name | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sparkSa }}
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: spark-driver
+    zipline.ai/team: {{ $team.name | quote }}
+  {{- if $sparkRoleArn }}
+  annotations:
+    eks.amazonaws.com/role-arn: {{ $sparkRoleArn | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $flinkSa }}
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: flink-job
+    zipline.ai/team: {{ $team.name | quote }}
+  {{- if $sparkRoleArn }}
+  annotations:
+    eks.amazonaws.com/role-arn: {{ $sparkRoleArn | quote }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-driver
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    zipline.ai/team: {{ $team.name | quote }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-driver
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    zipline.ai/team: {{ $team.name | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-driver
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sparkSa }}
+    namespace: {{ $team.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flink-jobmanager
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    zipline.ai/team: {{ $team.name | quote }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flink-jobmanager
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    zipline.ai/team: {{ $team.name | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flink-jobmanager
+subjects:
+  - kind: ServiceAccount
+    name: {{ $flinkSa }}
+    namespace: {{ $team.namespace }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ $team.name }}-defaults
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    zipline.ai/team: {{ $team.name | quote }}
+spec:
+  limits:
+    - type: Container
+      {{- with $team.limitRange.default }}
+      default:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $team.limitRange.defaultRequest }}
+      defaultRequest:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- range $quota := $team.resourceQuotas }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ $team.name }}-{{ $quota.name }}
+  namespace: {{ $team.namespace }}
+  labels:
+    {{- $labels | nindent 4 }}
+    zipline.ai/team: {{ $team.name | quote }}
+spec:
+  hard:
+    {{- toYaml $quota.hard | nindent 4 }}
+  {{- with $quota.scopeSelector }}
+  scopeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}-compute
+  labels:
+    {{- $labels | nindent 4 }}
+rules:
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["flink.apache.org"]
+    resources: ["flinkdeployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["flink.apache.org"]
+    resources: ["flinkdeployments/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}-compute
+  labels:
+    {{- $labels | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}-compute
+subjects:
+  - kind: ServiceAccount
+    name: {{ $hubSaName }}
+    namespace: {{ $hubReleaseNamespace }}
+{{- end }}

@@ -1,13 +1,13 @@
 # Zipline AWS Infrastructure
 
-Terraform infrastructure for deploying Zipline on AWS through HCP Terraform.
+OpenTofu infrastructure for deploying Zipline on AWS.
 
 ## Module structure
 
 | Directory | Description |
 |-----------|-------------|
 | `base-aws/` | VPC, EMR cluster, DynamoDB, S3 buckets, EMR IAM roles |
-| `orchestration-aws/` | EKS cluster, IRSA roles, RDS, Helm releases, ACM certs, AMP, Flink |
+| `orchestration-aws/` | EKS cluster, IRSA roles, RDS, Helm releases, ACM certs, AMP, Flink, and (when `spark_compute_enabled = true`) in-cluster Spark Operator compute node groups |
 | `zipline-aws/` | Your deployment — wires together base-aws and orchestration-aws |
 | `charts/` | Helm chart for the zipline-orchestration stack |
 
@@ -67,107 +67,54 @@ tofu apply
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `environment` | `""` | Optional environment qualifier (e.g. `canary`, `prod`). When set, prepended to S3 bucket names for global-namespace disambiguation (e.g. `zipline-warehouse-canary-yourcompany`). Only needed when you run more than one environment per customer — see [Multi-environment deployments](#multi-environment-deployments). |
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
 | `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
 | `fetcher_replicas` | `3` | Number of fetcher pod replicas |
 | `fetcher_domain` | `""` | Custom domain for the Chronon fetcher service |
 | `eval_domain` | `""` | Custom domain for the eval service |
-| `ui_cert_arn` | `""` | ARN of an existing ACM certificate for the UI domain. Leave empty to let Terraform create a certificate when `ui_domain` is set. |
-| `hub_cert_arn` | `""` | ARN of an existing ACM certificate for the Hub API domain. Leave empty to let Terraform create a certificate when `hub_domain` is set. |
-| `fetcher_cert_arn` | `""` | ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to let Terraform create a certificate when `fetcher_domain` is set. |
-| `eval_cert_arn` | `""` | ARN of an existing ACM certificate for the eval domain. Leave empty to let Terraform create a certificate when `eval_domain` is set. |
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |
 | `databricks_client_secret` | `""` | Databricks service principal client secret for Unity Catalog (optional) |
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
+| `spark_compute_enabled` | `false` | Migration flag: enable in-cluster Spark Operator compute. See [In-cluster Spark compute](#in-cluster-spark-compute) below |
+| `compute_team_namespace_prefix` | `"zipline-"` | Prefix for compute team namespaces. Scopes the spark IRSA trust to `system:serviceaccount:<prefix>*:{spark-operator-spark,flink}` |
 
-## Multi-environment deployments
+## In-cluster Spark compute
 
-If you run more than one environment per customer (e.g. a canary alongside production), deploy each one to a **separate AWS account**. AWS resources are isolated per account, so most resources — EKS cluster, IAM roles, DynamoDB tables, EMR Serverless apps, Secrets Manager entries, CloudWatch log groups — can keep identical names across environments with no collision. The exception is **S3 bucket names, which live in a single global namespace across all of AWS**, so you must disambiguate them with the `environment` variable.
+Set `spark_compute_enabled = true` to migrate from external Spark compute
+(EMR Serverless / Dataproc) to in-cluster Spark Operator. This is a one-time
+flip per customer.
 
-### 1. AWS account setup
+When enabled, Terraform provisions only the IAM substrate: the
+`spark-compute-execution` IAM role with IRSA trust scoped to
+`system:serviceaccount:zipline-*:{spark-operator-spark,flink}`. The trust
+prefix means future Hub-created team namespaces inherit IRSA without a
+`tofu apply`.
 
-Create a separate AWS account per environment and configure one CLI profile per account in `~/.aws/config`:
+Everything else is rendered by the Helm chart:
+- The `zipline-default` team namespace with spark + flink ServiceAccounts
+  (IRSA-annotated), Role/RoleBinding, LimitRange, and two scoped
+  ResourceQuotas — one bounded by the `zipline-spark-driver` PriorityClass
+  (batch), one by the `zipline-flink-driver` PriorityClass (streaming).
+  Both quotas live in the one namespace.
+- PriorityClasses (`zipline-spark-driver`, `zipline-flink-driver`,
+  `zipline-compute-system`, `zipline-spark-pause`)
+- Spark Operator subchart, Spark History Server, Loki, NVMe daemonset, and
+  the optional warm pool — all in the `zipline-system` namespace (cluster
+  infrastructure, not per-team)
 
-```ini
-[profile zipline-canary]
-sso_session    = your-sso
-sso_account_id = 111111111111
-sso_role_name  = AdministratorAccess
-region         = us-west-2
+**Workloads share the existing default EKS node group.** Per-mode
+node-level segmentation (via Karpenter NodePools or additional managed
+node groups) is a follow-up. The chart's `compute.nodeLabels` block is
+defined as a forward-looking contract but is not stamped on pod specs
+today.
 
-[profile zipline-prod]
-sso_session    = your-sso
-sso_account_id = 222222222222
-sso_role_name  = AdministratorAccess
-region         = us-west-2
-```
-
-(Long-lived access keys or `assume-role` also work — match whatever your org's standard is.)
-
-Create a state-backend S3 bucket inside each account so each environment's Terraform state lives alongside the infrastructure it manages.
-
-### 2. Per-environment tfvars
-
-Maintain one `*.tfvars` file per environment. The only variable that has to differ is `environment`; the rest follow whatever you'd normally set:
-
-```hcl
-# canary.tfvars
-customer_name          = "your-company"
-environment            = "canary"                # → zipline-warehouse-canary-your-company
-aws_account_id         = "111111111111"          # safety check: fail apply if AWS_PROFILE points elsewhere
-region                 = "us-west-2"
-artifact_prefix        = "s3://your-zipline-artifacts-canary"
-terraform_state_bucket = "your-tfstate-canary"
-terraform_state_file   = "zipline-canary.tfstate"
-terraform_state_region = "us-west-2"
-# ... other vars
-```
-
-```hcl
-# prod.tfvars
-customer_name          = "your-company"
-environment            = ""                      # → zipline-warehouse-your-company (no prefix)
-aws_account_id         = "222222222222"
-region                 = "us-west-2"
-artifact_prefix        = "s3://your-zipline-artifacts-prod"
-terraform_state_bucket = "your-tfstate-prod"
-terraform_state_file   = "zipline-prod.tfstate"
-terraform_state_region = "us-west-2"
-```
-
-Setting `aws_account_id` is optional but strongly recommended once you have more than one environment — it wires the value into the AWS provider's `allowed_account_ids`, so terraform refuses to act if your resolved credentials point at the wrong account. An accidental `AWS_PROFILE=zipline-prod tofu apply -var-file=canary.tfvars` (or the reverse) fails fast instead of silently mutating the wrong stack. Leave it empty to skip the check.
-
-Leaving `environment` empty in one of the envs is fine — it just means that account's S3 buckets keep the un-prefixed names, which is the safe default for upgrading an existing single-environment deployment without renaming any buckets.
-
-### 3. Deploy
-
-Set the AWS profile to target the right account, then init + apply against the matching tfvars file. Use `tofu init -reconfigure` whenever you switch environments — the S3 backend bucket changes, so the local `.terraform/` cache needs to be re-pointed.
-
-```bash
-cd zipline-aws
-
-# Canary
-AWS_PROFILE=zipline-canary tofu init -reconfigure -var-file=canary.tfvars
-AWS_PROFILE=zipline-canary tofu apply -var-file=canary.tfvars
-
-# Production
-AWS_PROFILE=zipline-prod tofu init -reconfigure -var-file=prod.tfvars
-AWS_PROFILE=zipline-prod tofu apply -var-file=prod.tfvars
-```
-
-### What `environment` actually changes
-
-| Resource | `environment=""` | `environment="canary"` |
-|----------|------------------|------------------------|
-| Warehouse bucket | `zipline-warehouse-yourcompany` | `zipline-warehouse-canary-yourcompany` |
-| Logs bucket | `zipline-logs-yourcompany` | `zipline-logs-canary-yourcompany` |
-| EKS cluster, IAM roles, DynamoDB tables, EMR Serverless app, Secrets Manager, CloudWatch log groups, etc. | (unchanged — named after `customer_name`) | (unchanged — same as the env=`""` case) |
-
-Only globally-unique resources (S3) take the prefix. Everything else is named after `customer_name` alone and relies on account isolation for uniqueness.
+Day-0 customers leave `spark_compute_enabled = false`; jobs flow to EMR
+Serverless. The migration moment is a single `tofu apply` with the flag
+flipped, after which the chart renders the compute machinery and the Hub
+starts submitting in-cluster.
 
 ## Custom domains (HTTPS)
 
@@ -183,19 +130,7 @@ tofu apply \
   -var 'eval_domain=zipline-eval.yourcompany.com'
 ```
 
-By default, Terraform creates ACM certificates for each domain (initially in `Pending validation` state).
-
-To attach existing ACM certificates instead, pass the matching certificate ARN alongside each domain:
-
-```bash
-tofu apply \
-  -var 'ui_domain=zipline.yourcompany.com' \
-  -var 'ui_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example' \
-  -var 'hub_domain=zipline-hub.yourcompany.com' \
-  -var 'hub_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example'
-```
-
-For any service with a `*_cert_arn` value, Terraform skips creating the ACM certificate and attaches the supplied certificate to the NLB. The certificate must be in the same AWS region as the NLB and cover the configured domain.
+This creates ACM certificates for each domain (initially in `Pending validation` state).
 
 ### 2. Add ACM validation DNS records
 

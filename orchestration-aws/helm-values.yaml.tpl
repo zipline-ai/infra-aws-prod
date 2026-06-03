@@ -1,40 +1,109 @@
-global:
-  customer_name: "${customer_name}"
-  artifact_prefix: "${artifact_prefix}"
+# ============================================================================
+# Rendered by Terraform (orchestration-aws/helm.tf) from terraform.tfvars +
+# module outputs. Mirrors the chart's infra/platform/compute layering — see
+# charts/zipline-orchestration/values.yaml for the schema. Only emit values
+# Terraform owns; chart defaults supply the rest.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Terraform-owned: infrastructure bindings.
+# ---------------------------------------------------------------------------
+infra:
+  global:
+    customerName: "${customer_name}"
+    artifactPrefix: "${artifact_prefix}"
+
+  aws:
+    region: "${aws_region}"
+    secretsArn: "${secrets_arn}"
+    kvTablePrefix: "${kv_table_prefix}"
+    kvEnableTtl: "${kv_enable_ttl}"
+    kvReplicaRegions: "${kv_replica_regions}"
+    eksClusterName: "${eks_cluster_name}"
+    flinkEksServiceAccount: "${flink_eks_service_account}"
+    flinkEksNamespace: "${flink_eks_namespace}"
+    databricksSpSecretArn: "${databricks_sp_secret_arn}"
+    emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
+    emrLogUri: "${emr_log_uri}"
+    emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
+
+  storage:
+    warehouseBucket: "${warehouse_bucket}"
+
+  database:
+    host: "${db_host}"
+    name: "${db_name}"
+
+  iam:
+    orchestrationIrsaArn: "${irsa_role_arn}"
+    sparkComputeRoleArn: "${spark_compute_role_arn}"
+
+  domains:
+    ui: "${ui_domain}"
+    hub: "${hub_domain}"
+    fetcher: "${fetcher_domain}"
+    eval: "${eval_domain}"
+
+  prometheus:
+    queryEndpoint: "${prometheus_query_endpoint}"
+    namespace: "zipline-system"
+
+# ---------------------------------------------------------------------------
+# Helm-owned platform behavior. Terraform supplies version + ingress hosts +
+# auth wiring; chart defaults provide images, replicas, resources.
+# ---------------------------------------------------------------------------
+platform:
   version: "${version}"
-  deploy_fetcher: ${deploy_fetcher}
+  deployFetcher: ${deploy_fetcher}
 
-imagePullSecrets:
-  - name: "${image_pull_secret}"
+  imagePullSecrets:
+    - name: "${image_pull_secret}"
 
-# AWS-specific configuration
-aws:
-  region: "${aws_region}"
-  secretsArn: "${secrets_arn}"
-  kvTablePrefix: "${kv_table_prefix}"
-  kvEnableTtl: "${kv_enable_ttl}"
-  kvReplicaRegions: "${kv_replica_regions}"
-  eksClusterName: "${eks_cluster_name}"
-  flinkEksServiceAccount: "${flink_eks_service_account}"
-  flinkEksNamespace: "${flink_eks_namespace}"
-  databricksSpSecretArn: "${databricks_sp_secret_arn}"
-  emrExecutionRoleArn: "${emr_serverless_execution_role_arn}"
-  emrLogUri: "${emr_log_uri}"
-  emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
+  serviceAccount:
+    create: true
+    name: orchestration-sa
 
-# Database configuration
-database:
-  host: "${db_host}"
-  name: "${db_name}"
+  orchestration:
+    fetcher:
+      replicas: ${fetcher_replicas}
 
-# Service account with IRSA
-serviceAccount:
-  create: true
-  name: orchestration-sa
-  annotations:
-    eks.amazonaws.com/role-arn: "${irsa_role_arn}"
+  ingress:
+    hub:
+      externalUrl: "${hub_external_url}"
 
-# Ingress NGINX Controller for UI
+  auth:
+    enabled: ${zipline_auth_enabled}
+    url: "${zipline_auth_url}"
+    secretsArn: "${auth_secrets_arn}"
+    jwksUrl: "${zipline_auth_jwksUrl}"
+    googleOauthClientId: "${google_oauth_client_id}"
+    googleOauthClientSecret: "${google_oauth_client_secret}"
+    githubOauthClientId: "${github_oauth_client_id}"
+    githubOauthClientSecret: "${github_oauth_client_secret}"
+    microsoftEntraTenantId: "${microsoft_entra_tenant_id}"
+    microsoftEntraOauthClientId: "${microsoft_entra_oauth_client_id}"
+    microsoftEntraOauthClientSecret: "${microsoft_entra_oauth_client_secret}"
+    ssoProviderId: "${sso_provider_id}"
+    ssoDomain: "${sso_domain}"
+    ssoIssuer: "${sso_issuer}"
+    ssoClientId: "${sso_client_id}"
+    ssoClientSecret: "${sso_client_secret}"
+    idpRoleMapping: "${idp_role_mapping}"
+    idpGroupClaim: "${idp_group_claim}"
+
+# ---------------------------------------------------------------------------
+# Helm-owned, gated on spark_compute_enabled. Chart defaults provide team
+# bootstrap config, sparkDefaults, history server, loki, etc.
+# ---------------------------------------------------------------------------
+compute:
+  enabled: ${spark_compute_enabled}
+  imagePrepull:
+    enabled: ${spark_compute_enabled}
+
+# ---------------------------------------------------------------------------
+# Helm subcharts: must stay at root. TF injects ACM cert ARNs into the NLB
+# annotations when present so TLS terminates at the load balancer.
+# ---------------------------------------------------------------------------
 ingress-nginx-ui:
   enabled: true
   controller:
@@ -60,7 +129,6 @@ ingress-nginx-ui:
         https: http
     electionID: ingress-controller-leader-ui
 
-# Ingress NGINX Controller for Fetcher
 ingress-nginx-fetcher:
   enabled: ${deploy_fetcher}
   fullnameOverride: nginx-fetcher
@@ -88,7 +156,6 @@ ingress-nginx-fetcher:
         https: http
     electionID: ingress-controller-leader-fetcher
 
-# Ingress NGINX Controller for Eval
 ingress-nginx-eval:
   enabled: true
   controller:
@@ -115,7 +182,6 @@ ingress-nginx-eval:
         https: http
     electionID: ingress-controller-leader-eval
 
-# Ingress NGINX Controller for Hub
 ingress-nginx-hub:
   enabled: true
   controller:
@@ -141,112 +207,3 @@ ingress-nginx-hub:
       targetPorts:
         https: http
     electionID: ingress-controller-leader-hub
-
-# Orchestration services configuration
-orchestration:
-  eval:
-    image: "ziplineai/eval-aws"
-    replicas: 1
-    port: 3904
-    resources:
-      limits:
-        cpu: "2"
-        memory: "8Gi"
-      requests:
-        cpu: "500m"
-        memory: "4Gi"
-
-  hub:
-    image: "ziplineai/hub-aws"
-    replicas: 1
-    port: 3903
-    resources:
-      limits:
-        cpu: "6"
-        memory: "28Gi"
-      requests:
-        cpu: "2"
-        memory: "8Gi"
-
-  ui:
-    image: "ziplineai/web-ui"
-    replicas: 1
-    port: 3000
-    resources:
-      limits:
-        cpu: "1000m"
-        memory: "1Gi"
-      requests:
-        cpu: "250m"
-        memory: "256Mi"
-
-  fetcher:
-    image: "ziplineai/chronon-fetcher"
-    tag: "dev"
-    replicas: ${fetcher_replicas}
-    port: 9000
-    resources:
-      limits:
-        cpu: "8"
-        memory: "32Gi"
-      requests:
-        cpu: "8"
-        memory: "32Gi"
-
-# Ingress configuration
-ingress:
-  ui:
-    className: nginx-ui
-%{ if ui_domain != "" }
-    host: "${ui_domain}"
-%{ endif }
-    annotations: {}
-  eval:
-    className: nginx-eval
-%{ if eval_domain != "" }
-    host: "${eval_domain}"
-%{ endif }
-    annotations: {}
-  hub:
-    className: nginx-hub
-%{ if hub_domain != "" }
-    host: "${hub_domain}"
-%{ endif }
-%{ if hub_external_url != "" }
-    externalUrl: "${hub_external_url}"
-%{ endif }
-    annotations:
-      nginx.ingress.kubernetes.io/health-check-path: "/ping"
-      nginx.ingress.kubernetes.io/proxy-body-size: "20m"
-  fetcher:
-    className: nginx-fetcher
-%{ if fetcher_domain != "" }
-    host: "${fetcher_domain}"
-%{ endif }
-    annotations:
-      nginx.ingress.kubernetes.io/health-check-path: "/ping"
-
-# Prometheus configuration
-prometheus:
-  queryEndpoint: "${prometheus_query_endpoint}"
-  namespace: "zipline-system"
-
-auth:
-  enabled: ${zipline_auth_enabled}
-  url: "${zipline_auth_url}"
-  secrets_arn: "${auth_secrets_arn}"
-  jwksUrl: "${zipline_auth_jwksUrl}"
-  google_oauth_client_id: "${google_oauth_client_id}"
-  google_oauth_client_secret: "${google_oauth_client_secret}"
-  github_oauth_client_id: "${github_oauth_client_id}"
-  github_oauth_client_secret: "${github_oauth_client_secret}"
-  microsoft_entra_tenant_id: "${microsoft_entra_tenant_id}"
-  microsoft_entra_oauth_client_id: "${microsoft_entra_oauth_client_id}"
-  microsoft_entra_oauth_client_secret: "${microsoft_entra_oauth_client_secret}"
-  sso_provider_id: "${sso_provider_id}"
-  sso_domain: "${sso_domain}"
-  sso_issuer: "${sso_issuer}"
-  sso_client_id: "${sso_client_id}"
-  sso_client_secret: "${sso_client_secret}"
-  idp_role_mapping: "${idp_role_mapping}"
-  idp_group_claim: "${idp_group_claim}"

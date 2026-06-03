@@ -1,92 +1,339 @@
+# ============================================================================
 # Default values for zipline-orchestration on AWS
+#
+# Ownership model (see infra-aws-prod README or charts/zipline-orchestration
+# CHART_OWNERSHIP.md for details):
+#
+#   infra:    Set by Terraform output; slow-changing AWS/EKS/RDS bindings.
+#             Customers do not hand-edit; these flow from terraform.tfvars
+#             into orchestration-aws/helm-values.yaml.tpl.
+#
+#   platform: Owned by Helm / the zipline admin CLI. Changes every chart
+#             upgrade: image tags, replicas, resources, ingress, auth.
+#
+#   compute:  Owned by Helm now, by a Hub-managed CRD later. Gated on
+#             spark_compute_enabled (the Terraform migration flag). When
+#             false, every compute-* template renders nothing.
+#
+#   Top-level keys for Helm subcharts (spark-operator, promtail, ingress-
+#   nginx-*) cannot move under these prefixes — Helm requires them at root.
+# ============================================================================
 
-global:
-  customer_name: ""
-  artifact_prefix: ""
+# ---------------------------------------------------------------------------
+# Terraform-owned: infrastructure bindings.
+# Filled by orchestration-aws/helm-values.yaml.tpl from TF outputs and tfvars.
+# ---------------------------------------------------------------------------
+infra:
+  global:
+    customerName: ""
+    artifactPrefix: ""
+
+  aws:
+    region: ""
+    secretsArn: ""
+    databricksSpSecretArn: ""
+    eksClusterName: ""
+    kvEnableTtl: "true"
+    kvTablePrefix: ""
+    kvReplicaRegions: ""
+    flinkEksServiceAccount: ""
+    flinkEksNamespace: ""
+    emrExecutionRoleArn: ""
+    emrLogUri: ""
+    emrCloudWatchLogGroup: ""
+
+  storage:
+    # S3 warehouse bucket name (no scheme prefix).
+    warehouseBucket: ""
+
+  database:
+    host: ""
+    name: "execution_info"
+
+  iam:
+    # Hub pod IRSA role ARN.
+    orchestrationIrsaArn: ""
+    # IAM role used by SparkApplication driver/executor SAs (per team
+    # namespace). Empty when spark_compute_enabled=false.
+    sparkComputeRoleArn: ""
+
+  domains:
+    ui: ""        # If empty, accessible via load balancer DNS.
+    hub: ""       # If empty, accessible via load balancer DNS.
+    fetcher: ""   # If empty, accessible via load balancer DNS.
+    eval: ""      # If empty, accessible via load balancer DNS.
+
+  prometheus:
+    queryEndpoint: ""
+    namespace: "zipline-system"
+
+# ---------------------------------------------------------------------------
+# Helm-owned: platform behavior. Tunable per release; safe to upgrade often.
+# ---------------------------------------------------------------------------
+platform:
   version: ""
-  deploy_fetcher: false
+  deployFetcher: false
 
-# AWS-specific configuration
-aws:
-  region: ""
-  secretsArn: ""
-  kvEnableTtl: "true"
-  databricksSpSecretArn: ""
-  eksClusterName: ""
-  flinkEksServiceAccount: ""
-  flinkEksNamespace: ""
-  emrExecutionRoleArn: ""
-  emrLogUri: ""
-  emrCloudWatchLogGroup: ""
+  imagePullSecrets:
+    - name: docker-hub-creds
 
-# Database configuration
-database:
-  host: ""
-  name: "execution_info"
+  serviceAccount:
+    create: true
+    name: orchestration-sa
 
-# Service account configuration with IRSA
-serviceAccount:
-  create: true
-  name: orchestration-sa
-  annotations:
-    eks.amazonaws.com/role-arn: ""
+  orchestration:
+    hub:
+      image: "ziplineai/hub-aws"
+      replicas: 1
+      port: 3903
+      resources:
+        limits:
+          cpu: "6"
+          memory: "28Gi"
+        requests:
+          cpu: "2"
+          memory: "8Gi"
 
-# Domain configuration
-domains:
-  ziplineUI: ""  # If empty, accessible via load balancer DNS
-  hub: ""        # If empty, accessible via load balancer DNS
+    ui:
+      image: "ziplineai/web-ui"
+      replicas: 1
+      port: 3000
+      resources:
+        limits:
+          cpu: "1000m"
+          memory: "1Gi"
+        requests:
+          cpu: "250m"
+          memory: "256Mi"
 
-# Orchestration services configuration
-orchestration:
-  hub:
-    image: "ziplineai/hub-aws"
-    replicas: 1
-    port: 3903
+    fetcher:
+      image: "ziplineai/chronon-fetcher"
+      replicas: 3
+      port: 9000
+      resources:
+        limits:
+          cpu: "8"
+          memory: "32Gi"
+        requests:
+          cpu: "8"
+          memory: "32Gi"
+
+    eval:
+      image: "ziplineai/eval-aws"
+      replicas: 1
+      port: 3904
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "4Gi"
+        limits:
+          cpu: "2"
+          memory: "8Gi"
+
+  ingress:
+    ui:
+      className: nginx-ui
+      annotations: {}
+    hub:
+      className: nginx-hub
+      # Override HUB_BASE_URL directly (e.g. http://my-hub-foo). Use when a
+      # custom ALB/proxy sits in front of the nginx ELB.
+      externalUrl: ""
+      annotations:
+        nginx.ingress.kubernetes.io/health-check-path: "/ping"
+        nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    fetcher:
+      className: nginx-fetcher
+      annotations:
+        nginx.ingress.kubernetes.io/health-check-path: "/ping"
+    eval:
+      className: nginx-eval
+      annotations: {}
+
+  auth:
+    enabled: false
+    url: ""
+    secretsArn: ""
+    jwksUrl: ""
+    googleOauthClientId: ""
+    googleOauthClientSecret: ""
+    githubOauthClientId: ""
+    githubOauthClientSecret: ""
+    microsoftEntraTenantId: ""
+    microsoftEntraOauthClientId: ""
+    microsoftEntraOauthClientSecret: ""
+    ssoProviderId: ""
+    ssoDomain: ""
+    ssoIssuer: ""
+    ssoClientId: ""
+    ssoClientSecret: ""
+    idpRoleMapping: ""
+    idpGroupClaim: ""
+
+# ---------------------------------------------------------------------------
+# Helm-owned, gated on compute.enabled (TF sets this from spark_compute_enabled).
+# Renders nothing when disabled. Per-team config in compute.teams[] is the
+# bootstrap path; future Hub CRDs will manage team namespaces dynamically.
+# ---------------------------------------------------------------------------
+compute:
+  enabled: false
+  cloudProvider: aws
+
+  # Forward-looking contract for per-(team, mode) node-level segmentation.
+  # NOT stamped on pod specs today — workloads share the existing default
+  # EKS node group. When Karpenter NodePools or per-mode managed node groups
+  # land, the Hub (or compute-nodepools template) will stamp these keys as
+  # nodeSelector on SparkApplication / FlinkDeployment specs. Customers
+  # should not override.
+  nodeLabels:
+    teamKey: zipline.ai/team
+    modeKey: zipline.ai/mode
+    modes:   [batch, streaming, model]
+
+  serviceAccount:
+    sparkName: spark-operator-spark
+    flinkName: flink
+
+  rbac:
+    create: true
+
+  sparkDefaults:
+    image: "ziplineai/spark:3.5-crucible-latest"
+    eventLogDir: ""           # Defaults to s3a://<infra.storage.warehouseBucket>/spark-events
+    nvmeEnabled: true
+    nvmeSetupImage: "amazon/aws-cli:2.27.33"
+    executorCores: 14
+    executorMemory: "48Gi"
+    driverCores: 2
+    driverMemory: "4Gi"
+    executorNodeSelector: {}
+    executorTolerations: []
+    spotNodeSelector: {}
+    driverNodeSelector: {}
+    driverTolerations: []
+
+  flinkDefaults:
+    image: "ziplineai/flink:1.20.3"
+    parallelism: 1
+
+  # Defaults the Hub uses when constructing SparkApplication / FlinkDeployment
+  # CRDs. Not customer-tunable per release — bake new defaults into the chart
+  # version.
+  hubSubmitterDefaults:
+    jarName: "cloud_aws_lib_deploy.jar"
+    jarUriOverride: ""
+    spotExecutors: false
+
+  driverPriorityClass:
+    enabled: true
+    name: "zipline-spark-driver"
+    value: 100
+
+  flinkDriverPriorityClass:
+    enabled: true
+    name: "zipline-flink-driver"
+    value: 100
+
+  systemPriorityClass:
+    enabled: true
+    name: "zipline-compute-system"
+    value: 1000
+
+  warmPool:
+    enabled: false
+    replicas: 2
+    priorityClassName: "zipline-spark-pause"
+    namespace: ""             # Defaults to release namespace.
     resources:
-      limits:
-        cpu: "6"
-        memory: "28Gi"
+      cpu: "2"
+      memory: "4Gi"
+    taintKey: ""
+    taintValue: "driver"
+    nodeSelector: {}
+    tolerations: []
+
+  imagePrepull:
+    enabled: false
+    images: []
+    nodeSelector: {}
+    tolerations: []
+
+  historyServer:
+    enabled: true
+    image: "ziplineai/spark:4.1-crucible-latest"
+    proxyBase: "spark-history"
+    daemonMemory: "5g"
+    hybridStoreMemory: "4g"
+    maxDiskUsage: "50g"
+    cleanerMaxAge: "3d"
+    retainedApplications: 50
+    resources:
       requests:
         cpu: "2"
+        memory: "6Gi"
+      limits:
         memory: "8Gi"
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 10Gi
 
-  ui:
-    image: "ziplineai/web-ui"
-    replicas: 1
-    port: 3000
-    resources:
-      limits:
-        cpu: "1000m"
-        memory: "1Gi"
-      requests:
-        cpu: "250m"
-        memory: "256Mi"
-
-  fetcher:
-    image: "ziplineai/chronon-fetcher"
-    replicas: 3
-    port: 9000
-    resources:
-      limits:
-        cpu: "8"
-        memory: "32Gi"
-      requests:
-        cpu: "8"
-        memory: "32Gi"
-
-  eval:
-    image: "ziplineai/eval-aws"
-    replicas: 1
-    port: 3904
+  loki:
+    enabled: true
+    image: "grafana/loki:3.4.2"
+    retention: "168h"
     resources:
       requests:
-        cpu: "500m"
-        memory: "4Gi"
+        cpu: 200m
+        memory: 256Mi
       limits:
-        cpu: "2"
-        memory: "8Gi"
+        memory: 1Gi
+    storage:
+      size: 10Gi
 
-# Ingress NGINX for UI
+  # Bootstrap team namespaces. Each entry produces a Namespace + spark/flink
+  # ServiceAccounts (IRSA-annotated with infra.iam.sparkComputeRoleArn) +
+  # Role/RoleBinding + LimitRange + scoped ResourceQuotas. The compute_team_
+  # namespace_prefix TF variable scopes the IRSA trust to all entries here.
+  # Hub-managed CRDs will replace this list eventually.
+  teams:
+    - name: default
+      namespace: zipline-default
+      limitRange:
+        default:
+          cpu: "2"
+          memory: "4Gi"
+        defaultRequest:
+          cpu: "500m"
+          memory: "1Gi"
+      # Multiple scoped quotas per namespace so batch and streaming budgets
+      # are tracked separately within one team namespace.
+      resourceQuotas:
+        - name: batch
+          scopeSelector:
+            matchExpressions:
+              - scopeName: PriorityClassName
+                operator: In
+                values:
+                  - zipline-spark-driver
+          hard:
+            requests.cpu: "200"
+            requests.memory: "800Gi"
+        - name: streaming
+          scopeSelector:
+            matchExpressions:
+              - scopeName: PriorityClassName
+                operator: In
+                values:
+                  - zipline-flink-driver
+          hard:
+            requests.cpu: "100"
+            requests.memory: "400Gi"
+
+# ---------------------------------------------------------------------------
+# Helm subcharts (must stay at root per Helm dependency convention).
+# ---------------------------------------------------------------------------
+
 ingress-nginx-ui:
   enabled: true
   controller:
@@ -103,7 +350,6 @@ ingress-nginx-ui:
     electionID: ingress-controller-leader-ui
     namespaceOverride: ingress-nginx-ui
 
-# Ingress NGINX for Fetcher
 ingress-nginx-fetcher:
   enabled: true
   fullnameOverride: nginx-fetcher
@@ -122,7 +368,6 @@ ingress-nginx-fetcher:
     electionID: ingress-controller-leader-fetcher
     namespaceOverride: ingress-nginx-fetcher
 
-# Ingress NGINX for Eval
 ingress-nginx-eval:
   enabled: true
   controller:
@@ -140,7 +385,6 @@ ingress-nginx-eval:
     electionID: ingress-controller-leader-eval
     namespaceOverride: ingress-nginx-eval
 
-# Ingress NGINX for Hub
 ingress-nginx-hub:
   enabled: true
   controller:
@@ -158,54 +402,34 @@ ingress-nginx-hub:
     electionID: ingress-controller-leader-hub
     namespaceOverride: ingress-nginx-hub
 
-# Ingress configuration
-ingress:
-  ui:
-    className: nginx-ui
-    host: ""
-    annotations: {}
-  hub:
-    className: nginx-hub
-    host: ""
-    externalUrl: ""  # Override HUB_BASE_URL directly (e.g. http://my-hub-foo). Use when a custom ALB/proxy sits in front of the nginx ELB.
-    annotations:
-      nginx.ingress.kubernetes.io/health-check-path: "/ping"
-      nginx.ingress.kubernetes.io/proxy-body-size: "20m"
-  fetcher:
-    className: nginx-fetcher
-    host: ""
-    annotations:
-      nginx.ingress.kubernetes.io/health-check-path: "/ping"
-  eval:
-    className: nginx-eval
-    host: ""
-    annotations: {}
+spark-operator:
+  enabled: true
+  controller:
+    replicas: 2
+    workers: 20
+    kubeAPIQPS: 100
+    kubeAPIBurst: 200
+  spark:
+    jobNamespaces:
+      - ""
 
-# Image pull secrets for Docker Hub
-imagePullSecrets:
-  - name: docker-hub-creds
-
-# Prometheus configuration
-prometheus:
-  queryEndpoint: ""
-  namespace: "zipline-system"
-
-auth:
-  enabled: false
-  url: ""
-  secrets_arn: ""
-  jwksUrl: ""
-  google_oauth_client_id: ""
-  google_oauth_client_secret: ""
-  github_oauth_client_id: ""
-  github_oauth_client_secret: ""
-  microsoft_entra_tenant_id: ""
-  microsoft_entra_oauth_client_id: ""
-  microsoft_entra_oauth_client_secret: ""
-  sso_provider_id: ""
-  sso_domain: ""
-  sso_issuer: ""
-  sso_client_id: ""
-  sso_client_secret: ""
-  idp_role_mapping: ""
-  idp_group_claim: ""
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://zipline-orchestration-loki:3100/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - cri: {}
+      extraRelabelConfigs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: drop
+          regex: kube-system|kube-public|kube-node-lease|cert-manager|gke-managed-.*|gmp-.*|default
+  tolerations:
+    - operator: Exists
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi

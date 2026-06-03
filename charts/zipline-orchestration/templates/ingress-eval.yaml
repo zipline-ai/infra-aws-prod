@@ -6,14 +6,14 @@ metadata:
   labels:
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
   annotations:
-    {{- with .Values.ingress.eval.annotations }}
+    {{- with .Values.platform.ingress.eval.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.eval.className }}
+  ingressClassName: {{ .Values.platform.ingress.eval.className }}
   rules:
-    {{- if .Values.ingress.eval.host }}
-    - host: {{ .Values.ingress.eval.host }}
+    {{- if .Values.infra.domains.eval }}
+    - host: {{ .Values.infra.domains.eval }}
       http:
     {{- else }}
     - http:

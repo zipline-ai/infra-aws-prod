@@ -1,4 +1,4 @@
-{{ if .Values.global.deploy_fetcher }}
+{{ if .Values.platform.deployFetcher }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +8,7 @@ metadata:
     app: fetcher
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.orchestration.fetcher.replicas }}
+  replicas: {{ .Values.platform.orchestration.fetcher.replicas }}
   strategy:
     type: Recreate
   selector:
@@ -19,28 +19,28 @@ spec:
       labels:
         app: fetcher
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
-      {{- with .Values.imagePullSecrets }}
+      serviceAccountName: {{ .Values.platform.serviceAccount.name }}
+      {{- with .Values.platform.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: fetcher
-          image: "{{ .Values.orchestration.fetcher.image }}:{{ .Values.global.version }}"
+          image: "{{ .Values.platform.orchestration.fetcher.image }}:{{ .Values.platform.version }}"
           imagePullPolicy: Always
           env:
             - name: PROVIDER
               value: "AWS"
             - name: FETCHER_PORT
-              value: "{{ .Values.orchestration.fetcher.port }}"
+              value: "{{ .Values.platform.orchestration.fetcher.port }}"
             - name: AWS_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: AWS_DEFAULT_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: KV_TABLE_PREFIX
-              value: "{{ .Values.aws.kvTablePrefix }}"
+              value: "{{ .Values.infra.aws.kvTablePrefix }}"
             - name: KV_REPLICA_REGIONS
-              value: "{{ .Values.aws.kvReplicaRegions }}"
+              value: "{{ .Values.infra.aws.kvReplicaRegions }}"
             - name: CHRONON_METRICS_READER
               value: "http"
             - name: EXPORTER_OTLP_ENDPOINT
@@ -48,19 +48,19 @@ spec:
             - name: USE_ZGC
               value: "true"
           ports:
-            - containerPort: {{ .Values.orchestration.fetcher.port }}
+            - containerPort: {{ .Values.platform.orchestration.fetcher.port }}
           resources:
-          {{- toYaml .Values.orchestration.fetcher.resources | nindent 12 }}
+          {{- toYaml .Values.platform.orchestration.fetcher.resources | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /ping
-              port: {{ .Values.orchestration.fetcher.port }}
+              port: {{ .Values.platform.orchestration.fetcher.port }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /ping
-              port: {{ .Values.orchestration.fetcher.port }}
+              port: {{ .Values.platform.orchestration.fetcher.port }}
             initialDelaySeconds: 10
             periodSeconds: 5
 ---
@@ -77,7 +77,7 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: {{ .Values.orchestration.fetcher.port }}
+      targetPort: {{ .Values.platform.orchestration.fetcher.port }}
       protocol: TCP
   type: ClusterIP
 {{ end }}

@@ -1,4 +1,4 @@
-{{ if .Values.global.deploy_fetcher }}
+{{ if .Values.platform.deployFetcher }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -7,14 +7,14 @@ metadata:
   labels:
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
   annotations:
-    {{- with .Values.ingress.fetcher.annotations }}
+    {{- with .Values.platform.ingress.fetcher.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.fetcher.className }}
+  ingressClassName: {{ .Values.platform.ingress.fetcher.className }}
   rules:
-    {{- if .Values.ingress.fetcher.host }}
-    - host: {{ .Values.ingress.fetcher.host }}
+    {{- if .Values.infra.domains.fetcher }}
+    - host: {{ .Values.infra.domains.fetcher }}
       http:
     {{- else }}
     - http:

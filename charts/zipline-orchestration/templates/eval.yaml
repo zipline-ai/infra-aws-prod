@@ -7,7 +7,7 @@ metadata:
     app: eval
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.orchestration.eval.replicas }}
+  replicas: {{ .Values.platform.orchestration.eval.replicas }}
   strategy:
     type: Recreate
   selector:
@@ -18,20 +18,20 @@ spec:
       labels:
         app: eval
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
-      {{- with .Values.imagePullSecrets }}
+      serviceAccountName: {{ .Values.platform.serviceAccount.name }}
+      {{- with .Values.platform.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: eval
-          image: "{{ .Values.orchestration.eval.image }}:{{ .Values.global.version }}"
+          image: "{{ .Values.platform.orchestration.eval.image }}:{{ .Values.platform.version }}"
           imagePullPolicy: Always
           env:
             - name: ORCHESTRATION_PORT
-              value: "{{ .Values.orchestration.eval.port }}"
+              value: "{{ .Values.platform.orchestration.eval.port }}"
             - name: DB_URL
-              value: "jdbc:postgresql://{{ .Values.database.host }}/{{ .Values.database.name }}"
+              value: "jdbc:postgresql://{{ .Values.infra.database.host }}/{{ .Values.infra.database.name }}"
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -43,16 +43,16 @@ spec:
                   name: db-credentials
                   key: password
             - name: CUSTOMER_ID
-              value: {{ .Values.global.customer_name | quote }}
+              value: {{ .Values.infra.global.customerName | quote }}
             - name: ARTIFACT_PREFIX
-              value: {{ .Values.global.artifact_prefix | quote }}
+              value: {{ .Values.infra.global.artifactPrefix | quote }}
             - name: AWS_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: AWS_DEFAULT_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: KV_TABLE_PREFIX
-              value: "{{ .Values.aws.kvTablePrefix }}"
-            {{- if .Values.aws.databricksSpSecretArn }}
+              value: "{{ .Values.infra.aws.kvTablePrefix }}"
+            {{- if .Values.infra.aws.databricksSpSecretArn }}
             - name: DATABRICKS_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -65,17 +65,17 @@ spec:
                   key: client_secret
             {{- end }}
             - name: AUTH_ENABLED
-              value: "{{ .Values.auth.enabled }}"
+              value: "{{ .Values.platform.auth.enabled }}"
             - name: AUTH_JWKS_URL
-              value: "{{ .Values.auth.jwksUrl }}"
+              value: "{{ .Values.platform.auth.jwksUrl }}"
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
           ports:
-            - containerPort: {{ .Values.orchestration.eval.port }}
+            - containerPort: {{ .Values.platform.orchestration.eval.port }}
           resources:
-          {{- toYaml .Values.orchestration.eval.resources | nindent 12 }}
+          {{- toYaml .Values.platform.orchestration.eval.resources | nindent 12 }}
       volumes:
         - name: secrets-store-inline
           csi:
@@ -97,6 +97,6 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: {{ .Values.orchestration.eval.port }}
+      targetPort: {{ .Values.platform.orchestration.eval.port }}
       protocol: TCP
   type: ClusterIP

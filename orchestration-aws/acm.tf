@@ -2,16 +2,9 @@
 # These certificates are FREE when used with AWS services (NLB, ALB, CloudFront)
 # They use TLS 1.2/1.3 (modern, secure encryption)
 
-locals {
-  ui_cert_arn      = var.ui_domain != "" ? (var.ui_cert_arn != "" ? var.ui_cert_arn : aws_acm_certificate.ui_cert[0].arn) : ""
-  hub_cert_arn     = var.hub_domain != "" ? (var.hub_cert_arn != "" ? var.hub_cert_arn : aws_acm_certificate.hub_cert[0].arn) : ""
-  fetcher_cert_arn = var.fetcher_domain != "" ? (var.fetcher_cert_arn != "" ? var.fetcher_cert_arn : aws_acm_certificate.fetcher_cert[0].arn) : ""
-  eval_cert_arn    = var.eval_domain != "" ? (var.eval_cert_arn != "" ? var.eval_cert_arn : aws_acm_certificate.eval_cert[0].arn) : ""
-}
-
 # Certificate for UI domain (e.g., canary-aws.zipline.ai)
 resource "aws_acm_certificate" "ui_cert" {
-  count = var.ui_domain != "" && var.ui_cert_arn == "" ? 1 : 0
+  count = var.ui_domain != "" ? 1 : 0
 
   domain_name       = var.ui_domain
   validation_method = "DNS" # Prove ownership by adding a CNAME record
@@ -28,7 +21,7 @@ resource "aws_acm_certificate" "ui_cert" {
 
 # Certificate for Hub domain (e.g., canary-orch-aws.zipline.ai)
 resource "aws_acm_certificate" "hub_cert" {
-  count = var.hub_domain != "" && var.hub_cert_arn == "" ? 1 : 0
+  count = var.hub_domain != "" ? 1 : 0
 
   domain_name       = var.hub_domain
   validation_method = "DNS"
@@ -44,7 +37,7 @@ resource "aws_acm_certificate" "hub_cert" {
 
 # Certificate for Fetcher domain (e.g., canary-fetcher-aws.zipline.ai)
 resource "aws_acm_certificate" "fetcher_cert" {
-  count = var.fetcher_domain != "" && var.fetcher_cert_arn == "" ? 1 : 0
+  count = var.fetcher_domain != "" ? 1 : 0
 
   domain_name       = var.fetcher_domain
   validation_method = "DNS"
@@ -60,7 +53,7 @@ resource "aws_acm_certificate" "fetcher_cert" {
 
 # Certificate for Eval domain (e.g., canary-eval-aws.zipline.ai)
 resource "aws_acm_certificate" "eval_cert" {
-  count = var.eval_domain != "" && var.eval_cert_arn == "" ? 1 : 0
+  count = var.eval_domain != "" ? 1 : 0
 
   domain_name       = var.eval_domain
   validation_method = "DNS"
@@ -78,7 +71,7 @@ resource "aws_acm_certificate" "eval_cert" {
 # You'll need to add these CNAME records to your DNS provider to validate the certificates
 output "ui_cert_validation_records" {
   description = "DNS records to add for UI certificate validation"
-  value = var.ui_domain != "" && var.ui_cert_arn == "" ? [
+  value = var.ui_domain != "" ? [
     for dvo in aws_acm_certificate.ui_cert[0].domain_validation_options : {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
@@ -89,7 +82,7 @@ output "ui_cert_validation_records" {
 
 output "hub_cert_validation_records" {
   description = "DNS records to add for Hub certificate validation"
-  value = var.hub_domain != "" && var.hub_cert_arn == "" ? [
+  value = var.hub_domain != "" ? [
     for dvo in aws_acm_certificate.hub_cert[0].domain_validation_options : {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
@@ -100,7 +93,7 @@ output "hub_cert_validation_records" {
 
 output "eval_cert_validation_records" {
   description = "DNS records to add for Eval certificate validation"
-  value = var.eval_domain != "" && var.eval_cert_arn == "" ? [
+  value = var.eval_domain != "" ? [
     for dvo in aws_acm_certificate.eval_cert[0].domain_validation_options : {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
@@ -112,17 +105,17 @@ output "eval_cert_validation_records" {
 # Output the certificate ARNs (needed by the load balancer)
 output "ui_cert_arn" {
   description = "ARN of the UI certificate"
-  value       = local.ui_cert_arn
+  value       = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
 }
 
 output "hub_cert_arn" {
   description = "ARN of the Hub certificate"
-  value       = local.hub_cert_arn
+  value       = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
 }
 
 output "fetcher_cert_validation_records" {
   description = "DNS records to add for Fetcher certificate validation"
-  value = var.fetcher_domain != "" && var.fetcher_cert_arn == "" ? [
+  value = var.fetcher_domain != "" ? [
     for dvo in aws_acm_certificate.fetcher_cert[0].domain_validation_options : {
       name  = dvo.resource_record_name
       type  = dvo.resource_record_type
@@ -133,10 +126,10 @@ output "fetcher_cert_validation_records" {
 
 output "fetcher_cert_arn" {
   description = "ARN of the Fetcher certificate"
-  value       = local.fetcher_cert_arn
+  value       = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
 }
 
 output "eval_cert_arn" {
   description = "ARN of the Eval certificate"
-  value       = local.eval_cert_arn
+  value       = var.eval_domain != "" ? aws_acm_certificate.eval_cert[0].arn : ""
 }

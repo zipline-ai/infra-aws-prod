@@ -1,0 +1,140 @@
+{{- if and .Values.compute.enabled .Values.compute.historyServer.enabled }}
+{{- $systemNamespace := include "zipline-orchestration.computeSystemNamespace" . }}
+{{- if .Values.compute.historyServer.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spark-history-server
+  namespace: {{ $systemNamespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+    app.kubernetes.io/component: spark-history-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.compute.historyServer.persistence.storageClass }}
+  storageClassName: {{ .Values.compute.historyServer.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.compute.historyServer.persistence.size | default "10Gi" }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-history-server
+  namespace: {{ $systemNamespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+    app.kubernetes.io/component: spark-history-server
+spec:
+  type: ClusterIP
+  ports:
+    - port: 18080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: spark-history-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-history-server
+  namespace: {{ $systemNamespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+    app.kubernetes.io/component: spark-history-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: spark-history-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: spark-history-server
+    spec:
+      serviceAccountName: {{ .Values.platform.serviceAccount.name }}
+      {{- if and .Values.compute.systemPriorityClass.enabled .Values.compute.systemPriorityClass.name }}
+      priorityClassName: {{ .Values.compute.systemPriorityClass.name }}
+      {{- end }}
+      tolerations:
+        - key: "kubernetes.io/arch"
+          operator: "Equal"
+          value: "arm64"
+          effect: "NoSchedule"
+      initContainers:
+        - name: fix-permissions
+          image: {{ .Values.compute.historyServer.image }}
+          command: ["sh", "-c", "mkdir -p /data/spark-history-cache && chown -R spark:spark /data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: history-cache
+              mountPath: /data
+      containers:
+        - name: history-server
+          image: {{ .Values.compute.historyServer.image }}
+          imagePullPolicy: Always
+          command:
+            - /opt/spark/bin/spark-class
+            - org.apache.spark.deploy.history.HistoryServer
+          env:
+            - name: SPARK_HISTORY_OPTS
+              value: >-
+                -Dspark.history.fs.logDirectory={{ trimSuffix "/" (include "zipline-orchestration.sparkEventLogDir" .) }}
+                -Dspark.history.store.hybridStore.enabled=true
+                -Dspark.history.store.hybridStore.diskBackend=ROCKSDB
+                -Dspark.history.store.hybridStore.maxMemoryUsage={{ .Values.compute.historyServer.hybridStoreMemory | default "4g" }}
+                -Dspark.history.store.path=/data/spark-history-cache
+                -Dspark.history.store.maxDiskUsage={{ .Values.compute.historyServer.maxDiskUsage | default "50g" }}
+                -Dspark.history.fs.numReplayThreads=8
+                -Dspark.history.fs.cleaner.enabled=true
+                -Dspark.history.fs.cleaner.maxAge={{ .Values.compute.historyServer.cleanerMaxAge | default "3d" }}
+                -Dspark.history.retainedApplications={{ .Values.compute.historyServer.retainedApplications | default 50 }}
+                -Dspark.history.ui.port=18080
+                -Dspark.ui.proxyBase={{ include "zipline-orchestration.historyServerProxyBase" . }}
+                {{- if eq (.Values.compute.cloudProvider | default "aws") "aws" }}
+                -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.WebIdentityTokenCredentialsProvider
+                -Dspark.hadoop.fs.s3a.connection.maximum=200
+                -Dspark.hadoop.fs.s3a.threads.max=50
+                {{- end }}
+            - name: SPARK_DAEMON_MEMORY
+              value: {{ .Values.compute.historyServer.daemonMemory | default "5g" | quote }}
+            - name: SPARK_DAEMON_JAVA_OPTS
+              value: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication"
+          ports:
+            - name: http
+              containerPort: 18080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.compute.historyServer.resources | nindent 12 }}
+          volumeMounts:
+            - name: history-cache
+              mountPath: /data
+      volumes:
+        - name: history-cache
+          {{- if .Values.compute.historyServer.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: spark-history-server
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

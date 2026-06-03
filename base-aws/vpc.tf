@@ -74,12 +74,12 @@ resource "aws_vpc_security_group_egress_rule" "allow_access" {
 }
 
 resource "aws_internet_gateway" "gw" {
-  count = var.existing_vpc_id != "" ? 0 : 1
+  count  = var.existing_vpc_id != "" ? 0 : 1
   vpc_id = aws_vpc.main[0].id
 }
 
 resource "aws_route_table" "r" {
-  count = var.existing_vpc_id != "" ? 0 : 1
+  count  = var.existing_vpc_id != "" ? 0 : 1
   vpc_id = aws_vpc.main[0].id
 
   route {
@@ -89,7 +89,7 @@ resource "aws_route_table" "r" {
 }
 
 resource "aws_main_route_table_association" "a" {
-  count           = var.existing_vpc_id != "" ? 0 : 1
+  count          = var.existing_vpc_id != "" ? 0 : 1
   vpc_id         = aws_vpc.main[0].id
   route_table_id = aws_route_table.r[0].id
 }
@@ -112,9 +112,11 @@ resource "aws_vpc_endpoint" "dynamodb" {
 }
 
 output "primary_subnet_id" {
-  value = var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id
+  description = "Primary subnet ID used by the Zipline stack."
+  value       = var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id
 }
 
 output "secondary_subnet_id" {
-  value = var.existing_vpc_id != "" ? var.existing_vpc_secondary_subnet_id : aws_subnet.secondary[0].id
+  description = "Secondary subnet ID used by the Zipline stack."
+  value       = var.existing_vpc_id != "" ? var.existing_vpc_secondary_subnet_id : aws_subnet.secondary[0].id
 }

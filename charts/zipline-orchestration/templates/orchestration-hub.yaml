@@ -7,7 +7,7 @@ metadata:
     app: orchestration-hub
     {{- include "zipline-orchestration.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.orchestration.hub.replicas }}
+  replicas: {{ .Values.platform.orchestration.hub.replicas }}
   strategy:
     type: Recreate
   selector:
@@ -18,20 +18,20 @@ spec:
       labels:
         app: orchestration-hub
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
-      {{- with .Values.imagePullSecrets }}
+      serviceAccountName: {{ .Values.platform.serviceAccount.name }}
+      {{- with .Values.platform.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: orchestration-hub
-          image: "{{ .Values.orchestration.hub.image }}:{{ .Values.global.version }}"
+          image: "{{ .Values.platform.orchestration.hub.image }}:{{ .Values.platform.version }}"
           imagePullPolicy: Always
           env:
             - name: VERTICLE_CLASS
               value: "ai.chronon.hub.AWSOrchestrationVerticle,ai.chronon.hub.AWSWorkflowExecutionVerticle"
             - name: DB_URL
-              value: "jdbc:postgresql://{{ .Values.database.host }}/{{ .Values.database.name }}"
+              value: "jdbc:postgresql://{{ .Values.infra.database.host }}/{{ .Values.infra.database.name }}"
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -43,47 +43,64 @@ spec:
                   name: db-credentials
                   key: password
             - name: CUSTOMER_ID
-              value: {{ .Values.global.customer_name | quote }}
+              value: {{ .Values.infra.global.customerName | quote }}
             - name: ARTIFACT_PREFIX
-              value: {{ .Values.global.artifact_prefix | quote }}
+              value: {{ .Values.infra.global.artifactPrefix | quote }}
             - name: ORCHESTRATION_PORT
-              value: "{{ .Values.orchestration.hub.port }}"
+              value: "{{ .Values.platform.orchestration.hub.port }}"
             - name: HUB_FRONTEND_URL
               value: "http://orchestration-ui-service/"
-            {{- if .Values.ingress.hub.externalUrl }}
+            {{- if .Values.platform.ingress.hub.externalUrl }}
             - name: HUB_BASE_URL
-              value: {{ .Values.ingress.hub.externalUrl | quote }}
-            {{- else if .Values.ingress.hub.host }}
+              value: {{ .Values.platform.ingress.hub.externalUrl | quote }}
+            {{- else if .Values.infra.domains.hub }}
             - name: HUB_BASE_URL
-              value: "https://{{ .Values.ingress.hub.host }}"
+              value: "https://{{ .Values.infra.domains.hub }}"
             {{- end }}
             - name: AWS_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: AWS_DEFAULT_REGION
-              value: "{{ .Values.aws.region }}"
+              value: "{{ .Values.infra.aws.region }}"
             - name: CHRONON_METRICS_READER
               value: "http"
             - name: KV_TABLE_PREFIX
-              value: "{{ .Values.aws.kvTablePrefix }}"
+              value: "{{ .Values.infra.aws.kvTablePrefix }}"
             - name: KV_ENABLE_TTL
-              value: "{{ .Values.aws.kvEnableTtl }}"
+              value: "{{ .Values.infra.aws.kvEnableTtl }}"
             - name: KV_REPLICA_REGIONS
-              value: "{{ .Values.aws.kvReplicaRegions }}"
+              value: "{{ .Values.infra.aws.kvReplicaRegions }}"
             - name: FLINK_EKS_SERVICE_ACCOUNT
-              value: "{{ .Values.aws.flinkEksServiceAccount }}"
+              value: "{{ .Values.infra.aws.flinkEksServiceAccount }}"
             - name: FLINK_EKS_NAMESPACE
-              value: "{{ .Values.aws.flinkEksNamespace }}"
+              value: "{{ .Values.infra.aws.flinkEksNamespace }}"
             - name: EKS_CLUSTER_NAME
-              value: "{{ .Values.aws.eksClusterName }}"
+              value: "{{ .Values.infra.aws.eksClusterName }}"
             - name: EMR_EXECUTION_ROLE_ARN
-              value: "{{ .Values.aws.emrExecutionRoleArn }}"
+              value: "{{ .Values.infra.aws.emrExecutionRoleArn }}"
             - name: EMR_LOG_URI
-              value: "{{ .Values.aws.emrLogUri }}"
+              value: "{{ .Values.infra.aws.emrLogUri }}"
             - name: EMR_CLOUDWATCH_LOG_GROUP
-              value: "{{ .Values.aws.emrCloudWatchLogGroup }}"
+              value: "{{ .Values.infra.aws.emrCloudWatchLogGroup }}"
+            {{- if .Values.compute.enabled }}
+            # In-cluster compute env contract — consumed by platform's
+            # AWSWorkflowExecutionVerticle (gate) and K8sSubmitter (config),
+            # via the K8sUtils constants in k8s/.../K8sUtils.scala.
+            - name: IN_CLUSTER_COMPUTE_ENABLED
+              value: "true"
+            - name: K8S_NAMESPACE
+              value: {{ include "zipline-orchestration.computeJobNamespace" . | quote }}
+            - name: SPARK_IMAGE
+              value: "{{ .Values.compute.sparkDefaults.image }}"
+            - name: SPARK_SERVICE_ACCOUNT
+              value: "{{ .Values.compute.serviceAccount.sparkName }}"
+            - name: SPARK_HISTORY_SERVER_URL
+              value: "http://spark-history-server.{{ .Release.Namespace }}.svc.cluster.local:18080"
+            - name: SPARK_EVENT_LOG_DIR
+              value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
+            {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
-            {{- if .Values.aws.databricksSpSecretArn }}
+            {{- if .Values.infra.aws.databricksSpSecretArn }}
             - name: DATABRICKS_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -96,27 +113,27 @@ spec:
                   key: client_secret
             {{- end }}
             - name: AUTH_ENABLED
-              value: "{{ .Values.auth.enabled }}"
+              value: "{{ .Values.platform.auth.enabled }}"
             - name: AUTH_JWKS_URL
-              value: "{{ .Values.auth.jwksUrl }}"
+              value: "{{ .Values.platform.auth.jwksUrl }}"
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
           ports:
-            - containerPort: {{ .Values.orchestration.hub.port }}
+            - containerPort: {{ .Values.platform.orchestration.hub.port }}
           resources:
-          {{- toYaml .Values.orchestration.hub.resources | nindent 12 }}
+          {{- toYaml .Values.platform.orchestration.hub.resources | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /ping
-              port: {{ .Values.orchestration.hub.port }}
+              port: {{ .Values.platform.orchestration.hub.port }}
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /ping
-              port: {{ .Values.orchestration.hub.port }}
+              port: {{ .Values.platform.orchestration.hub.port }}
             initialDelaySeconds: 10
             periodSeconds: 5
       volumes:
@@ -140,6 +157,6 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: {{ .Values.orchestration.hub.port }}
+      targetPort: {{ .Values.platform.orchestration.hub.port }}
       protocol: TCP
   type: ClusterIP

@@ -1,5 +1,22 @@
 # Helm releases for Zipline Orchestration
 
+resource "terraform_data" "spark_compute_config_validation" {
+  count = var.spark_compute_enabled ? 1 : 0
+
+  input = {
+    enabled                       = var.spark_compute_enabled
+    compute_team_namespace_prefix = var.compute_team_namespace_prefix
+    warehouse_bucket              = var.warehouse_bucket
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.warehouse_bucket) != ""
+      error_message = "warehouse_bucket must be set when spark_compute_enabled is true."
+    }
+  }
+}
+
 # Install Secrets Store CSI Driver
 resource "helm_release" "secrets_store_csi" {
   name       = "secrets-store-csi-driver"
@@ -221,6 +238,13 @@ resource "helm_release" "zipline_orchestration" {
   wait    = false
   timeout = 600
 
+  # The zipline admin CLI is expected to run "helm upgrade" for chart-version
+  # bumps once the install is bootstrapped. Ignore the version attribute so a
+  # CLI-driven upgrade doesn't get reverted on the next `terraform apply`.
+  lifecycle {
+    ignore_changes = [version]
+  }
+
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
       customer_name    = var.name_prefix
@@ -250,16 +274,26 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
+      # In-cluster Spark Operator compute (migration flag). All operational
+      # knobs (image tags, executor sizing, NVMe, warm pool, etc.) live in
+      # the chart's values.yaml or a customer-supplied values file. Terraform
+      # only injects the infra bindings: the migration flag, IRSA role ARN,
+      # warehouse bucket, and the team namespace prefix the chart bootstraps.
+      spark_compute_enabled         = var.spark_compute_enabled
+      compute_team_namespace_prefix = var.compute_team_namespace_prefix
+      warehouse_bucket              = var.warehouse_bucket
+      spark_compute_role_arn        = var.spark_compute_enabled ? aws_iam_role.spark_compute_execution[0].arn : ""
+
       # EMR Serverless (execution role ARN derived by naming convention)
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"
       emr_log_uri                       = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.name_prefix}/emr/"
       emr_cloudwatch_log_group          = var.emr_cloudwatch_log_group
 
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
-      ui_cert_arn      = local.ui_cert_arn
-      hub_cert_arn     = local.hub_cert_arn
-      fetcher_cert_arn = local.fetcher_cert_arn
-      eval_cert_arn    = local.eval_cert_arn
+      ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
+      hub_cert_arn     = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
+      fetcher_cert_arn = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
+      eval_cert_arn    = var.eval_domain != "" ? aws_acm_certificate.eval_cert[0].arn : ""
 
       # Databricks service principal secret ARN (empty if not configured)
       databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
@@ -299,6 +333,7 @@ resource "helm_release" "zipline_orchestration" {
     aws_acm_certificate.hub_cert,
     aws_acm_certificate.fetcher_cert,
     aws_acm_certificate.eval_cert,
+    terraform_data.spark_compute_config_validation,
   ]
 }
 
