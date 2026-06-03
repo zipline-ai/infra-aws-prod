@@ -37,9 +37,10 @@ Edit the `backend "s3"` block in `zipline-aws/providers.tf` to point to your own
 
 ```hcl
 backend "s3" {
-  bucket = "your-terraform-state-bucket"
-  key    = "zipline-state"
-  region = "us-west-2"
+  bucket  = "your-terraform-state-bucket"
+  key     = "zipline-state"
+  region  = "us-west-2"
+  encrypt = true
 }
 ```
 
@@ -79,6 +80,56 @@ tofu apply
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
+| `encrypt_at_rest` | `true` | Enable at-rest encryption for the Zipline RDS Postgres instance |
+| `encryption_kms_key_arn` | `""` | Optional customer managed KMS key ARN for at-rest encryption. Leave empty to use AWS managed service keys |
+| `encryption_kms_key_arns` | `{}` | Optional customer managed KMS key ARNs keyed by region for services that need per-region keys, such as DynamoDB Global Tables replicas |
+
+## Encryption at rest
+
+By default, this deployment enables at-rest encryption for the managed data stores it creates:
+
+- RDS Postgres storage
+- Zipline warehouse and logs S3 buckets
+- DynamoDB tables
+- Secrets Manager entries created by the stack
+- Terraform state stored in the configured S3 backend
+
+If your organization requires a customer managed KMS key, set `encryption_kms_key_arn` in `zipline-aws/terraform.tfvars`:
+
+```hcl
+encrypt_at_rest        = true
+encryption_kms_key_arn = "arn:aws:kms:us-west-2:123456789012:key/00000000-0000-0000-0000-000000000000"
+```
+
+When `encryption_kms_key_arn` is empty, AWS managed service keys are used. Make sure the KMS key policy allows the AWS services and IAM principals in this stack to use the key, including RDS, S3, DynamoDB, Secrets Manager, EKS node roles, and any operators running `tofu apply`.
+
+If `dynamodb_replica_regions` is set for `CHRONON_METADATA`, a single-region KMS key ARN cannot be reused in every replica region. Use one of these options:
+
+- Set `encryption_kms_key_arn` to a multi-Region KMS key ARN.
+- Provide region-specific replica keys in `encryption_kms_key_arns`.
+
+```hcl
+encryption_kms_key_arn = "arn:aws:kms:us-west-2:123456789012:key/mrk-00000000000000000000000000000000"
+
+encryption_kms_key_arns = {
+  eu-west-1 = "arn:aws:kms:eu-west-1:123456789012:key/mrk-11111111111111111111111111111111"
+}
+```
+
+### Existing RDS instances
+
+RDS storage encryption cannot be enabled in place on an existing unencrypted Postgres instance. If this stack already created an unencrypted DB, do not expect a normal `tofu apply` to encrypt it without replacement. Migrate with an encrypted snapshot instead:
+
+1. Schedule a maintenance window.
+2. Create a manual snapshot of the existing DB.
+3. Copy the snapshot with encryption enabled, using either your customer managed key or the AWS managed RDS key.
+4. Restore a new DB instance from the encrypted snapshot.
+5. Import the new encrypted DB into Terraform state or otherwise update Terraform to manage the restored instance.
+6. Cut application traffic over to the new endpoint.
+7. Verify `StorageEncrypted` is `true`.
+8. Retire the old unencrypted DB only after backups and application validation are complete.
+
+Take and verify a manual snapshot before any destructive DB operation. This is especially important because deleting an RDS instance with `skip_final_snapshot = true` will not create a final automatic snapshot.
 
 ## Multi-environment deployments
 
