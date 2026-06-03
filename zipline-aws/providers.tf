@@ -90,6 +90,12 @@ module "base_setup" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # Optional Kubernetes Spark compute configuration
+  spark_compute_enabled        = var.spark_compute_enabled
+  spark_compute_namespace      = var.spark_compute_namespace
+  spark_compute_image_registry = var.spark_compute_image_registry
+  spark_compute_image          = var.spark_compute_image
+
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain
   hub_domain       = var.hub_domain
@@ -139,8 +145,8 @@ module "base_setup" {
   idp_group_claim                     = var.idp_group_claim
 
   # Optional VPC Import
-  existing_vpc_id                = var.existing_vpc_id
-  existing_vpc_primary_subnet_id = var.existing_vpc_primary_subnet_id
+  existing_vpc_id                  = var.existing_vpc_id
+  existing_vpc_primary_subnet_id   = var.existing_vpc_primary_subnet_id
   existing_vpc_secondary_subnet_id = var.existing_vpc_secondary_subnet_id
 
 }

@@ -83,6 +83,26 @@ tofu apply
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
+| `spark_compute_enabled` | `false` | Deploy embedded Kubernetes Spark compute resources into the orchestration cluster |
+| `spark_compute_namespace` | `zipline-default` | Initial Kubernetes namespace for Zipline Spark compute jobs |
+| `spark_compute_image_registry` | `""` | Optional private registry prefix for mirrored Zipline Spark compute images |
+| `spark_compute_image` | `null` | Optional full Spark image override for Kubernetes compute jobs |
+
+## Optional Spark compute
+
+To run Spark jobs through the orchestration Hub on Kubernetes, enable the embedded
+compute stack in `zipline-aws/terraform.tfvars`:
+
+```hcl
+spark_compute_enabled   = true
+spark_compute_namespace = "zipline-default"
+```
+
+This installs the Spark Kubernetes Operator, Spark history server, Loki, RBAC,
+resource quota, and service accounts into the existing orchestration cluster. The
+Hub receives the Kubernetes submitter settings directly, including
+`K8S_NAMESPACE`, `SPARK_IMAGE`, `SPARK_SERVICE_ACCOUNT`,
+`SPARK_HISTORY_SERVER_URL`, and `SPARK_EVENT_LOG_DIR`.
 
 ## Multi-environment deployments
 

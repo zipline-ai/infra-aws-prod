@@ -33,6 +33,12 @@ module "orchestration" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # Optional Kubernetes Spark compute configuration
+  spark_compute_enabled        = var.spark_compute_enabled
+  spark_compute_namespace      = var.spark_compute_namespace
+  spark_compute_image_registry = var.spark_compute_image_registry
+  spark_compute_image          = var.spark_compute_image
+
   # Personnel access
   personnel_arns = var.personnel_arns
 

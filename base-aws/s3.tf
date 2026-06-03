@@ -32,5 +32,16 @@ resource "aws_s3_bucket_policy" "zipline_logs_bucket_policy" {
 }
 
 output "aws_s3_bucket_arn" {
-  value = aws_s3_bucket.zipline_warehouse_bucket.arn
+  description = "ARN of the Zipline warehouse bucket."
+  value       = aws_s3_bucket.zipline_warehouse_bucket.arn
+}
+
+output "warehouse_bucket_name" {
+  description = "Name of the Zipline warehouse bucket."
+  value       = aws_s3_bucket.zipline_warehouse_bucket.id
+}
+
+output "logs_bucket_name" {
+  description = "Name of the Zipline logs bucket."
+  value       = aws_s3_bucket.zipline_logs_bucket.id
 }

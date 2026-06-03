@@ -1,0 +1,155 @@
+{{- if and .Values.compute.enabled .Values.compute.sparkDefaults.nvmeEnabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "zipline-orchestration.fullname" . }}-nvme-setup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nvme-setup
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "zipline-orchestration.name" . }}-nvme-setup
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "zipline-orchestration.name" . }}-nvme-setup
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      tolerations:
+        - operator: Exists
+      initContainers:
+        - name: nvme-setup
+          image: {{ .Values.compute.sparkDefaults.nvmeSetupImage | default "amazon/aws-cli:2.27.33" }}
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+
+              found_nvme=false
+
+              mount_nvme() {
+                dev="$1"
+                real_dev="$(echo "$dev" | sed 's|/host-dev/|/dev/|')"
+
+                if grep -q " /mnt/nvme " /host-proc/mounts 2>/dev/null; then
+                  echo "$real_dev already mounted at /mnt/nvme"
+                  return 0
+                fi
+
+                mkfs.ext4 -F "$dev" 2>/dev/null || true
+                mkdir -p /host-mnt/nvme
+
+                if command -v nsenter >/dev/null 2>&1; then
+                  nsenter --mount=/host-proc/1/ns/mnt -- /usr/bin/mkdir -p /mnt/nvme
+                  nsenter --mount=/host-proc/1/ns/mnt -- /usr/bin/mount "$real_dev" /mnt/nvme || true
+                  nsenter --mount=/host-proc/1/ns/mnt -- /usr/bin/chmod 1777 /mnt/nvme
+                else
+                  mount "$dev" /host-mnt/nvme || true
+                  chmod 1777 /host-mnt/nvme
+                fi
+
+                echo "Mounted $real_dev at /mnt/nvme"
+              }
+
+              if command -v nvme >/dev/null 2>&1; then
+                for dev in /host-dev/nvme*n1; do
+                  [ -b "$dev" ] || continue
+                  model="$(nvme id-ctrl "$dev" -o json 2>/dev/null | grep -o '"mn" *: *"[^"]*"' | head -1 | sed 's/.*: *"//;s/".*//' | xargs 2>/dev/null || true)"
+                  if echo "$model" | grep -qi "Instance Storage"; then
+                    mount_nvme "$dev"
+                    found_nvme=true
+                    break
+                  fi
+                done
+              fi
+
+              if [ "$found_nvme" = "false" ]; then
+                for dev in /host-dev/nvme*n1; do
+                  [ -b "$dev" ] || continue
+                  devname="$(basename "$dev")"
+                  model="$(cat "/host-sys/block/$devname/device/model" 2>/dev/null | xargs 2>/dev/null || true)"
+                  if echo "$model" | grep -qi "Instance\|NVMe SSD\|Local"; then
+                    mount_nvme "$dev"
+                    found_nvme=true
+                    break
+                  fi
+                done
+              fi
+
+              if [ "$found_nvme" = "false" ]; then
+                echo "No NVMe instance store on this node, skipping"
+                exit 0
+              fi
+
+              token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+              ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              api="https://kubernetes.default.svc"
+
+              current="$(curl -s --cacert "$ca" -H "Authorization: Bearer $token" \
+                "$api/api/v1/nodes/$NODE_NAME" | grep -o '"zipline.ai/nvme":"true"' || true)"
+
+              if [ -z "$current" ]; then
+                patch='{"metadata":{"labels":{"zipline.ai/nvme":"true"}},"spec":{"taints":[{"key":"zipline.ai/nvme","value":"true","effect":"NoSchedule"}]}}'
+                curl -s --cacert "$ca" -H "Authorization: Bearer $token" \
+                  -H "Content-Type: application/strategic-merge-patch+json" \
+                  -X PATCH "$api/api/v1/nodes/$NODE_NAME" \
+                  -d "$patch" >/dev/null
+                echo "Labeled and tainted node $NODE_NAME"
+              else
+                echo "Node $NODE_NAME already labeled"
+              fi
+          volumeMounts:
+            - name: host-dev
+              mountPath: /host-dev
+            - name: host-mnt
+              mountPath: /host-mnt
+              mountPropagation: Bidirectional
+            - name: host-proc
+              mountPath: /host-proc
+              readOnly: true
+            - name: host-sys
+              mountPath: /host-sys
+              readOnly: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "10m"
+              memory: "16Mi"
+      volumes:
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+        - name: host-proc
+          hostPath:
+            path: /proc
+        - name: host-sys
+          hostPath:
+            path: /sys
+{{- end }}

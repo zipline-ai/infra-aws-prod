@@ -72,6 +72,32 @@ variable "eks_version" {
   default     = "1.31"
 }
 
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
+  default     = false
+}
+
+variable "spark_compute_namespace" {
+  type        = string
+  description = "Initial Kubernetes namespace for in-cluster Zipline Spark compute jobs."
+  default     = "zipline-default"
+}
+
+variable "spark_compute_image_registry" {
+  type        = string
+  description = "Optional private registry prefix containing Zipline Spark compute images mirrored by zipline admin install."
+  default     = ""
+  nullable    = false
+}
+
+variable "spark_compute_image" {
+  type        = string
+  description = "Optional Spark image override for Kubernetes compute jobs."
+  default     = null
+  nullable    = true
+}
+
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
   description = "Custom domain for the orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."
