@@ -17,7 +17,8 @@ module "orchestration" {
   dynamodb_write_capacity  = var.dynamodb_write_capacity
   dynamodb_replica_regions = var.dynamodb_replica_regions
 
-  encryption_kms_key_arn = var.encryption_kms_key_arn
+  encryption_kms_key_arn  = var.encryption_kms_key_arn
+  encryption_kms_key_arns = var.encryption_kms_key_arns
 
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain

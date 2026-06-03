@@ -118,7 +118,8 @@ module "base_setup" {
   dynamodb_write_capacity  = var.dynamodb_write_capacity
   dynamodb_replica_regions = var.dynamodb_replica_regions
 
-  encryption_kms_key_arn = var.encryption_kms_key_arn
+  encryption_kms_key_arn  = var.encryption_kms_key_arn
+  encryption_kms_key_arns = var.encryption_kms_key_arns
 
   # Zipline Authentication
   zipline_auth_enabled                = var.zipline_auth_enabled

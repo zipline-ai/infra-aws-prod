@@ -316,3 +316,9 @@ variable "encryption_kms_key_arn" {
   description = "Optional customer managed KMS key ARN to use for at-rest encryption. Leave empty to use AWS managed service keys."
   default     = ""
 }
+
+variable "encryption_kms_key_arns" {
+  type        = map(string)
+  description = "Optional customer managed KMS key ARNs keyed by region for resources that support per-region keys, such as DynamoDB replicas."
+  default     = {}
+}

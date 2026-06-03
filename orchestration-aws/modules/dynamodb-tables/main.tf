@@ -1,6 +1,7 @@
 locals {
   chronon_metadata_base_name = "CHRONON_METADATA"
   table_partitions_base_name = "TABLE_PARTITIONS"
+  default_kms_key_arn        = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
 }
 
 resource "aws_dynamodb_table" "chronon_metadata" {
@@ -21,7 +22,7 @@ resource "aws_dynamodb_table" "chronon_metadata" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+    kms_key_arn = local.default_kms_key_arn
   }
 
   # Global Tables v2 requires streams enabled on the source table
@@ -32,6 +33,7 @@ resource "aws_dynamodb_table" "chronon_metadata" {
     for_each = toset(compact(var.replica_regions))
     content {
       region_name = replica.value
+      kms_key_arn = lookup(var.encryption_kms_key_arns, replica.value, local.default_kms_key_arn)
     }
   }
 }
@@ -55,6 +57,6 @@ resource "aws_dynamodb_table" "table_partitions" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+    kms_key_arn = local.default_kms_key_arn
   }
 }
