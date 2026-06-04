@@ -37,10 +37,11 @@ Edit the `backend "s3"` block in `zipline-aws/providers.tf` to point to your own
 
 ```hcl
 backend "s3" {
-  bucket  = "your-terraform-state-bucket"
-  key     = "zipline-state"
-  region  = "us-west-2"
-  encrypt = true
+  bucket     = "your-terraform-state-bucket"
+  key        = "zipline-state"
+  region     = "us-west-2"
+  encrypt    = true
+  kms_key_id = "arn:aws:kms:us-west-2:123456789012:key/00000000-0000-0000-0000-000000000000"
 }
 ```
 
@@ -116,7 +117,6 @@ By default, this deployment enables at-rest encryption for the managed data stor
 - Zipline warehouse and logs S3 buckets
 - DynamoDB tables
 - Secrets Manager entries created by the stack
-- Terraform state stored in the configured S3 backend
 
 If your organization requires a customer managed KMS key, set `encryption_kms_key_arn` in `zipline-aws/terraform.tfvars`:
 
@@ -126,6 +126,30 @@ encryption_kms_key_arn = "arn:aws:kms:us-west-2:123456789012:key/00000000-0000-0
 ```
 
 When `encryption_kms_key_arn` is empty, AWS managed service keys are used. Make sure the KMS key policy allows the AWS services and IAM principals in this stack to use the key, including RDS, S3, DynamoDB, Secrets Manager, EKS node roles, and any operators running `tofu apply`.
+
+### Terraform state backend encryption
+
+Terraform/OpenTofu state encryption is configured separately from stack resource encryption. The `encryption_kms_key_arn` variable does not affect the S3 backend because backend blocks are processed during `tofu init` and cannot read values from `terraform.tfvars`.
+
+To use a customer managed KMS key for Terraform/OpenTofu state, set the backend's `kms_key_id` alongside `encrypt = true`:
+
+```hcl
+backend "s3" {
+  bucket     = "your-terraform-state-bucket"
+  key        = "zipline-state"
+  region     = "us-west-2"
+  encrypt    = true
+  kms_key_id = "arn:aws:kms:us-west-2:123456789012:key/00000000-0000-0000-0000-000000000000"
+}
+```
+
+You can also keep the backend block partial and pass the key during init:
+
+```bash
+tofu init \
+  -backend-config='encrypt=true' \
+  -backend-config='kms_key_id=arn:aws:kms:us-west-2:123456789012:key/00000000-0000-0000-0000-000000000000'
+```
 
 If `dynamodb_replica_regions` is set for `CHRONON_METADATA`, a single-region KMS key ARN cannot be reused in every replica region. Use one of these options:
 
