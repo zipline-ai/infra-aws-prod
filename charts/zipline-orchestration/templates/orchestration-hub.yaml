@@ -82,6 +82,13 @@ spec:
             - name: EMR_CLOUDWATCH_LOG_GROUP
               value: "{{ .Values.aws.emrCloudWatchLogGroup }}"
             {{- if .Values.compute.enabled }}
+            # Gate read by platform's AWSWorkflowExecutionVerticle to switch
+            # the Hub from EmrServerlessSubmitter to K8sSubmitter. See
+            # platform aws/.../AWSWorkflowExecutionVerticle.scala line 36.
+            - name: IN_CLUSTER_COMPUTE_ENABLED
+              value: "true"
+            # Legacy K8S_SUBMITTER_ENABLED kept for any downstream consumer
+            # still reading the old name; nothing on platform main reads it.
             - name: K8S_SUBMITTER_ENABLED
               value: "true"
             - name: K8S_SUBMITTER_NAMESPACE
