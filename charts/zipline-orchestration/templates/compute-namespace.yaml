@@ -1,0 +1,90 @@
+{{- if .Values.compute.enabled }}
+{{- $root := . }}
+{{- $defaults := .Values.compute.namespaceDefaults | default dict }}
+{{- $namespaces := .Values.compute.namespaces | default list }}
+{{- if eq (len $namespaces) 0 }}
+{{- $namespaces = list (dict "name" (include "zipline-orchestration.computeDefaultNamespace" .) "team" "default") }}
+{{- end }}
+{{- range $namespace := $namespaces }}
+{{- $name := $namespace.name | default (include "zipline-orchestration.computeDefaultNamespace" $root) }}
+{{- $labels := merge (dict) ($defaults.labels | default dict) ($namespace.labels | default dict) }}
+{{- $annotations := merge (dict) ($defaults.annotations | default dict) ($namespace.annotations | default dict) }}
+{{- $quota := $namespace.resourceQuota | default ($defaults.resourceQuota | default dict) }}
+{{- $quotaEnabled := true }}
+{{- if hasKey $quota "enabled" }}
+{{- $quotaEnabled = $quota.enabled }}
+{{- end }}
+{{- $limitRange := $namespace.limitRange | default ($defaults.limitRange | default dict) }}
+{{- $limitRangeEnabled := true }}
+{{- if hasKey $limitRange "enabled" }}
+{{- $limitRangeEnabled = $limitRange.enabled }}
+{{- end }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "zipline-orchestration.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: spark-compute
+    zipline.ai/namespace-type: compute
+    {{- with $namespace.team }}
+    zipline.ai/team: {{ . | quote }}
+    {{- end }}
+    {{- with $labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if $quotaEnabled }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: zipline-compute
+  namespace: {{ $name }}
+  labels:
+    {{- include "zipline-orchestration.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: spark-compute
+spec:
+  hard:
+    {{- toYaml ($quota.hard | default dict) | nindent 4 }}
+{{- end }}
+{{- if $limitRangeEnabled }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: zipline-compute-defaults
+  namespace: {{ $name }}
+  labels:
+    {{- include "zipline-orchestration.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: spark-compute
+spec:
+  limits:
+    - type: Container
+      {{- with $limitRange.default }}
+      default:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $limitRange.defaultRequest }}
+      defaultRequest:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $limitRange.min }}
+      min:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $limitRange.max }}
+      max:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $limitRange.maxLimitRequestRatio }}
+      maxLimitRequestRatio:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

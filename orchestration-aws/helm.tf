@@ -1,5 +1,23 @@
 # Helm releases for Zipline Orchestration
 
+resource "terraform_data" "spark_compute_config_validation" {
+  input = {
+    spark_compute_enabled   = var.spark_compute_enabled
+    spark_compute_namespace = var.spark_compute_namespace
+    spark_compute_image     = local.spark_compute_image
+  }
+
+  lifecycle {
+    precondition {
+      condition = !var.spark_compute_enabled || alltrue([
+        trimspace(var.spark_compute_namespace) != "",
+        trimspace(local.spark_compute_image) != "",
+      ])
+      error_message = "spark_compute_namespace and spark_compute_image must be set when spark_compute_enabled is true."
+    }
+  }
+}
+
 # Install Secrets Store CSI Driver
 resource "helm_release" "secrets_store_csi" {
   name       = "secrets-store-csi-driver"
@@ -250,16 +268,24 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
+      # Optional Kubernetes Spark compute configuration
+      spark_compute_enabled      = var.spark_compute_enabled
+      spark_compute_namespace    = var.spark_compute_namespace
+      spark_compute_image        = local.spark_compute_image
+      spark_history_server_image = local.spark_history_server_image
+      warehouse_bucket           = var.warehouse_bucket
+      spark_compute_role_arn     = aws_iam_role.spark_compute_execution.arn
+
       # EMR Serverless (execution role ARN derived by naming convention)
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"
       emr_log_uri                       = var.emr_log_uri != "" ? var.emr_log_uri : "s3://zipline-logs-${var.name_prefix}/emr/"
       emr_cloudwatch_log_group          = var.emr_cloudwatch_log_group
 
       # ACM certificate ARNs for HTTPS (empty string if no domain configured)
-      ui_cert_arn      = var.ui_domain != "" ? aws_acm_certificate.ui_cert[0].arn : ""
-      hub_cert_arn     = var.hub_domain != "" ? aws_acm_certificate.hub_cert[0].arn : ""
-      fetcher_cert_arn = var.fetcher_domain != "" ? aws_acm_certificate.fetcher_cert[0].arn : ""
-      eval_cert_arn    = var.eval_domain != "" ? aws_acm_certificate.eval_cert[0].arn : ""
+      ui_cert_arn      = local.ui_cert_arn
+      hub_cert_arn     = local.hub_cert_arn
+      fetcher_cert_arn = local.fetcher_cert_arn
+      eval_cert_arn    = local.eval_cert_arn
 
       # Databricks service principal secret ARN (empty if not configured)
       databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
@@ -299,6 +325,7 @@ resource "helm_release" "zipline_orchestration" {
     aws_acm_certificate.hub_cert,
     aws_acm_certificate.fetcher_cert,
     aws_acm_certificate.eval_cert,
+    terraform_data.spark_compute_config_validation,
   ]
 }
 

@@ -72,6 +72,32 @@ variable "eks_version" {
   default     = "1.31"
 }
 
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
+  default     = false
+}
+
+variable "spark_compute_namespace" {
+  type        = string
+  description = "Initial Kubernetes namespace for in-cluster Zipline Spark compute jobs."
+  default     = "zipline-default"
+}
+
+variable "spark_compute_image_registry" {
+  type        = string
+  description = "Optional private registry prefix containing Zipline Spark compute images mirrored by zipline admin install."
+  default     = ""
+  nullable    = false
+}
+
+variable "spark_compute_image" {
+  type        = string
+  description = "Optional Spark image override for Kubernetes compute jobs."
+  default     = null
+  nullable    = true
+}
+
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
   description = "Custom domain for the orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."
@@ -95,6 +121,30 @@ variable "fetcher_domain" {
 
 variable "eval_domain" {
   description = "Custom domain for the Chronon eval service (e.g., zipline-eval.yourcompany.com). Leave empty to use the default load balancer DNS."
+  default     = ""
+}
+
+variable "ui_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the orchestration UI domain. Leave empty to create a certificate when ui_domain is set."
+  default     = ""
+}
+
+variable "hub_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the orchestration Hub API domain. Leave empty to create a certificate when hub_domain is set."
+  default     = ""
+}
+
+variable "fetcher_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to create a certificate when fetcher_domain is set."
+  default     = ""
+}
+
+variable "eval_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the Chronon eval domain. Leave empty to create a certificate when eval_domain is set."
   default     = ""
 }
 

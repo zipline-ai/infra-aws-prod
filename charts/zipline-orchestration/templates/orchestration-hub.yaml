@@ -81,6 +81,42 @@ spec:
               value: "{{ .Values.aws.emrLogUri }}"
             - name: EMR_CLOUDWATCH_LOG_GROUP
               value: "{{ .Values.aws.emrCloudWatchLogGroup }}"
+            {{- if .Values.compute.enabled }}
+            - name: K8S_SUBMITTER_ENABLED
+              value: "true"
+            - name: K8S_SUBMITTER_NAMESPACE
+              value: {{ include "zipline-orchestration.computeJobNamespace" . | quote }}
+            - name: K8S_NAMESPACE
+              value: {{ include "zipline-orchestration.computeJobNamespace" . | quote }}
+            - name: K8S_SPARK_IMAGE
+              value: "{{ .Values.compute.sparkDefaults.image }}"
+            - name: SPARK_IMAGE
+              value: "{{ .Values.compute.sparkDefaults.image }}"
+            - name: SPARK_IMAGE_PULL_POLICY
+              value: "{{ .Values.compute.sparkDefaults.imagePullPolicy }}"
+            - name: CHRONON_JAR_PATH
+              value: "{{ .Values.compute.sparkDefaults.chrononJarPath }}"
+            - name: K8S_SPARK_SERVICE_ACCOUNT
+              value: "{{ .Values.compute.serviceAccount.sparkName }}"
+            - name: SPARK_SERVICE_ACCOUNT
+              value: "{{ .Values.compute.serviceAccount.sparkName }}"
+            - name: K8S_SPARK_HISTORY_SERVER_URL
+              value: "http://spark-history-server.{{ .Release.Namespace }}.svc.cluster.local:18080"
+            - name: SPARK_HISTORY_SERVER_URL
+              value: "http://spark-history-server.{{ .Release.Namespace }}.svc.cluster.local:18080"
+            - name: K8S_SPARK_EVENT_LOG_DIR
+              value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
+            - name: SPARK_EVENT_LOG_DIR
+              value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
+            - name: SPARK_EVENT_LOG_ENABLED
+              value: "true"
+            {{- if .Values.compute.loki.enabled }}
+            - name: LOKI_URL
+              value: "http://{{ include "zipline-orchestration.fullname" . }}-loki.{{ include "zipline-orchestration.computeSystemNamespace" . }}.svc.cluster.local:3100"
+            {{- end }}
+            - name: K8S_SPARK_DRIVER_PRIORITY_CLASS
+              value: "{{ .Values.compute.driverPriorityClass.name }}"
+            {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
             {{- if .Values.aws.databricksSpSecretArn }}

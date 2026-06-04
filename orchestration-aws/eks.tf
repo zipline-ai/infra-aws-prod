@@ -190,7 +190,7 @@ data "aws_iam_policy_document" "eks_node_emr_policy" {
   }
 
   statement {
-    effect = "Allow"
+    effect  = "Allow"
     actions = ["iam:PassRole"]
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role",
@@ -252,7 +252,7 @@ data "aws_iam_policy_document" "eks_node_root_key_policy" {
       type        = "AWS"
       identifiers = [aws_iam_role.eks_cluster_role.arn]
     }
-    actions = ["kms:CreateGrant"]
+    actions   = ["kms:CreateGrant"]
     resources = ["*"]
     condition {
       test     = "Bool"
@@ -368,7 +368,10 @@ resource "aws_eks_node_group" "default" {
   }
 
   labels = {
-    role = "zipline-workload"
+    role                   = "zipline-workload"
+    "zipline.ai/team"      = "default"
+    "zipline.ai/mode"      = "default"
+    "zipline.ai/node-pool" = "default"
   }
 
   tags = {

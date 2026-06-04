@@ -19,6 +19,138 @@ aws:
   emrLogUri: ""
   emrCloudWatchLogGroup: ""
 
+compute:
+  enabled: false
+  cloudProvider: aws
+  defaultNamespace: zipline-default
+  namespaceDefaults:
+    labels: {}
+    annotations: {}
+    resourceQuota:
+      enabled: true
+      hard:
+        requests.cpu: "200"
+        requests.memory: "800Gi"
+        limits.cpu: "400"
+        limits.memory: "1600Gi"
+        pods: "500"
+    limitRange:
+      enabled: true
+      default:
+        cpu: "2"
+        memory: "8Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "1Gi"
+  namespaces:
+    - name: zipline-default
+      team: default
+      labels: {}
+      annotations: {}
+  nodePools:
+    default:
+      team: default
+      mode: default
+      nodeSelector: {}
+      tolerations: []
+    batch:
+      team: default
+      mode: batch
+      nodeSelector: {}
+      tolerations: []
+    streaming:
+      team: default
+      mode: streaming
+      nodeSelector: {}
+      tolerations: []
+    model:
+      team: default
+      mode: model
+      nodeSelector: {}
+      tolerations: []
+  objectStore:
+    bucket: ""      # e.g. s3://warehouse-bucket
+    region: ""
+  serviceAccount:
+    sparkName: spark-operator-spark
+    flinkName: flink
+    annotations: {}
+  rbac:
+    create: true
+  sparkDefaults:
+    eventLogDir: "" # Defaults to s3a://<objectStore.bucket>/spark-events
+    image: "ziplineai/spark:4.1-crucible-latest"
+    imagePullPolicy: "Always"
+    chrononJarPath: "/opt/chronon/chronon-spark.jar"
+    nvmeEnabled: true
+    nvmeSetupImage: "amazon/aws-cli:2.27.33"
+    executorCores: 14
+    executorMemory: "48Gi"
+    driverCores: 2
+    driverMemory: "4Gi"
+    executorNodeSelector: {}
+    executorTolerations: []
+    spotNodeSelector: {}
+    driverNodeSelector:
+      karpenter.sh/capacity-type: on-demand
+    driverTolerations: []
+  driverPriorityClass:
+    enabled: true
+    name: "zipline-spark-driver"
+    value: 100
+  systemPriorityClass:
+    enabled: true
+    name: "zipline-compute-system"
+    value: 1000
+  warmPool:
+    enabled: false
+    replicas: 2
+    priorityClassName: "zipline-spark-pause"
+    namespace: ""  # Defaults to release namespace.
+    resources:
+      cpu: "2"
+      memory: "4Gi"
+    taintKey: ""
+    taintValue: "driver"
+    nodeSelector: {}
+    tolerations: []
+  imagePrepull:
+    enabled: false
+    images: []
+    nodeSelector: {}
+    tolerations: []
+  historyServer:
+    enabled: true
+    image: "ziplineai/spark:4.1-crucible-latest"
+    proxyBase: "spark-history"
+    daemonMemory: "5g"
+    hybridStoreMemory: "4g"
+    maxDiskUsage: "50g"
+    cleanerMaxAge: "3d"
+    retainedApplications: 50
+    resources:
+      requests:
+        cpu: "2"
+        memory: "6Gi"
+      limits:
+        memory: "8Gi"
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 10Gi
+  loki:
+    enabled: true
+    image: "grafana/loki:3.4.2"
+    retention: "168h"
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    storage:
+      size: 10Gi
+
 # Database configuration
 database:
   host: ""
@@ -189,6 +321,43 @@ imagePullSecrets:
 prometheus:
   queryEndpoint: ""
   namespace: "zipline-system"
+
+spark-operator:
+  enabled: true
+  controller:
+    replicas: 2
+    workers: 20
+    kubeAPIQPS: 100
+    kubeAPIBurst: 200
+  spark:
+    jobNamespaces: []
+    jobNamespaceSelector: zipline.ai/namespace-type=compute
+    serviceAccount:
+      create: false
+      name: spark-operator-spark
+    rbac:
+      create: false
+
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://zipline-orchestration-loki:3100/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - cri: {}
+      extraRelabelConfigs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: drop
+          regex: kube-system|kube-public|kube-node-lease|cert-manager|gke-managed-.*|gmp-.*|default
+  tolerations:
+    - operator: Exists
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
 
 auth:
   enabled: false

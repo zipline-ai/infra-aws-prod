@@ -1,6 +1,6 @@
 # Zipline AWS Infrastructure
 
-OpenTofu infrastructure for deploying Zipline on AWS.
+Terraform infrastructure for deploying Zipline on AWS through HCP Terraform.
 
 ## Module structure
 
@@ -75,14 +75,38 @@ tofu apply
 | `fetcher_replicas` | `3` | Number of fetcher pod replicas |
 | `fetcher_domain` | `""` | Custom domain for the Chronon fetcher service |
 | `eval_domain` | `""` | Custom domain for the eval service |
+| `ui_cert_arn` | `""` | ARN of an existing ACM certificate for the UI domain. Leave empty to let Terraform create a certificate when `ui_domain` is set. |
+| `hub_cert_arn` | `""` | ARN of an existing ACM certificate for the Hub API domain. Leave empty to let Terraform create a certificate when `hub_domain` is set. |
+| `fetcher_cert_arn` | `""` | ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to let Terraform create a certificate when `fetcher_domain` is set. |
+| `eval_cert_arn` | `""` | ARN of an existing ACM certificate for the eval domain. Leave empty to let Terraform create a certificate when `eval_domain` is set. |
 | `databricks_client_id` | `""` | Databricks service principal client ID for Unity Catalog (optional) |
 | `databricks_client_secret` | `""` | Databricks service principal client secret for Unity Catalog (optional) |
 | `dynamodb_enable_ttl` | `true` | Enable TTL and GC on DynamoDB KV store tables. Set to `false` to disable data expiry and batch table cleanup (useful when prototyping with older datasets) |
 | `additional_flink_s3_buckets` | `[]` | Additional S3 bucket names to grant the Flink job execution role read/write access to (e.g. external artifact stores not covered by `artifact_prefix`) |
 | `additional_data_buckets` | `[]` | Additional S3 bucket names to grant the orchestration IRSA read-only access to (e.g. external data lake buckets whose Iceberg metadata the orchestration role needs to read) |
+| `spark_compute_enabled` | `false` | Deploy embedded Kubernetes Spark compute resources into the orchestration cluster |
+| `spark_compute_namespace` | `zipline-default` | Initial Kubernetes namespace for Zipline Spark compute jobs |
+| `spark_compute_image_registry` | `""` | Optional private registry prefix for mirrored Zipline Spark compute images |
+| `spark_compute_image` | `null` | Optional full Spark image override for Kubernetes compute jobs |
 | `encrypt_at_rest` | `true` | Enable at-rest encryption for the Zipline RDS Postgres instance |
 | `encryption_kms_key_arn` | `""` | Optional customer managed KMS key ARN for at-rest encryption. Leave empty to use AWS managed service keys |
 | `encryption_kms_key_arns` | `{}` | Optional customer managed KMS key ARNs keyed by region for services that need per-region keys, such as DynamoDB Global Tables replicas |
+
+## Optional Spark compute
+
+To run Spark jobs through the orchestration Hub on Kubernetes, enable the embedded
+compute stack in `zipline-aws/terraform.tfvars`:
+
+```hcl
+spark_compute_enabled   = true
+spark_compute_namespace = "zipline-default"
+```
+
+This installs the Spark Kubernetes Operator, Spark history server, Loki, RBAC,
+resource quota, and service accounts into the existing orchestration cluster. The
+Hub receives the Kubernetes submitter settings directly, including
+`K8S_NAMESPACE`, `SPARK_IMAGE`, `SPARK_SERVICE_ACCOUNT`,
+`SPARK_HISTORY_SERVER_URL`, and `SPARK_EVENT_LOG_DIR`.
 
 ## Encryption at rest
 
@@ -230,7 +254,19 @@ tofu apply \
   -var 'eval_domain=zipline-eval.yourcompany.com'
 ```
 
-This creates ACM certificates for each domain (initially in `Pending validation` state).
+By default, Terraform creates ACM certificates for each domain (initially in `Pending validation` state).
+
+To attach existing ACM certificates instead, pass the matching certificate ARN alongside each domain:
+
+```bash
+tofu apply \
+  -var 'ui_domain=zipline.yourcompany.com' \
+  -var 'ui_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example' \
+  -var 'hub_domain=zipline-hub.yourcompany.com' \
+  -var 'hub_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example'
+```
+
+For any service with a `*_cert_arn` value, Terraform skips creating the ACM certificate and attaches the supplied certificate to the NLB. The certificate must be in the same AWS region as the NLB and cover the configured domain.
 
 ### 2. Add ACM validation DNS records
 

@@ -90,6 +90,32 @@ variable "eks_disk_size" {
   default     = 100
 }
 
+variable "spark_compute_enabled" {
+  type        = bool
+  description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
+  default     = false
+}
+
+variable "spark_compute_namespace" {
+  type        = string
+  description = "Initial Kubernetes namespace for in-cluster Zipline Spark compute jobs."
+  default     = "zipline-default"
+}
+
+variable "spark_compute_image_registry" {
+  type        = string
+  description = "Optional private registry prefix containing Zipline Spark compute images mirrored by zipline admin install."
+  default     = ""
+  nullable    = false
+}
+
+variable "spark_compute_image" {
+  type        = string
+  description = "Optional Spark image override for Kubernetes compute jobs."
+  default     = null
+  nullable    = true
+}
+
 # Domain Configuration (optional)
 variable "hub_domain" {
   type        = string
@@ -118,6 +144,30 @@ variable "fetcher_domain" {
 variable "eval_domain" {
   type        = string
   description = "Custom domain for eval service (optional)"
+  default     = ""
+}
+
+variable "ui_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the orchestration UI domain. Leave empty to create a certificate when ui_domain is set."
+  default     = ""
+}
+
+variable "hub_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the orchestration Hub API domain. Leave empty to create a certificate when hub_domain is set."
+  default     = ""
+}
+
+variable "fetcher_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the Chronon fetcher domain. Leave empty to create a certificate when fetcher_domain is set."
+  default     = ""
+}
+
+variable "eval_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for the eval domain. Leave empty to create a certificate when eval_domain is set."
   default     = ""
 }
 

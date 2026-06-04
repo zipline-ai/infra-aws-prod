@@ -22,6 +22,39 @@ aws:
   emrLogUri: "${emr_log_uri}"
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
 
+compute:
+  enabled: ${spark_compute_enabled}
+  cloudProvider: aws
+  defaultNamespace: "${spark_compute_namespace}"
+  namespaces:
+    - name: "${spark_compute_namespace}"
+      team: default
+  objectStore:
+    bucket: "s3://${warehouse_bucket}"
+    region: "${aws_region}"
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "${spark_compute_role_arn}"
+  sparkDefaults:
+    image: "${spark_compute_image}"
+    eventLogDir: "s3a://${warehouse_bucket}/spark-events"
+  historyServer:
+    image: "${spark_history_server_image}"
+  imagePrepull:
+    enabled: ${spark_compute_enabled}
+    images:
+      - "${spark_compute_image}"
+
+spark-operator:
+  spark:
+    jobNamespaces: []
+    jobNamespaceSelector: zipline.ai/namespace-type=compute
+    serviceAccount:
+      create: false
+      name: spark-operator-spark
+    rbac:
+      create: false
+
 # Database configuration
 database:
   host: "${db_host}"

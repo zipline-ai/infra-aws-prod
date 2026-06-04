@@ -91,12 +91,22 @@ module "base_setup" {
   deploy_fetcher   = var.deploy_fetcher
   fetcher_replicas = var.fetcher_replicas
 
+  # Optional Kubernetes Spark compute configuration
+  spark_compute_enabled        = var.spark_compute_enabled
+  spark_compute_namespace      = var.spark_compute_namespace
+  spark_compute_image_registry = var.spark_compute_image_registry
+  spark_compute_image          = var.spark_compute_image
+
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain
   hub_domain       = var.hub_domain
   hub_external_url = var.hub_external_url
   fetcher_domain   = var.fetcher_domain
   eval_domain      = var.eval_domain
+  ui_cert_arn      = var.ui_cert_arn
+  hub_cert_arn     = var.hub_cert_arn
+  fetcher_cert_arn = var.fetcher_cert_arn
+  eval_cert_arn    = var.eval_cert_arn
 
   # Glue Schema Registry (optional)
   glue_schema_registry_name = var.glue_schema_registry_name
