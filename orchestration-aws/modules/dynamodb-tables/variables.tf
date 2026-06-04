@@ -29,10 +29,14 @@ variable "encryption_kms_key_arn" {
 
   validation {
     condition = (
-      var.encryption_kms_key_arn == "" ||
       length(compact(var.replica_regions)) == 0 ||
-      can(regex(":key/mrk-", var.encryption_kms_key_arn)) ||
-      alltrue([for region in compact(var.replica_regions) : contains(keys(var.encryption_kms_key_arns), region)])
+      (
+        var.encryption_kms_key_arn != "" &&
+        (
+          can(regex(":key/mrk-", var.encryption_kms_key_arn)) ||
+          alltrue([for region in compact(var.replica_regions) : contains(keys(var.encryption_kms_key_arns), region)])
+        )
+      )
     )
     error_message = "When replica_regions is non-empty, encryption_kms_key_arn must be a multi-Region KMS key ARN, or encryption_kms_key_arns must include a region-specific key ARN for every replica region."
   }
