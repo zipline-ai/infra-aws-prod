@@ -347,7 +347,7 @@ variable "existing_vpc_secondary_subnet_id" {
 variable "encrypt_at_rest" {
   type        = bool
   description = "Whether to encrypt data at rest in rds"
-  default     = true
+  default     = false
 }
 
 variable "encryption_kms_key_arn" {
