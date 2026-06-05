@@ -22,6 +22,12 @@ variable "replica_regions" {
   default     = []
 }
 
+variable "encrypt_at_rest" {
+  type        = bool
+  description = "Whether to validate customer managed KMS key settings for DynamoDB at-rest encryption."
+  default     = true
+}
+
 variable "encryption_kms_key_arn" {
   type        = string
   description = "Optional customer managed KMS key ARN to use for DynamoDB at-rest encryption. Leave empty to use the default AWS managed service key."
@@ -30,15 +36,20 @@ variable "encryption_kms_key_arn" {
   validation {
     condition = (
       length(compact(var.replica_regions)) == 0 ||
+      !var.encrypt_at_rest ||
+      (
+        var.encryption_kms_key_arn == "" &&
+        length(compact(values(var.encryption_kms_key_arns))) == 0
+      ) ||
       (
         var.encryption_kms_key_arn != "" &&
         (
           can(regex(":key/mrk-", var.encryption_kms_key_arn)) ||
-          alltrue([for region in compact(var.replica_regions) : contains(keys(var.encryption_kms_key_arns), region)])
+          alltrue([for region in compact(var.replica_regions) : lookup(var.encryption_kms_key_arns, region, "") != ""])
         )
       )
     )
-    error_message = "When replica_regions is non-empty, encryption_kms_key_arn must be a multi-Region KMS key ARN, or encryption_kms_key_arns must include a region-specific key ARN for every replica region."
+    error_message = "When encrypt_at_rest is true, replica_regions is non-empty, and a customer managed KMS key is provided, encryption_kms_key_arn must be a multi-Region KMS key ARN, or encryption_kms_key_arns must include a region-specific key ARN for every replica region."
   }
 }
 
