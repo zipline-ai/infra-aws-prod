@@ -353,3 +353,22 @@ variable "idp_group_claim" {
   description = "Optional group claims configured for zipline authentication"
   default     = ""
 }
+
+# Encryption
+variable "encrypt_at_rest" {
+  type        = bool
+  description = "Whether to encrypt data at rest in rds"
+  default     = true
+}
+
+variable "encryption_kms_key_arn" {
+  type        = string
+  description = "Optional customer managed KMS key ARN to use for at-rest encryption. Leave empty to use AWS managed service keys."
+  default     = ""
+}
+
+variable "encryption_kms_key_arns" {
+  type        = map(string)
+  description = "Optional customer managed KMS key ARNs keyed by region for resources that support per-region keys, such as DynamoDB replicas."
+  default     = {}
+}

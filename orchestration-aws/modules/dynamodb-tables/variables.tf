@@ -21,3 +21,40 @@ variable "replica_regions" {
   description = "Additional AWS regions to replicate these DynamoDB tables to using Global Tables v2. Empty disables replication."
   default     = []
 }
+
+variable "encrypt_at_rest" {
+  type        = bool
+  description = "Whether to validate customer managed KMS key settings for DynamoDB at-rest encryption."
+  default     = true
+}
+
+variable "encryption_kms_key_arn" {
+  type        = string
+  description = "Optional customer managed KMS key ARN to use for DynamoDB at-rest encryption. Leave empty to use the default AWS managed service key."
+  default     = ""
+
+  validation {
+    condition = (
+      length(compact(var.replica_regions)) == 0 ||
+      !var.encrypt_at_rest ||
+      (
+        var.encryption_kms_key_arn == "" &&
+        length(compact(values(var.encryption_kms_key_arns))) == 0
+      ) ||
+      (
+        var.encryption_kms_key_arn != "" &&
+        (
+          can(regex(":key/mrk-", var.encryption_kms_key_arn)) ||
+          alltrue([for region in compact(var.replica_regions) : lookup(var.encryption_kms_key_arns, region, "") != ""])
+        )
+      )
+    )
+    error_message = "When encrypt_at_rest is true, replica_regions is non-empty, and a customer managed KMS key is provided, encryption_kms_key_arn must be a multi-Region KMS key ARN, or encryption_kms_key_arns must include a region-specific key ARN for every replica region."
+  }
+}
+
+variable "encryption_kms_key_arns" {
+  type        = map(string)
+  description = "Optional customer managed KMS key ARNs keyed by DynamoDB replica region. Use this when replica regions need region-specific keys."
+  default     = {}
+}

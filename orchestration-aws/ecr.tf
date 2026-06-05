@@ -4,6 +4,7 @@
 resource "aws_secretsmanager_secret" "dockerhub_creds" {
   name        = "ecr-pullthroughcache/dockerhub"
   description = "Credentials for ECR Pull Through Cache from Docker Hub"
+  kms_key_id  = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
 }
 
 resource "aws_secretsmanager_secret_version" "dockerhub_creds_val" {

@@ -14,6 +14,7 @@ resource "random_password" "db_password" {
 resource "aws_secretsmanager_secret" "db_credentials" {
   name        = "${var.name_prefix}-zipline-db-password"
   description = "Database credentials for Zipline orchestration RDS instance"
+  kms_key_id  = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
 }
 
 resource "aws_secretsmanager_secret_version" "db_credentials" {
@@ -33,9 +34,11 @@ resource "aws_db_instance" "zipline" {
   username          = "locker_user"
   password          = random_password.db_password.result
 
+  storage_encrypted = var.encrypt_at_rest
+  kms_key_id        = var.encrypt_at_rest && var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+
   db_subnet_group_name   = aws_db_subnet_group.zipline.name
   vpc_security_group_ids = [var.security_group_id]
-  skip_final_snapshot    = true
   publicly_accessible    = false
   multi_az               = true
 }

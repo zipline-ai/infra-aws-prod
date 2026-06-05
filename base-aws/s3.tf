@@ -6,6 +6,28 @@ resource "aws_s3_bucket" "zipline_logs_bucket" {
   bucket = "zipline-logs-${lower(local.global_resource_qualifier)}"
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "zipline_warehouse_bucket" {
+  bucket = aws_s3_bucket.zipline_warehouse_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "zipline_logs_bucket" {
+  bucket = aws_s3_bucket.zipline_logs_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
 data "aws_iam_policy_document" "zipline_logs_bucket_policy" {
   statement {
     effect = "Allow"
