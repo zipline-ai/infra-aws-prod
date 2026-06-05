@@ -44,7 +44,9 @@ resource "aws_db_instance" "zipline" {
 }
 
 resource "aws_iam_policy" "rds_secret_policy" {
-  name        = "RDSSecretReadAccess"
+  # Prefixed so a second deployment in the same AWS account doesn't collide
+  # with the existing canary's policy (IAM policy names are account-scoped).
+  name        = "${var.name_prefix}-rds-secret-read"
   description = "Allows reading the database credentials from Secrets Manager"
 
   policy = jsonencode({

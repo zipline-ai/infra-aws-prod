@@ -116,6 +116,18 @@ variable "spark_compute_image" {
   nullable    = true
 }
 
+variable "create_ecr_pull_through_cache" {
+  type        = bool
+  description = <<-EOT
+    Whether this deployment provisions the ECR pull-through cache (Docker Hub
+    rule + creation template + dockerhub-creds Secrets Manager entry). All three
+    are account-wide singletons keyed by `zipline-private` / the secret name —
+    a second deployment in the same AWS account must set this to false to
+    avoid clashing with the existing rule/secret.
+  EOT
+  default     = true
+}
+
 # Domain Configuration (optional)
 variable "hub_domain" {
   type        = string

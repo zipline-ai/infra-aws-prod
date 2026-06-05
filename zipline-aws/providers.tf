@@ -97,6 +97,9 @@ module "base_setup" {
   spark_compute_image_registry = var.spark_compute_image_registry
   spark_compute_image          = var.spark_compute_image
 
+  # Account-wide ECR pull-through cache singletons
+  create_ecr_pull_through_cache = var.create_ecr_pull_through_cache
+
   # Custom domains for HTTPS
   ui_domain        = var.ui_domain
   hub_domain       = var.hub_domain

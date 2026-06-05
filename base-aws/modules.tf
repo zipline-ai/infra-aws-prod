@@ -42,6 +42,9 @@ module "orchestration" {
   spark_compute_image_registry = var.spark_compute_image_registry
   spark_compute_image          = var.spark_compute_image
 
+  # Account-wide ECR pull-through cache singletons
+  create_ecr_pull_through_cache = var.create_ecr_pull_through_cache
+
   # Personnel access
   personnel_arns = var.personnel_arns
 

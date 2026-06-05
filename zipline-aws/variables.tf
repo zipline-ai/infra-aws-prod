@@ -98,6 +98,18 @@ variable "spark_compute_image" {
   nullable    = true
 }
 
+variable "create_ecr_pull_through_cache" {
+  type        = bool
+  description = <<-EOT
+    Whether this deployment provisions the ECR pull-through cache (Docker Hub
+    rule + creation template + dockerhub-creds Secrets Manager entry). All
+    three are account-wide singletons keyed by `zipline-private` / the secret
+    name — a second deployment in the same AWS account must set this to false
+    to avoid clashing with the existing rule/secret.
+  EOT
+  default     = true
+}
+
 # Custom domains for HTTPS (optional)
 variable "ui_domain" {
   description = "Custom domain for the orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."
