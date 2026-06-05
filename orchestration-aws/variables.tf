@@ -90,9 +90,9 @@ variable "eks_disk_size" {
   default     = 100
 }
 
-variable "spark_compute_enabled" {
+variable "in_cluster_compute_enabled" {
   type        = bool
-  description = "Whether to deploy Kubernetes Spark compute resources into the orchestration cluster."
+  description = "Single gate for in-cluster Spark compute. When true: TF provisions the spark/flink IRSA + helm release values, the chart renders zipline-default namespace + RBAC + ResourceQuotas + spark-operator + history server + Loki, and the orchestration Hub emits IN_CLUSTER_COMPUTE_ENABLED=true so its AWSWorkflowExecutionVerticle routes through K8sSubmitter instead of EmrServerlessSubmitter. When false: orchestration Hub uses EMR Serverless (default) and the chart skips the compute section entirely."
   default     = false
 }
 

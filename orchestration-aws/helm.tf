@@ -2,18 +2,18 @@
 
 resource "terraform_data" "spark_compute_config_validation" {
   input = {
-    spark_compute_enabled   = var.spark_compute_enabled
-    spark_compute_namespace = var.spark_compute_namespace
-    spark_compute_image     = local.spark_compute_image
+    in_cluster_compute_enabled = var.in_cluster_compute_enabled
+    spark_compute_namespace    = var.spark_compute_namespace
+    spark_compute_image        = local.spark_compute_image
   }
 
   lifecycle {
     precondition {
-      condition = !var.spark_compute_enabled || alltrue([
+      condition = !var.in_cluster_compute_enabled || alltrue([
         trimspace(var.spark_compute_namespace) != "",
         trimspace(local.spark_compute_image) != "",
       ])
-      error_message = "spark_compute_namespace and spark_compute_image must be set when spark_compute_enabled is true."
+      error_message = "spark_compute_namespace and spark_compute_image must be set when in_cluster_compute_enabled is true."
     }
   }
 }
@@ -269,7 +269,7 @@ resource "helm_release" "zipline_orchestration" {
       flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
 
       # Optional Kubernetes Spark compute configuration
-      spark_compute_enabled      = var.spark_compute_enabled
+      in_cluster_compute_enabled = var.in_cluster_compute_enabled
       spark_compute_namespace    = var.spark_compute_namespace
       spark_compute_image        = local.spark_compute_image
       spark_history_server_image = local.spark_history_server_image
