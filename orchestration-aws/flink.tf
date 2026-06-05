@@ -10,6 +10,8 @@ locals {
 # Helm skips CRD reinstallation by design, so this is the only reliable way
 # to ensure the CRD stays in sync with Terraform state.
 resource "kubectl_manifest" "flinkdeployments_crd" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   yaml_body = file("${path.module}/crds/flinkdeployments.flink.apache.org-v1.yml")
 
   depends_on = [aws_eks_node_group.default]
@@ -17,26 +19,30 @@ resource "kubectl_manifest" "flinkdeployments_crd" {
 
 # Service Account for Flink jobs with IRSA annotation
 resource "kubernetes_service_account_v1" "flink_job" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   metadata {
     name      = "zipline-flink-sa"
-    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+    namespace = kubernetes_namespace_v1.zipline_flink[0].metadata[0].name
     annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.flink_job_execution.arn
+      "eks.amazonaws.com/role-arn" = aws_iam_role.flink_job_execution[0].arn
     }
   }
 
   depends_on = [
     helm_release.flink_operator,
     kubectl_manifest.flinkdeployments_crd,
-    aws_iam_role.flink_job_execution,
+    aws_iam_role.flink_job_execution[0],
   ]
 }
 
 # RBAC Role for Flink jobs
 resource "kubernetes_role_v1" "flink_role" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   metadata {
     name      = "flink-role"
-    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+    namespace = kubernetes_namespace_v1.zipline_flink[0].metadata[0].name
   }
 
   # Pod management permissions
@@ -88,9 +94,11 @@ resource "kubernetes_role_v1" "flink_role" {
 # orchestration-sa (zipline-system) is the in-cluster identity used by EksFlinkSubmitter
 # to create/get/delete FlinkDeployment CRs via the Kubernetes API.
 resource "kubernetes_role_v1" "orchestration_flink_role" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   metadata {
     name      = "orchestration-flink-role"
-    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+    namespace = kubernetes_namespace_v1.zipline_flink[0].metadata[0].name
   }
 
   rule {
@@ -113,15 +121,17 @@ resource "kubernetes_role_v1" "orchestration_flink_role" {
 }
 
 resource "kubernetes_role_binding_v1" "orchestration_flink_role_binding" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   metadata {
     name      = "orchestration-flink-role-binding"
-    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+    namespace = kubernetes_namespace_v1.zipline_flink[0].metadata[0].name
   }
 
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "Role"
-    name      = kubernetes_role_v1.orchestration_flink_role.metadata[0].name
+    name      = kubernetes_role_v1.orchestration_flink_role[0].metadata[0].name
   }
 
   subject {
@@ -130,7 +140,7 @@ resource "kubernetes_role_binding_v1" "orchestration_flink_role_binding" {
     namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
   }
 
-  depends_on = [kubernetes_role_v1.orchestration_flink_role]
+  depends_on = [kubernetes_role_v1.orchestration_flink_role[0]]
 }
 
 # Glue Schema Registry for Flink streaming job schema lookup.
@@ -198,25 +208,27 @@ resource "kubernetes_role_binding_v1" "orchestration_hub_role_binding" {
 
 # RBAC RoleBinding for Flink service account
 resource "kubernetes_role_binding_v1" "flink_role_binding" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   metadata {
     name      = "flink-role-binding"
-    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+    namespace = kubernetes_namespace_v1.zipline_flink[0].metadata[0].name
   }
 
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "Role"
-    name      = kubernetes_role_v1.flink_role.metadata[0].name
+    name      = kubernetes_role_v1.flink_role[0].metadata[0].name
   }
 
   subject {
     kind      = "ServiceAccount"
-    name      = kubernetes_service_account_v1.flink_job.metadata[0].name
-    namespace = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+    name      = kubernetes_service_account_v1.flink_job[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.zipline_flink[0].metadata[0].name
   }
 
   depends_on = [
-    kubernetes_role_v1.flink_role,
-    kubernetes_service_account_v1.flink_job,
+    kubernetes_role_v1.flink_role[0],
+    kubernetes_service_account_v1.flink_job[0],
   ]
 }

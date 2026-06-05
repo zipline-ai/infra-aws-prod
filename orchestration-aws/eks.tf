@@ -413,6 +413,8 @@ resource "kubernetes_namespace_v1" "zipline_system" {
 
 # Create zipline-flink namespace for Flink jobs
 resource "kubernetes_namespace_v1" "zipline_flink" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   metadata {
     name = "zipline-flink"
   }

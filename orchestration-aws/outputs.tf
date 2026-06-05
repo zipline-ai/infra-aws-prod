@@ -116,20 +116,21 @@ output "amp_scraper_arn" {
   value       = aws_prometheus_scraper.main.arn
 }
 
-# Flink on EKS outputs
+# Flink on EKS outputs — null when in_cluster_compute_enabled=true (K8sSubmitter
+# mocks Flink, so Flink-on-EKS infra is skipped).
 output "flink_job_role_arn" {
-  description = "ARN of the IAM role for Flink job execution with IRSA"
-  value       = aws_iam_role.flink_job_execution.arn
+  description = "ARN of the IAM role for Flink job execution with IRSA, or null when Flink-on-EKS is disabled."
+  value       = try(aws_iam_role.flink_job_execution[0].arn, null)
 }
 
 output "flink_service_account_name" {
-  description = "Name of the Kubernetes service account for Flink jobs"
-  value       = kubernetes_service_account_v1.flink_job.metadata[0].name
+  description = "Name of the Kubernetes service account for Flink jobs, or null when Flink-on-EKS is disabled."
+  value       = try(kubernetes_service_account_v1.flink_job[0].metadata[0].name, null)
 }
 
 output "flink_namespace" {
-  description = "Namespace where Flink jobs should be deployed"
-  value       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+  description = "Namespace where Flink jobs should be deployed, or null when Flink-on-EKS is disabled."
+  value       = try(kubernetes_namespace_v1.zipline_flink[0].metadata[0].name, null)
 }
 
 output "databricks_sp_secret_arn" {
