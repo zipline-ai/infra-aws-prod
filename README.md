@@ -118,7 +118,7 @@ By default, this deployment enables at-rest encryption for the managed data stor
 - DynamoDB tables
 - Secrets Manager entries created by the stack
 
-If your organization requires a customer managed KMS key, set `encryption_kms_key_arn` in `zipline-aws/terraform.tfvars`:
+If your organization requires a customer-managed KMS key, set `encryption_kms_key_arn` in `zipline-aws/terraform.tfvars`:
 
 ```hcl
 encrypt_at_rest        = true
@@ -131,7 +131,7 @@ When `encryption_kms_key_arn` is empty, AWS managed service keys are used. Make 
 
 Terraform/OpenTofu state encryption is configured separately from stack resource encryption. The `encryption_kms_key_arn` variable does not affect the S3 backend because backend blocks are processed during `tofu init` and cannot read values from `terraform.tfvars`.
 
-To use a customer managed KMS key for Terraform/OpenTofu state, set the backend's `kms_key_id` alongside `encrypt = true`:
+To use a customer-managed KMS key for Terraform/OpenTofu state, set the backend's `kms_key_id` alongside `encrypt = true`:
 
 ```hcl
 backend "s3" {
