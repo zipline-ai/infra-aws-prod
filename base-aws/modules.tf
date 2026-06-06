@@ -11,6 +11,8 @@ module "orchestration" {
   dockerhub_token     = var.dockerhub_token
   warehouse_bucket    = aws_s3_bucket.zipline_warehouse_bucket.id
 
+  create_ecr_pullthroughcache_resources = var.create_ecr_pullthroughcache_resources
+
   # DynamoDB Configuration
   dynamodb_table_prefix    = var.dynamodb_table_prefix
   dynamodb_read_capacity   = var.dynamodb_read_capacity
