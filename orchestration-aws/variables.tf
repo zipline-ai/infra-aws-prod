@@ -171,6 +171,12 @@ variable "eval_cert_arn" {
   default     = ""
 }
 
+variable "create_ecr_pullthroughcache_resources" {
+  type        = bool
+  description = "Whether to create ECR Pull Through Cache resources (secret in ecr-pullthroughcache/ namespace, cache rule for zipline-private/, repository creation template, prime helper). These are account-level globals — a second zipline-aws deployment in the same account must set this to false so it doesn't collide with the first stack's resources. EKS nodes can still pull Docker Hub images directly via the docker-hub-creds Kubernetes secret."
+  default     = true
+}
+
 variable "dynamodb_table_prefix" {
   type        = string
   description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."

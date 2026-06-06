@@ -2,13 +2,17 @@
 # Allows pulling Docker Hub images through ECR (used by EKS)
 
 resource "aws_secretsmanager_secret" "dockerhub_creds" {
+  count = var.create_ecr_pullthroughcache_resources ? 1 : 0
+
   name        = "ecr-pullthroughcache/dockerhub"
   description = "Credentials for ECR Pull Through Cache from Docker Hub"
   kms_key_id  = var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
 }
 
 resource "aws_secretsmanager_secret_version" "dockerhub_creds_val" {
-  secret_id = aws_secretsmanager_secret.dockerhub_creds.id
+  count = var.create_ecr_pullthroughcache_resources ? 1 : 0
+
+  secret_id = aws_secretsmanager_secret.dockerhub_creds[0].id
   secret_string = jsonencode({
     username    = "ziplineai"
     accessToken = var.dockerhub_token
@@ -16,12 +20,16 @@ resource "aws_secretsmanager_secret_version" "dockerhub_creds_val" {
 }
 
 resource "aws_ecr_pull_through_cache_rule" "dockerhub_rule" {
+  count = var.create_ecr_pullthroughcache_resources ? 1 : 0
+
   ecr_repository_prefix = "zipline-private"
   upstream_registry_url = "registry-1.docker.io"
-  credential_arn        = aws_secretsmanager_secret.dockerhub_creds.arn
+  credential_arn        = aws_secretsmanager_secret.dockerhub_creds[0].arn
 }
 
 resource "aws_ecr_repository_creation_template" "template" {
+  count = var.create_ecr_pullthroughcache_resources ? 1 : 0
+
   prefix      = "zipline-private"
   description = "Template for repositories pulled from Docker Hub"
 
@@ -40,24 +48,26 @@ resource "aws_ecr_repository_creation_template" "template" {
 }
 
 resource "terraform_data" "prime_ecr_cache" {
+  count = var.create_ecr_pullthroughcache_resources ? 1 : 0
+
   # Re-run this if the version changes or the cache rule changes
   triggers_replace = [
     var.zipline_version,
-    aws_ecr_pull_through_cache_rule.dockerhub_rule.id
+    aws_ecr_pull_through_cache_rule.dockerhub_rule[0].id
   ]
 
   provisioner "local-exec" {
     command = <<EOT
       aws ecr batch-get-image \
-        --repository-name ${aws_ecr_pull_through_cache_rule.dockerhub_rule.ecr_repository_prefix}/ziplineai/hub-aws \
+        --repository-name ${aws_ecr_pull_through_cache_rule.dockerhub_rule[0].ecr_repository_prefix}/ziplineai/hub-aws \
         --image-ids imageTag=${var.zipline_version} \
         --region ${data.aws_region.current.name}
     EOT
   }
 
   depends_on = [
-    aws_ecr_pull_through_cache_rule.dockerhub_rule,
-    aws_secretsmanager_secret_version.dockerhub_creds_val
+    aws_ecr_pull_through_cache_rule.dockerhub_rule[0],
+    aws_secretsmanager_secret_version.dockerhub_creds_val[0]
   ]
 }
 
