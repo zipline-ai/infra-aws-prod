@@ -189,12 +189,6 @@ variable "additional_data_buckets" {
   default     = []
 }
 
-variable "create_ecr_pullthroughcache_resources" {
-  type        = bool
-  description = "Whether to create ECR Pull Through Cache resources. Account-level globals — a second zipline-aws deployment in the same AWS account must set this to false to avoid colliding with the first stack's ecr-pullthroughcache/dockerhub secret and zipline-private/ cache rule. EKS nodes still pull Docker Hub images directly via the kubernetes docker-hub-creds secret."
-  default     = true
-}
-
 variable "dynamodb_table_prefix" {
   type        = string
   description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."
