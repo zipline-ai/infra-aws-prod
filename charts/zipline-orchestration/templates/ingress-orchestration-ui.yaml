@@ -19,6 +19,19 @@ spec:
     - http:
     {{- end }}
         paths:
+          {{- if .Values.compute.enabled }}
+          # Route /spark-history → spark-history-server Service. SHS already
+          # serves its UI under this base via -Dspark.ui.proxyBase so the
+          # ingress just forwards. Placed before / so nginx-ingress's longest-
+          # prefix-wins ordering routes correctly.
+          - path: {{ include "zipline-orchestration.historyServerProxyBase" . }}
+            pathType: Prefix
+            backend:
+              service:
+                name: spark-history-server
+                port:
+                  number: 18080
+          {{- end }}
           - path: /
             pathType: Prefix
             backend:

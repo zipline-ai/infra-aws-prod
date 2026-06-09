@@ -120,7 +120,6 @@ compute:
     nodeSelector: {}
     tolerations: []
   historyServer:
-    enabled: true
     image: "ziplineai/spark:3.5-crucible-latest"
     proxyBase: "spark-history"
     daemonMemory: "5g"
