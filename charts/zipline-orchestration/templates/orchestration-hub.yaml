@@ -103,10 +103,8 @@ spec:
               value: "{{ .Values.compute.serviceAccount.sparkName }}"
             - name: SPARK_SERVICE_ACCOUNT
               value: "{{ .Values.compute.serviceAccount.sparkName }}"
-            - name: K8S_SPARK_HISTORY_SERVER_URL
-              value: "http://spark-history-server.{{ .Release.Namespace }}.svc.cluster.local:18080"
             - name: SPARK_HISTORY_SERVER_URL
-              value: "http://spark-history-server.{{ .Release.Namespace }}.svc.cluster.local:18080"
+              value: {{ include "zipline-orchestration.historyServerPublicUrl" . | quote }}
             - name: K8S_SPARK_EVENT_LOG_DIR
               value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
             - name: SPARK_EVENT_LOG_DIR

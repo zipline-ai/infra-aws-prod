@@ -119,3 +119,17 @@ Spark History Server proxy base path.
 {{- define "zipline-orchestration.historyServerProxyBase" -}}
 {{- printf "/%s" (trimAll "/" (.Values.compute.historyServer.proxyBase | default "spark-history")) -}}
 {{- end }}
+
+{{/*
+Externally reachable Spark History Server URL, used by the Hub to render
+links the operator clicks from a browser. When ingress.ui.host is set the
+SHS is exposed behind <ui-host>/<proxyBase>; otherwise the Hub falls back
+to the cluster-internal Service DNS which only works from inside the cluster.
+*/}}
+{{- define "zipline-orchestration.historyServerPublicUrl" -}}
+{{- if .Values.ingress.ui.host -}}
+{{- printf "https://%s%s" .Values.ingress.ui.host (include "zipline-orchestration.historyServerProxyBase" .) -}}
+{{- else -}}
+{{- printf "http://spark-history-server.%s.svc.cluster.local:18080" .Release.Namespace -}}
+{{- end -}}
+{{- end }}
