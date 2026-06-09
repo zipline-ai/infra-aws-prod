@@ -2,18 +2,18 @@
 
 resource "terraform_data" "spark_compute_config_validation" {
   input = {
-    spark_compute_enabled   = var.spark_compute_enabled
-    spark_compute_namespace = var.spark_compute_namespace
-    spark_compute_image     = local.spark_compute_image
+    in_cluster_compute_enabled = var.in_cluster_compute_enabled
+    spark_compute_namespace    = var.spark_compute_namespace
+    spark_compute_image        = local.spark_compute_image
   }
 
   lifecycle {
     precondition {
-      condition = !var.spark_compute_enabled || alltrue([
+      condition = !var.in_cluster_compute_enabled || alltrue([
         trimspace(var.spark_compute_namespace) != "",
         trimspace(local.spark_compute_image) != "",
       ])
-      error_message = "spark_compute_namespace and spark_compute_image must be set when spark_compute_enabled is true."
+      error_message = "spark_compute_namespace and spark_compute_image must be set when in_cluster_compute_enabled is true."
     }
   }
 }
@@ -86,6 +86,8 @@ resource "helm_release" "opentelemetry_operator" {
 
 # Install Flink Kubernetes Operator
 resource "helm_release" "flink_operator" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name       = "flink-kubernetes-operator"
   repository = "https://archive.apache.org/dist/flink/flink-kubernetes-operator-1.14.0/"
   chart      = "flink-kubernetes-operator"
@@ -265,11 +267,11 @@ resource "helm_release" "zipline_orchestration" {
       kv_enable_ttl             = var.dynamodb_enable_ttl
       kv_replica_regions        = join(",", var.dynamodb_replica_regions)
       eks_cluster_name          = aws_eks_cluster.main.name
-      flink_eks_service_account = kubernetes_service_account_v1.flink_job.metadata[0].name
-      flink_eks_namespace       = kubernetes_namespace_v1.zipline_flink.metadata[0].name
+      flink_eks_service_account = try(kubernetes_service_account_v1.flink_job[0].metadata[0].name, "")
+      flink_eks_namespace       = try(kubernetes_namespace_v1.zipline_flink[0].metadata[0].name, "")
 
       # Optional Kubernetes Spark compute configuration
-      spark_compute_enabled      = var.spark_compute_enabled
+      in_cluster_compute_enabled = var.in_cluster_compute_enabled
       spark_compute_namespace    = var.spark_compute_namespace
       spark_compute_image        = local.spark_compute_image
       spark_history_server_image = local.spark_history_server_image
@@ -340,7 +342,11 @@ resource "random_password" "zipline_auth" {
 
 resource "aws_secretsmanager_secret" "zipline_auth" {
   count = var.zipline_auth_enabled ? 1 : 0
-  name  = "zipline-auth-secret"
+  # Only customer-prefix the name when in-cluster compute is enabled so a
+  # second deployment in the same AWS account doesn't clash. Keeps existing
+  # single-deployment customers from destroy+recreate (and losing rotation
+  # history) just because the resource gained a prefix.
+  name = var.in_cluster_compute_enabled ? "${var.name_prefix}-zipline-auth-secret" : "zipline-auth-secret"
 }
 
 resource "aws_secretsmanager_secret_version" "zipline_auth" {

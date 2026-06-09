@@ -23,7 +23,7 @@ aws:
   emrCloudWatchLogGroup: "${emr_cloudwatch_log_group}"
 
 compute:
-  enabled: ${spark_compute_enabled}
+  enabled: ${in_cluster_compute_enabled}
   cloudProvider: aws
   defaultNamespace: "${spark_compute_namespace}"
   namespaces:
@@ -41,7 +41,7 @@ compute:
   historyServer:
     image: "${spark_history_server_image}"
   imagePrepull:
-    enabled: ${spark_compute_enabled}
+    enabled: ${in_cluster_compute_enabled}
     images:
       - "${spark_compute_image}"
 

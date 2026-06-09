@@ -316,6 +316,8 @@ data "aws_iam_policy_document" "flink_job_assume_role" {
 }
 
 resource "aws_iam_role" "flink_job_execution" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name               = "${var.name_prefix}-flink-job-execution"
   assume_role_policy = data.aws_iam_policy_document.flink_job_assume_role.json
   description        = "IAM role for Flink on EKS job execution with IRSA"
@@ -355,14 +357,18 @@ data "aws_iam_policy_document" "flink_s3_policy" {
 }
 
 resource "aws_iam_policy" "flink_s3" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name        = "${var.name_prefix}-flink-s3-policy"
   description = "S3 access policy for Flink jobs"
   policy      = data.aws_iam_policy_document.flink_s3_policy.json
 }
 
 resource "aws_iam_role_policy_attachment" "flink_s3" {
-  role       = aws_iam_role.flink_job_execution.name
-  policy_arn = aws_iam_policy.flink_s3.arn
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
+  role       = aws_iam_role.flink_job_execution[0].name
+  policy_arn = aws_iam_policy.flink_s3[0].arn
 }
 
 # CloudWatch Logs policy for Flink jobs
@@ -389,8 +395,10 @@ data "aws_iam_policy_document" "flink_cloudwatch_policy" {
 }
 
 resource "aws_iam_role_policy" "flink_cloudwatch" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name   = "${var.name_prefix}-flink-cloudwatch"
-  role   = aws_iam_role.flink_job_execution.id
+  role   = aws_iam_role.flink_job_execution[0].id
   policy = data.aws_iam_policy_document.flink_cloudwatch_policy.json
 }
 
@@ -412,8 +420,10 @@ data "aws_iam_policy_document" "flink_kinesis_policy" {
 }
 
 resource "aws_iam_role_policy" "flink_kinesis" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name   = "${var.name_prefix}-flink-kinesis"
-  role   = aws_iam_role.flink_job_execution.id
+  role   = aws_iam_role.flink_job_execution[0].id
   policy = data.aws_iam_policy_document.flink_kinesis_policy.json
 }
 
@@ -441,8 +451,10 @@ data "aws_iam_policy_document" "flink_dynamodb_policy" {
 }
 
 resource "aws_iam_role_policy" "flink_dynamodb" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name   = "${var.name_prefix}-flink-dynamodb"
-  role   = aws_iam_role.flink_job_execution.id
+  role   = aws_iam_role.flink_job_execution[0].id
   policy = data.aws_iam_policy_document.flink_dynamodb_policy.json
 }
 
@@ -651,8 +663,10 @@ data "aws_iam_policy_document" "flink_glue_schema_registry_policy" {
 }
 
 resource "aws_iam_role_policy" "flink_glue_schema_registry" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
   name   = "${var.name_prefix}-flink-glue-schema-registry"
-  role   = aws_iam_role.flink_job_execution.id
+  role   = aws_iam_role.flink_job_execution[0].id
   policy = data.aws_iam_policy_document.flink_glue_schema_registry_policy.json
 }
 
@@ -716,9 +730,9 @@ data "aws_iam_policy_document" "flink_msk_policy" {
 }
 
 resource "aws_iam_role_policy" "flink_msk" {
-  count  = var.msk_cluster_arn != "" ? 1 : 0
+  count  = !var.in_cluster_compute_enabled && var.msk_cluster_arn != "" ? 1 : 0
   name   = "${var.name_prefix}-flink-msk"
-  role   = aws_iam_role.flink_job_execution.id
+  role   = aws_iam_role.flink_job_execution[0].id
   policy = data.aws_iam_policy_document.flink_msk_policy[0].json
 }
 

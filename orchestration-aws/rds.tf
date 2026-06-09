@@ -44,7 +44,11 @@ resource "aws_db_instance" "zipline" {
 }
 
 resource "aws_iam_policy" "rds_secret_policy" {
-  name        = "RDSSecretReadAccess"
+  # Only customer-prefix the name when in-cluster compute is enabled so a
+  # second deployment in the same AWS account doesn't clash with the
+  # canonical `RDSSecretReadAccess` (IAM policy names are account-scoped).
+  # Keeps existing single-deployment customers churn-free.
+  name        = var.in_cluster_compute_enabled ? "${var.name_prefix}-RDSSecretReadAccess" : "RDSSecretReadAccess"
   description = "Allows reading the database credentials from Secrets Manager"
 
   policy = jsonencode({
