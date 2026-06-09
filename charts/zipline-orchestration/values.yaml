@@ -375,5 +375,9 @@ auth:
   sso_issuer: ""
   sso_client_id: ""
   sso_client_secret: ""
+  sso_use_saml: false
+  sso_saml_entry_point: ""
+  sso_saml_issuer: ""
+  sso_saml_callback_url: ""
   idp_role_mapping: ""
   idp_group_claim: ""

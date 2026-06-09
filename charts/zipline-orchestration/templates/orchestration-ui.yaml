@@ -109,6 +109,19 @@ spec:
               value: "{{ .Values.auth.sso_domain }}"
             - name: SSO_ISSUER
               value: "{{ .Values.auth.sso_issuer }}"
+            {{- if .Values.auth.sso_use_saml }}
+            - name: SSO_SAML_ENTRY_POINT
+              value: {{ .Values.auth.sso_saml_entry_point }}
+            - name: SSO_SAML_ISSUER
+              value: {{ .Values.auth.sso_saml_issuer }}
+            - name: SSO_SAML_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secret
+                  key: sso-saml-cert
+            - name: SSO_SAML_CALLBACK_URL
+              value: {{ .Values.auth.sso_saml_callback_url }}
+            {{- else }}
             - name: SSO_CLIENT_ID
               value: "{{ .Values.auth.sso_client_id }}"
             - name: SSO_CLIENT_SECRET
@@ -116,6 +129,7 @@ spec:
                 secretKeyRef:
                   name: auth-secret
                   key: sso-client-secret
+            {{- end }}
             - name: IDP_ROLE_MAPPING
               value: "{{ .Values.auth.idp_role_mapping }}"
             - name: IDP_GROUP_CLAIM

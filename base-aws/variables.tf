@@ -297,6 +297,37 @@ variable "sso_client_secret" {
   sensitive   = true
 }
 
+variable "sso_use_saml" {
+  type        = bool
+  description = "Optional bool whether to use SAML or OIDC"
+  default     = false
+}
+
+variable "sso_saml_entry_point" {
+  type        = string
+  description = "Optional for use with SAML SSO with zipline authentication"
+  default     = ""
+}
+
+variable "sso_saml_issuer" {
+  type        = string
+  description = "Optional for use with SAML SSO with zipline authentication"
+  default     = ""
+}
+
+variable "sso_saml_cert" {
+  type        = string
+  description = "Optional for use with SAML SSO with zipline authentication"
+  sensitive   = true
+  default     = ""
+}
+
+variable "sso_saml_callback_url" {
+  type        = string
+  description = "Optional for use with SAML SSO with zipline authentication"
+  default     = ""
+}
+
 variable "idp_role_mapping" {
   type        = string
   description = "Optional comma separated list of role mappings for zipline authentication"
