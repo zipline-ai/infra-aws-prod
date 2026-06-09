@@ -342,7 +342,11 @@ resource "random_password" "zipline_auth" {
 
 resource "aws_secretsmanager_secret" "zipline_auth" {
   count = var.zipline_auth_enabled ? 1 : 0
-  name  = "${var.name_prefix}-zipline-auth-secret"
+  # Only customer-prefix the name when in-cluster compute is enabled so a
+  # second deployment in the same AWS account doesn't clash. Keeps existing
+  # single-deployment customers from destroy+recreate (and losing rotation
+  # history) just because the resource gained a prefix.
+  name = var.in_cluster_compute_enabled ? "${var.name_prefix}-zipline-auth-secret" : "zipline-auth-secret"
 }
 
 resource "aws_secretsmanager_secret_version" "zipline_auth" {
