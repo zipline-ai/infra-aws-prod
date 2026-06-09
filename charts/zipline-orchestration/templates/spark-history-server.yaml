@@ -1,4 +1,4 @@
-{{- if and .Values.compute.enabled .Values.compute.historyServer.enabled }}
+{{- if .Values.compute.enabled }}
 {{- $systemNamespace := include "zipline-orchestration.computeSystemNamespace" . }}
 {{- if .Values.compute.historyServer.persistence.enabled }}
 apiVersion: v1

@@ -19,7 +19,7 @@ spec:
     - http:
     {{- end }}
         paths:
-          {{- if and .Values.compute.enabled .Values.compute.historyServer.enabled }}
+          {{- if .Values.compute.enabled }}
           # Route /spark-history → spark-history-server Service. SHS already
           # serves its UI under this base via -Dspark.ui.proxyBase so the
           # ingress just forwards. Placed before / so nginx-ingress's longest-
