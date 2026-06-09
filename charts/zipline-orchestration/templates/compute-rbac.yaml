@@ -124,10 +124,6 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments", "deployments/scale"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  # K8sSubmitter (IN_CLUSTER_COMPUTE_ENABLED=true) wraps each Spark submission in
-  # a batch/v1 Job whose pod runs spark-submit and (in turn) launches the driver
-  # pod. Without this rule the Hub SA can't create the launcher Job and the
-  # workflow stalls in BackoffLimitExceeded.
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
