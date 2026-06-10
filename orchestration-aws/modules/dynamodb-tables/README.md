@@ -47,10 +47,10 @@ module "dynamodb_tables" {
 | table_prefix | Prefix to prepend to DynamoDB table names. If empty, no prefix is added. | `string` | `""` | no |
 | read_capacity | Read capacity units for DynamoDB tables | `number` | `10` | no |
 | write_capacity | Write capacity units for DynamoDB tables | `number` | `10` | no |
-| replica_regions | Additional AWS regions for Global Tables v2 replication on CHRONON_METADATA. Empty disables replication. | `list(string)` | `[]` | no |
+| replica_regions | Additional AWS regions for Global Tables v2 replication on replicated DynamoDB tables. Empty disables replication. | `list(string)` | `[]` | no |
 | encrypt_at_rest | Whether to validate customer managed KMS key settings for DynamoDB at-rest encryption. | `bool` | `true` | no |
 | encryption_kms_key_arn | Optional customer managed KMS key ARN for DynamoDB at-rest encryption. If `replica_regions` is non-empty, this must be a multi-Region KMS key ARN unless every replica region has an entry in `encryption_kms_key_arns`. | `string` | `""` | no |
-| encryption_kms_key_arns | Optional customer managed KMS key ARNs keyed by replica region for CHRONON_METADATA Global Tables replicas. | `map(string)` | `{}` | no |
+| encryption_kms_key_arns | Optional customer managed KMS key ARNs keyed by replica region for Global Tables replicas. | `map(string)` | `{}` | no |
 
 ## Outputs
 
