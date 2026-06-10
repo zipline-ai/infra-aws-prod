@@ -107,8 +107,6 @@ spec:
               value: "{{ .Values.auth.sso_provider_id }}"
             - name: SSO_DOMAIN
               value: "{{ .Values.auth.sso_domain }}"
-            - name: SSO_ISSUER
-              value: "{{ .Values.auth.sso_issuer }}"
             {{- if .Values.auth.sso_use_saml }}
             - name: SSO_SAML_ENTRY_POINT
               value: {{ .Values.auth.sso_saml_entry_point }}
@@ -122,6 +120,8 @@ spec:
             - name: SSO_SAML_CALLBACK_URL
               value: {{ .Values.auth.sso_saml_callback_url }}
             {{- else }}
+            - name: SSO_ISSUER
+              value: "{{ .Values.auth.sso_issuer }}"
             - name: SSO_CLIENT_ID
               value: "{{ .Values.auth.sso_client_id }}"
             - name: SSO_CLIENT_SECRET
