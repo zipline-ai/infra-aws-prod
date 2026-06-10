@@ -300,17 +300,17 @@ resource "helm_release" "zipline_orchestration" {
       auth_secrets_arn                    = var.zipline_auth_enabled ? aws_secretsmanager_secret.zipline_auth[0].arn : ""
       zipline_auth_jwksUrl                = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
       google_oauth_client_id              = var.google_oauth_client_id
-      google_oauth_client_secret          = var.google_oauth_client_secret
       github_oauth_client_id              = var.github_oauth_client_id
-      github_oauth_client_secret          = var.github_oauth_client_secret
       microsoft_entra_tenant_id           = var.microsoft_entra_tenant_id
       microsoft_entra_oauth_client_id     = var.microsoft_entra_oauth_client_id
-      microsoft_entra_oauth_client_secret = var.microsoft_entra_oauth_client_secret
       sso_provider_id                     = var.sso_provider_id
       sso_domain                          = var.sso_domain
       sso_issuer                          = var.sso_issuer
       sso_client_id                       = var.sso_client_id
-      sso_client_secret                   = var.sso_client_secret
+      sso_use_saml                        = var.sso_use_saml
+      sso_saml_entry_point                = var.sso_saml_entry_point
+      sso_saml_issuer                     = var.sso_saml_issuer
+      sso_saml_callback_url               = var.sso_saml_callback_url
       idp_role_mapping                    = var.idp_role_mapping
       idp_group_claim                     = var.idp_group_claim
 
@@ -358,6 +358,7 @@ resource "aws_secretsmanager_secret_version" "zipline_auth" {
     github-oauth-client-secret          = var.github_oauth_client_secret,
     microsoft-entra-oauth-client-secret = var.microsoft_entra_oauth_client_secret,
     sso-client-secret                   = var.sso_client_secret,
+    sso-saml-cert                       = var.sso_saml_cert,
   })
 }
 
