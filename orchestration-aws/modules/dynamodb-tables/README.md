@@ -1,19 +1,25 @@
 # DynamoDB Tables Module
 
-This module creates the DynamoDB tables required for Chronon metadata storage.
+This module creates the DynamoDB tables required for Chronon metadata, partition, enhanced stats, and data quality metrics batch storage.
 
 ## Tables Created
 
 1. **CHRONON_METADATA** (or `{prefix}CHRONON_METADATA` if prefix is set) — supports optional Global Tables v2 replication
 2. **TABLE_PARTITIONS** (or `{prefix}TABLE_PARTITIONS` if prefix is set)
+3. **ENHANCED_STATS** (or `{prefix}ENHANCED_STATS` if prefix is set) — supports optional Global Tables v2 replication
+4. **DATA_QUALITY_METRICS_BATCH** (or `{prefix}DATA_QUALITY_METRICS_BATCH` if prefix is set) — supports optional Global Tables v2 replication
 
-Both tables are configured with:
+All tables are configured with:
 - Binary hash key: `keyBytes`
-- TTL enabled on attribute: `ttl`
+- TTL configured on attribute `ttl` but disabled
 
 **CHRONON_METADATA** uses on-demand (pay-per-request) billing; the `read_capacity` and `write_capacity` variables do not apply to it. When `replica_regions` is non-empty, Streams are enabled (`NEW_AND_OLD_IMAGES`) and the table is replicated to the specified regions using Global Tables v2.
 
 **TABLE_PARTITIONS** uses provisioned billing with configurable read/write capacity units.
+
+**ENHANCED_STATS** uses on-demand (pay-per-request) billing with a numeric range key named `ts`; the `read_capacity` and `write_capacity` variables do not apply to it. When `replica_regions` is non-empty, Streams are enabled (`NEW_AND_OLD_IMAGES`) and the table is replicated to the specified regions using Global Tables v2.
+
+**DATA_QUALITY_METRICS_BATCH** uses on-demand (pay-per-request) billing with a numeric range key named `ts`; the `read_capacity` and `write_capacity` variables do not apply to it. When `replica_regions` is non-empty, Streams are enabled (`NEW_AND_OLD_IMAGES`) and the table is replicated to the specified regions using Global Tables v2.
 
 ## Usage
 
@@ -54,3 +60,7 @@ module "dynamodb_tables" {
 | chronon_metadata_table_arn | ARN of the Chronon metadata DynamoDB table |
 | table_partitions_table_name | Name of the table partitions DynamoDB table |
 | table_partitions_table_arn | ARN of the table partitions DynamoDB table |
+| enhanced_stats_table_name | Name of the enhanced stats DynamoDB table |
+| enhanced_stats_table_arn | ARN of the enhanced stats DynamoDB table |
+| data_quality_metrics_batch_table_name | Name of the data quality metrics batch DynamoDB table |
+| data_quality_metrics_batch_table_arn | ARN of the data quality metrics batch DynamoDB table |

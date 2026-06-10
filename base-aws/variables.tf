@@ -191,7 +191,7 @@ variable "additional_data_buckets" {
 
 variable "dynamodb_table_prefix" {
   type        = string
-  description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA and TABLE_PARTITIONS). Leave empty for no prefix."
+  description = "Prefix to prepend to DynamoDB table names (CHRONON_METADATA, TABLE_PARTITIONS, ENHANCED_STATS, and DATA_QUALITY_METRICS_BATCH). Leave empty for no prefix."
   default     = ""
 }
 

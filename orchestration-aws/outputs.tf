@@ -80,6 +80,26 @@ output "table_partitions_base_name" {
   value       = module.dynamodb_tables.table_partitions_base_name
 }
 
+output "enhanced_stats_table_name" {
+  description = "Full name of the enhanced stats DynamoDB table (with prefix)"
+  value       = module.dynamodb_tables.enhanced_stats_table_name
+}
+
+output "enhanced_stats_base_name" {
+  description = "Base name of the enhanced stats table (without prefix)"
+  value       = module.dynamodb_tables.enhanced_stats_base_name
+}
+
+output "data_quality_metrics_batch_table_name" {
+  description = "Full name of the data quality metrics batch DynamoDB table (with prefix)"
+  value       = module.dynamodb_tables.data_quality_metrics_batch_table_name
+}
+
+output "data_quality_metrics_batch_base_name" {
+  description = "Base name of the data quality metrics batch table (without prefix)"
+  value       = module.dynamodb_tables.data_quality_metrics_batch_base_name
+}
+
 output "dynamodb_table_prefix" {
   description = "The table prefix used for DynamoDB tables"
   value       = module.dynamodb_tables.table_prefix
