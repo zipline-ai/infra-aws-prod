@@ -79,7 +79,7 @@ compute:
     create: true
   sparkDefaults:
     eventLogDir: "" # Defaults to s3a://<objectStore.bucket>/spark-events
-    image: "ziplineai/spark:latest"
+    image: "ziplineai/spark:nightly"
     imagePullPolicy: "Always"
     chrononJarPath: "/opt/chronon/chronon-spark.jar"
     nvmeEnabled: true
@@ -120,7 +120,7 @@ compute:
     nodeSelector: {}
     tolerations: []
   historyServer:
-    image: "ziplineai/spark:latest"
+    image: "ziplineai/spark:nightly"
     proxyBase: "spark-history"
     daemonMemory: "5g"
     hybridStoreMemory: "4g"
