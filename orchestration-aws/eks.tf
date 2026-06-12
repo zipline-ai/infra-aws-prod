@@ -616,6 +616,13 @@ resource "helm_release" "fluent_bit" {
   version    = "0.43.0"
 
   values = [<<-EOT
+resources:
+  requests:
+    cpu: 50m
+    memory: 100Mi
+  limits:
+    cpu: 200m
+    memory: 200Mi
 config:
   service: |
     [SERVICE]
@@ -692,6 +699,26 @@ resource "helm_release" "aws_load_balancer_controller" {
   set {
     name  = "vpcId"
     value = var.vpc_id
+  }
+
+  set {
+    name  = "resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "resources.requests.memory"
+    value = "128Mi"
+  }
+
+  set {
+    name  = "resources.limits.cpu"
+    value = "200m"
+  }
+
+  set {
+    name  = "resources.limits.memory"
+    value = "256Mi"
   }
 
   depends_on = [
