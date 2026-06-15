@@ -77,6 +77,13 @@ ingress-nginx-ui:
       default: false
       controllerValue: "k8s.io/ingress-nginx-ui"
     ingressClass: nginx-ui
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -104,6 +111,13 @@ ingress-nginx-fetcher:
       default: false
       controllerValue: "k8s.io/ingress-nginx-fetcher"
     ingressClass: nginx-fetcher
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -131,6 +145,13 @@ ingress-nginx-eval:
       default: false
       controllerValue: "k8s.io/ingress-nginx-eval"
     ingressClass: nginx-eval
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
@@ -158,6 +179,13 @@ ingress-nginx-hub:
       default: false
       controllerValue: "k8s.io/ingress-nginx-hub"
     ingressClass: nginx-hub
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-type: "nlb"

@@ -65,6 +65,66 @@ resource "helm_release" "cert_manager" {
     value = "true"
   }
 
+  set {
+    name  = "resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "resources.requests.memory"
+    value = "128Mi"
+  }
+
+  set {
+    name  = "resources.limits.cpu"
+    value = "200m"
+  }
+
+  set {
+    name  = "resources.limits.memory"
+    value = "256Mi"
+  }
+
+  set {
+    name  = "cainjector.resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "cainjector.resources.requests.memory"
+    value = "128Mi"
+  }
+
+  set {
+    name  = "cainjector.resources.limits.cpu"
+    value = "200m"
+  }
+
+  set {
+    name  = "cainjector.resources.limits.memory"
+    value = "256Mi"
+  }
+
+  set {
+    name  = "webhook.resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "webhook.resources.requests.memory"
+    value = "64Mi"
+  }
+
+  set {
+    name  = "webhook.resources.limits.cpu"
+    value = "100m"
+  }
+
+  set {
+    name  = "webhook.resources.limits.memory"
+    value = "128Mi"
+  }
+
   depends_on = [aws_eks_node_group.default]
 }
 
@@ -101,6 +161,23 @@ resource "helm_release" "flink_operator" {
     value = "false"
   }
 
+  set {
+    name  = "operatorPod.resources.requests.cpu"
+    value = "50m"
+  }
+  set {
+    name  = "operatorPod.resources.requests.memory"
+    value = "256Mi"
+  }
+  set {
+    name  = "operatorPod.resources.limits.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "operatorPod.resources.limits.memory"
+    value = "512Mi"
+  }
+
   depends_on = [
     aws_eks_node_group.default,
   ]
@@ -132,6 +209,16 @@ resource "kubectl_manifest" "adot_collector" {
     spec = {
       mode           = "deployment"
       serviceAccount = "adot-collector"
+      resources = {
+        requests = {
+          cpu    = "100m"
+          memory = "256Mi"
+        }
+        limits = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+      }
       config = yamlencode({
         receivers = {
           otlp = {
