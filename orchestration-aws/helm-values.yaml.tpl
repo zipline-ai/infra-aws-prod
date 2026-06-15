@@ -102,7 +102,7 @@ ingress-nginx-ui:
 
 # Ingress NGINX Controller for Fetcher
 ingress-nginx-fetcher:
-  enabled: ${deploy_fetcher}
+  enabled: ${use_zipline_custom_domain ? false : deploy_fetcher}
   fullnameOverride: nginx-fetcher
   controller:
     ingressClassResource:
@@ -137,7 +137,7 @@ ingress-nginx-fetcher:
 
 # Ingress NGINX Controller for Eval
 ingress-nginx-eval:
-  enabled: true
+  enabled: ${use_zipline_custom_domain ? false : true}
   controller:
     ingressClassResource:
       name: nginx-eval
@@ -171,7 +171,7 @@ ingress-nginx-eval:
 
 # Ingress NGINX Controller for Hub
 ingress-nginx-hub:
-  enabled: true
+  enabled: ${use_zipline_custom_domain ? false : true}
   controller:
     ingressClassResource:
       name: nginx-hub
@@ -257,35 +257,50 @@ orchestration:
 # Ingress configuration
 ingress:
   ui:
-    className: nginx-ui
+    className: ${ui_ingress_class}
 %{ if ui_domain != "" }
     host: "${ui_domain}"
 %{ endif }
+    path: "${ui_path}"
     annotations: {}
   eval:
-    className: nginx-eval
+    className: ${eval_ingress_class}
 %{ if eval_domain != "" }
     host: "${eval_domain}"
 %{ endif }
-    annotations: {}
+    path: "${eval_path}"
+    annotations:
+%{ if eval_path != "/" }
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+%{ endif }
   hub:
-    className: nginx-hub
+    className: ${hub_ingress_class}
 %{ if hub_domain != "" }
     host: "${hub_domain}"
 %{ endif }
 %{ if hub_external_url != "" }
     externalUrl: "${hub_external_url}"
 %{ endif }
+    path: "${hub_path}"
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
       nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+%{ if hub_path != "/" }
+      nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+%{ endif }
   fetcher:
-    className: nginx-fetcher
+    className: ${fetcher_ingress_class}
 %{ if fetcher_domain != "" }
     host: "${fetcher_domain}"
 %{ endif }
+    path: "${fetcher_path}"
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
+%{ if fetcher_path != "/" }
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+%{ endif }
 
 # Prometheus configuration
 prometheus:

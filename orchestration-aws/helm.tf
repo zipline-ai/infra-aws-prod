@@ -345,11 +345,20 @@ resource "helm_release" "zipline_orchestration" {
       irsa_role_arn     = aws_iam_role.orchestration_irsa.arn
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name
 
-      hub_domain                = var.hub_domain
-      hub_external_url          = var.hub_external_url
-      ui_domain                 = var.ui_domain
-      fetcher_domain            = var.fetcher_domain
-      eval_domain               = var.eval_domain
+      hub_domain                = local.hub_domain
+      hub_external_url          = local.use_zipline_custom_domain ? "https://${local.hub_domain}${local.hub_path}" : var.hub_external_url
+      ui_domain                 = local.ui_domain
+      fetcher_domain            = local.fetcher_domain
+      eval_domain               = local.eval_domain
+      hub_ingress_class         = local.hub_ingress_class
+      ui_ingress_class          = local.ui_ingress_class
+      fetcher_ingress_class     = local.fetcher_ingress_class
+      eval_ingress_class        = local.eval_ingress_class
+      hub_path                  = local.hub_path
+      ui_path                   = local.ui_path
+      fetcher_path              = local.fetcher_path
+      eval_path                 = local.eval_path
+      use_zipline_custom_domain = local.use_zipline_custom_domain
       kv_table_prefix           = module.dynamodb_tables.table_prefix
       kv_enable_ttl             = var.dynamodb_enable_ttl
       kv_replica_regions        = join(",", var.dynamodb_replica_regions)
@@ -382,24 +391,24 @@ resource "helm_release" "zipline_orchestration" {
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")
 
-      zipline_auth_enabled                = var.zipline_auth_enabled
-      zipline_auth_url                    = var.ui_domain != "" ? "https://${var.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
-      auth_secrets_arn                    = var.zipline_auth_enabled ? aws_secretsmanager_secret.zipline_auth[0].arn : ""
-      zipline_auth_jwksUrl                = "https://${var.ui_domain != "" ? var.ui_domain : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"}/api/auth/jwks"
-      google_oauth_client_id              = var.google_oauth_client_id
-      github_oauth_client_id              = var.github_oauth_client_id
-      microsoft_entra_tenant_id           = var.microsoft_entra_tenant_id
-      microsoft_entra_oauth_client_id     = var.microsoft_entra_oauth_client_id
-      sso_provider_id                     = var.sso_provider_id
-      sso_domain                          = var.sso_domain
-      sso_issuer                          = var.sso_issuer
-      sso_client_id                       = var.sso_client_id
-      sso_use_saml                        = var.sso_use_saml
-      sso_saml_entry_point                = var.sso_saml_entry_point
-      sso_saml_issuer                     = var.sso_saml_issuer
-      sso_saml_callback_url               = var.sso_saml_callback_url
-      idp_role_mapping                    = var.idp_role_mapping
-      idp_group_claim                     = var.idp_group_claim
+      zipline_auth_enabled            = var.zipline_auth_enabled
+      zipline_auth_url                = local.zipline_auth_url
+      auth_secrets_arn                = var.zipline_auth_enabled ? aws_secretsmanager_secret.zipline_auth[0].arn : ""
+      zipline_auth_jwksUrl            = local.zipline_auth_jwks_url
+      google_oauth_client_id          = var.google_oauth_client_id
+      github_oauth_client_id          = var.github_oauth_client_id
+      microsoft_entra_tenant_id       = var.microsoft_entra_tenant_id
+      microsoft_entra_oauth_client_id = var.microsoft_entra_oauth_client_id
+      sso_provider_id                 = var.sso_provider_id
+      sso_domain                      = var.sso_domain
+      sso_issuer                      = var.sso_issuer
+      sso_client_id                   = var.sso_client_id
+      sso_use_saml                    = var.sso_use_saml
+      sso_saml_entry_point            = var.sso_saml_entry_point
+      sso_saml_issuer                 = var.sso_saml_issuer
+      sso_saml_callback_url           = var.sso_saml_callback_url
+      idp_role_mapping                = var.idp_role_mapping
+      idp_group_claim                 = var.idp_group_claim
 
     })
   ]

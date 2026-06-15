@@ -55,7 +55,7 @@ spec:
               value: {{ .Values.ingress.hub.externalUrl | quote }}
             {{- else if .Values.ingress.hub.host }}
             - name: HUB_BASE_URL
-              value: "https://{{ .Values.ingress.hub.host }}"
+              value: "https://{{ .Values.ingress.hub.host }}{{ if ne (.Values.ingress.hub.path | default "/") "/" }}{{ .Values.ingress.hub.path }}{{ end }}"
             {{- end }}
             - name: AWS_REGION
               value: "{{ .Values.aws.region }}"

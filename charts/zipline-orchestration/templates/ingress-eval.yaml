@@ -19,8 +19,9 @@ spec:
     - http:
     {{- end }}
         paths:
-          - path: /
-            pathType: Prefix
+          {{- $path := .Values.ingress.eval.path | default "/" }}
+          - path: {{ if eq $path "/" }}/{{ else }}{{ printf "%s(/|$)(.*)" $path }}{{ end }}
+            pathType: {{ if eq $path "/" }}Prefix{{ else }}ImplementationSpecific{{ end }}
             backend:
               service:
                 name: eval-service

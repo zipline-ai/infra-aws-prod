@@ -94,6 +94,19 @@ variable "spark_compute_image" {
   nullable    = true
 }
 
+# A single custom domain for all services (optional). Either set zipline_custom_domain or the set (ui_domain, hub_domain, eval_domain, and fetcher_domain)
+variable "zipline_custom_domain" {
+  type        = string
+  description = "Custom domain for the entire zipline stack. Either set this or the individual domains for each service."
+  default     = ""
+}
+
+variable "zipline_custom_domain_cert_arn" {
+  type        = string
+  description = "ARN of an existing ACM certificate for zipline_custom_domain. Leave empty to create a certificate when zipline_custom_domain is set."
+  default     = ""
+}
+
 # Custom domain configuration for HTTPS
 variable "ui_domain" {
   type        = string
