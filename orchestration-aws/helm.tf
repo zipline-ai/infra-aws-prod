@@ -161,6 +161,23 @@ resource "helm_release" "flink_operator" {
     value = "false"
   }
 
+  set {
+    name  = "operatorPod.resources.requests.cpu"
+    value = "50m"
+  }
+  set {
+    name  = "operatorPod.resources.requests.memory"
+    value = "256Mi"
+  }
+  set {
+    name  = "operatorPod.resources.limits.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "operatorPod.resources.limits.memory"
+    value = "512Mi"
+  }
+
   depends_on = [
     aws_eks_node_group.default,
   ]
