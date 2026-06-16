@@ -2,7 +2,7 @@ apiVersion: v2
 name: zipline-orchestration
 description: A Helm chart for Zipline Orchestration Platform on AWS
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "0.9.7"
 
 keywords:
@@ -42,6 +42,17 @@ dependencies:
   - name: spark-operator
     version: "~2.5.0"
     repository: "https://kubeflow.github.io/spark-operator"
+    condition: compute.enabled
+  # CrucibleSubmitter's KubernetesCrucibleJobStore uses inAnyNamespace() informers
+  # over all three job types — the CRDs must exist on the cluster for the LIST
+  # query at submitter init, even when the workload mix is Spark-only today.
+  - name: flink-kubernetes-operator
+    version: "1.10.0"
+    repository: "oci://ghcr.io/apache/flink-kubernetes-operator"
+    condition: compute.enabled
+  - name: kuberay-operator
+    version: "~1.6.0"
+    repository: "https://ray-project.github.io/kuberay-helm"
     condition: compute.enabled
   - name: promtail
     version: "6.16.6"

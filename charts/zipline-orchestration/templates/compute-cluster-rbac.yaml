@@ -1,0 +1,37 @@
+{{- if and .Values.compute.enabled .Values.compute.rbac.create }}
+# Cluster-scope LIST/WATCH on the three job CRDs so KubernetesCrucibleJobStore's
+# `inAnyNamespace()` informers can sync at hub startup. The per-namespace
+# Role above grants CREATE/UPDATE/DELETE in the target job namespace; this
+# only adds cluster-wide read for the informer cache.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "zipline-orchestration.fullname" . }}-compute-cluster-watch
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["flink.apache.org"]
+    resources: ["flinkdeployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["ray.io"]
+    resources: ["rayjobs"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "zipline-orchestration.fullname" . }}-compute-cluster-watch
+  labels:
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "zipline-orchestration.fullname" . }}-compute-cluster-watch
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "zipline-orchestration.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
