@@ -21,7 +21,7 @@ locals {
   fetcher_ingress_class = local.use_zipline_custom_domain ? "nginx-ui" : "nginx-fetcher"
   eval_ingress_class    = local.use_zipline_custom_domain ? "nginx-ui" : "nginx-eval"
 
-  provided_zipline_custom_domain_cert_arn = var.zipline_custom_domain_cert_arn != "" ? var.zipline_custom_domain_cert_arn : var.ui_cert_arn
+  provided_zipline_custom_domain_cert_arn = var.zipline_custom_domain_cert_arn
   zipline_custom_domain_cert_arn          = local.use_zipline_custom_domain ? (local.provided_zipline_custom_domain_cert_arn != "" ? local.provided_zipline_custom_domain_cert_arn : aws_acm_certificate.zipline_custom_domain_cert[0].arn) : ""
 
   ui_cert_arn      = local.use_zipline_custom_domain ? local.zipline_custom_domain_cert_arn : (local.ui_domain != "" ? (var.ui_cert_arn != "" ? var.ui_cert_arn : aws_acm_certificate.ui_cert[0].arn) : "")
