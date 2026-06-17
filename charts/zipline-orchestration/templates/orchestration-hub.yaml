@@ -99,10 +99,8 @@ spec:
               value: {{ include "zipline-orchestration.historyServerPublicUrl" . | quote }}
             - name: CRUCIBLE_SPARK_EVENT_LOG_DIR
               value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
-            {{- if .Values.compute.loki.enabled }}
             - name: LOKI_URL
               value: "http://{{ include "zipline-orchestration.fullname" . }}-loki.{{ include "zipline-orchestration.computeSystemNamespace" . }}.svc.cluster.local:3100"
-            {{- end }}
             - name: CRUCIBLE_DRIVER_PRIORITY_CLASS
               value: "{{ .Values.compute.driverPriorityClass.name }}"
             {{- end }}
