@@ -146,8 +146,6 @@ resource "helm_release" "opentelemetry_operator" {
 
 # Install Flink Kubernetes Operator
 resource "helm_release" "flink_operator" {
-  count = var.in_cluster_compute_enabled ? 0 : 1
-
   name       = "flink-kubernetes-operator"
   repository = "https://archive.apache.org/dist/flink/flink-kubernetes-operator-1.14.0/"
   chart      = "flink-kubernetes-operator"
@@ -175,6 +173,38 @@ resource "helm_release" "flink_operator" {
   }
   set {
     name  = "operatorPod.resources.limits.memory"
+    value = "512Mi"
+  }
+
+  depends_on = [
+    aws_eks_node_group.default,
+  ]
+}
+
+# Install KubeRay Operator
+resource "helm_release" "kuberay_operator" {
+  name       = "kuberay-operator"
+  repository = "https://ray-project.github.io/kuberay-helm"
+  chart      = "kuberay-operator"
+  namespace  = "kuberay-operator"
+  version    = "1.6.1"
+
+  create_namespace = true
+
+  set {
+    name  = "resources.requests.cpu"
+    value = "50m"
+  }
+  set {
+    name  = "resources.requests.memory"
+    value = "256Mi"
+  }
+  set {
+    name  = "resources.limits.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "resources.limits.memory"
     value = "512Mi"
   }
 
