@@ -1,4 +1,4 @@
-{{- if and .Values.compute.enabled .Values.compute.loki.enabled }}
+{{- if .Values.compute.enabled }}
 {{- $cloud := .Values.compute.cloudProvider | default "" }}
 {{- $bucket := .Values.compute.objectStore.bucket | default "" }}
 {{- $systemNamespace := include "zipline-orchestration.computeSystemNamespace" . }}
