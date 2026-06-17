@@ -7,3 +7,4 @@ aws s3 cp ./terraform.tfvars       s3://zipline-canary-vars/crucible-aws/terrafo
 aws s3 cp ./github.tf              s3://zipline-canary-vars/crucible-aws/github.tf
 aws s3 cp ./cloudflare.tf          s3://zipline-canary-vars/crucible-aws/cloudflare.tf
 aws s3 cp ./.terraform.lock.hcl    s3://zipline-canary-vars/crucible-aws/.terraform.lock.hcl
+aws s3 cp ./canary-config          s3://zipline-canary-vars/crucible-aws/canary-config --recursive

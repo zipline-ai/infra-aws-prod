@@ -30,7 +30,7 @@ spec:
                 name: orchestration-ui-service
                 port:
                   number: 80
-{{- if .Values.compute.enabled }}
+{{ if .Values.compute.enabled }}
 {{- $historyBase := include "zipline-orchestration.historyServerProxyBase" . -}}
 ---
 # Same shape canary's Flink Operator uses for per-FlinkDeployment Ingresses.
