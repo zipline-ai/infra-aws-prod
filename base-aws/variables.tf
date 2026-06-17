@@ -80,6 +80,13 @@ variable "spark_compute_namespace" {
   default     = "zipline-default"
 }
 
+variable "polaris_realm" {
+  type        = string
+  description = "Polaris realm for this deployment. Defaults to customer_name, which should match the Terraform customer_id/customer boundary."
+  default     = ""
+  nullable    = false
+}
+
 variable "spark_compute_image_registry" {
   type        = string
   description = "Optional private registry prefix containing Zipline Spark compute images mirrored by zipline admin install."

@@ -1,0 +1,29 @@
+{{- if and .Values.polaris.enabled .Values.ingress.ui.host }}
+{{- $polarisPath := trimSuffix "/" (.Values.ingress.polaris.path | default "/catalog") -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: polaris-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.polaris.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.polaris.className }}
+  rules:
+    - host: {{ .Values.ingress.ui.host }}
+      http:
+        paths:
+          - path: {{ printf "%s(/|$)(.*)" $polarisPath | quote }}
+            pathType: {{ .Values.ingress.polaris.pathType }}
+            backend:
+              service:
+                name: polaris-service
+                port:
+                  number: {{ .Values.polaris.ports.http }}
+{{- end }}

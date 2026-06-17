@@ -45,6 +45,26 @@ output "rds_secret_arn" {
   value       = aws_secretsmanager_secret.db_credentials.arn
 }
 
+output "polaris_realm" {
+  description = "Default Polaris realm bootstrapped by the orchestration chart"
+  value       = local.polaris_realm
+}
+
+output "polaris_root_client_id" {
+  description = "Root Polaris client ID bootstrapped by the orchestration chart"
+  value       = "root"
+}
+
+output "polaris_bootstrap_credentials_secret_name" {
+  description = "Kubernetes secret containing the Polaris bootstrap credentials file"
+  value       = kubernetes_secret_v1.polaris_bootstrap_credentials.metadata[0].name
+}
+
+output "polaris_catalog_external_url" {
+  description = "External Polaris Iceberg REST catalog URL when in-cluster compute exposes Polaris"
+  value       = var.in_cluster_compute_enabled && trimspace(var.ui_domain) != "" ? "https://${trimspace(var.ui_domain)}/catalog" : ""
+}
+
 output "orchestration_irsa_role_arn" {
   description = "ARN of the IRSA role for orchestration service account"
   value       = aws_iam_role.orchestration_irsa.arn

@@ -94,6 +94,7 @@ module "base_setup" {
   # Optional Kubernetes Spark compute configuration
   in_cluster_compute_enabled   = var.in_cluster_compute_enabled
   spark_compute_namespace      = var.spark_compute_namespace
+  polaris_realm                = var.polaris_realm
   spark_compute_image_registry = var.spark_compute_image_registry
   spark_compute_image          = var.spark_compute_image
 

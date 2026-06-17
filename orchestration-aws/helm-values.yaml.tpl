@@ -65,6 +65,14 @@ database:
   host: "${db_host}"
   name: "${db_name}"
 
+polaris:
+  enabled: ${in_cluster_compute_enabled}
+  realm: "${polaris_realm}"
+  bootstrap:
+    enabled: ${in_cluster_compute_enabled}
+    credentialsSecret:
+      name: "${polaris_bootstrap_credentials_secret}"
+
 # Service account with IRSA
 serviceAccount:
   create: true

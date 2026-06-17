@@ -158,6 +158,62 @@ database:
   host: ""
   name: "execution_info"
 
+polaris:
+  enabled: false
+  realm: "POLARIS"
+  image:
+    repository: "apache/polaris"
+    tag: "1.5.0"
+    pullPolicy: IfNotPresent
+  # Polaris images are public; don't inherit the Zipline private image pull secret.
+  imagePullSecrets: []
+  replicas: 1
+  ports:
+    http: 8181
+    management: 8182
+  database:
+    # Separate database on the same Postgres instance as database.name.
+    name: "polaris_catalog"
+    adminDatabase: "postgres"
+    jdbcParams: ""
+    psqlParams: ""
+    create: true
+    initImage: "public.ecr.aws/docker/library/postgres:16-alpine"
+  service:
+    type: ClusterIP
+  managementService:
+    type: ClusterIP
+    clusterIP: None
+  realmContext:
+    requireHeader: false
+  bootstrap:
+    enabled: false
+    image:
+      repository: "apache/polaris-admin-tool"
+      tag: "1.5.0"
+      pullPolicy: IfNotPresent
+    credentialsSecret:
+      # Secret data must contain one line formatted as:
+      # <realm>,<client-id>,<client-secret>
+      name: ""
+      key: "credentials"
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+  extraConfig: {}
+  extraEnv: []
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
 # Service account configuration with IRSA
 serviceAccount:
   create: true
@@ -346,6 +402,14 @@ ingress:
     host: ""
     path: "/"
     annotations: {}
+  polaris:
+    className: nginx-ui
+    path: "/catalog"
+    pathType: ImplementationSpecific
+    annotations:
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/rewrite-target: "/api/catalog/$2"
+      nginx.ingress.kubernetes.io/proxy-body-size: "20m"
 
 # Image pull secrets for Docker Hub
 imagePullSecrets:

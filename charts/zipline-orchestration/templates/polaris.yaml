@@ -1,0 +1,362 @@
+{{- if .Values.polaris.enabled }}
+{{- $polaris := .Values.polaris -}}
+{{- $realm := required "polaris.realm is required when Polaris is enabled" $polaris.realm -}}
+{{- $databaseName := required "polaris.database.name is required when Polaris is enabled" $polaris.database.name -}}
+{{- $databaseHost := required "database.host is required when Polaris is enabled" .Values.database.host -}}
+{{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
+{{- $psqlAdminUrl := printf "postgresql://%s/%s%s" $databaseHost $polaris.database.adminDatabase $polaris.database.psqlParams -}}
+{{- if and $polaris.bootstrap.enabled (not $polaris.bootstrap.credentialsSecret.name) -}}
+{{- fail "polaris.bootstrap.credentialsSecret.name is required when Polaris bootstrap is enabled" -}}
+{{- end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+data:
+  application.properties: |-
+    quarkus.http.port={{ $polaris.ports.http }}
+    quarkus.management.port={{ $polaris.ports.management }}
+    quarkus.log.file.enabled=false
+    quarkus.otel.sdk.disabled=true
+    polaris.persistence.type=relational-jdbc
+    polaris.realm-context.type=default
+    polaris.realm-context.realms={{ $realm }}
+    polaris.realm-context.require-header={{ $polaris.realmContext.requireHeader }}
+    {{- range $key, $value := $polaris.extraConfig }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+{{- if $polaris.bootstrap.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: polaris-bootstrap
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris-bootstrap
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: polaris
+        app.kubernetes.io/component: polaris-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if hasKey $polaris "imagePullSecrets" }}
+      {{- with $polaris.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      securityContext:
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if $polaris.database.create }}
+      initContainers:
+        - name: create-polaris-database
+          image: {{ $polaris.database.initImage | quote }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: POLARIS_DB_NAME
+              value: {{ $databaseName | quote }}
+            - name: PG_ADMIN_URL
+              value: {{ $psqlAdminUrl | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              case "$POLARIS_DB_NAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database name: $POLARIS_DB_NAME" >&2; exit 1;; esac
+              case "$DB_USERNAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database owner: $DB_USERNAME" >&2; exit 1;; esac
+              if psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname = '$POLARIS_DB_NAME'" | grep -q 1; then
+                echo "Database $POLARIS_DB_NAME already exists"
+              else
+                psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -c "CREATE DATABASE \"$POLARIS_DB_NAME\" OWNER \"$DB_USERNAME\""
+              fi
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      {{- end }}
+      containers:
+        - name: bootstrap-polaris
+          image: "{{ $polaris.bootstrap.image.repository }}:{{ default $polaris.image.tag $polaris.bootstrap.image.tag }}"
+          imagePullPolicy: {{ default $polaris.image.pullPolicy $polaris.bootstrap.image.pullPolicy }}
+          env:
+            - name: polaris.persistence.type
+              value: relational-jdbc
+            - name: quarkus.datasource.username
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: quarkus.datasource.password
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: quarkus.datasource.jdbc.url
+              value: {{ $jdbcUrl | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              credential="$(cat /etc/polaris-bootstrap/credentials)"
+              realm="${credential%%,*}"
+              exec java -jar /deployments/polaris-admin-tool.jar bootstrap -r "$realm" -c "$credential"
+          volumeMounts:
+            - name: polaris-bootstrap-credentials
+              mountPath: /etc/polaris-bootstrap
+              readOnly: true
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          resources:
+{{- toYaml $polaris.bootstrap.resources | nindent 12 }}
+      volumes:
+        - name: polaris-bootstrap-credentials
+          secret:
+            secretName: {{ $polaris.bootstrap.credentialsSecret.name | quote }}
+            items:
+              - key: {{ $polaris.bootstrap.credentialsSecret.key | quote }}
+                path: credentials
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipline-polaris
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $polaris.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: polaris
+  template:
+    metadata:
+      labels:
+        app: polaris
+        app.kubernetes.io/component: polaris
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if hasKey $polaris "imagePullSecrets" }}
+      {{- with $polaris.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      securityContext:
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if $polaris.database.create }}
+      initContainers:
+        - name: create-polaris-database
+          image: {{ $polaris.database.initImage | quote }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: POLARIS_DB_NAME
+              value: {{ $databaseName | quote }}
+            - name: PG_ADMIN_URL
+              value: {{ $psqlAdminUrl | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              case "$POLARIS_DB_NAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database name: $POLARIS_DB_NAME" >&2; exit 1;; esac
+              case "$DB_USERNAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database owner: $DB_USERNAME" >&2; exit 1;; esac
+              if psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname = '$POLARIS_DB_NAME'" | grep -q 1; then
+                echo "Database $POLARIS_DB_NAME already exists"
+              else
+                psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -c "CREATE DATABASE \"$POLARIS_DB_NAME\" OWNER \"$DB_USERNAME\""
+              fi
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      {{- end }}
+      containers:
+        - name: polaris
+          image: "{{ $polaris.image.repository }}:{{ $polaris.image.tag }}"
+          imagePullPolicy: {{ $polaris.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10000
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: quarkus.datasource.username
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: quarkus.datasource.password
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: quarkus.datasource.jdbc.url
+              value: {{ $jdbcUrl | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.aws.region | quote }}
+            {{- with $polaris.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: polaris-config
+              mountPath: /deployments/config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: {{ $polaris.ports.http }}
+              protocol: TCP
+            - name: management
+              containerPort: {{ $polaris.ports.management }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: management
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+{{- toYaml $polaris.resources | nindent 12 }}
+      volumes:
+        - name: polaris-config
+          configMap:
+            name: polaris-config
+        - name: tmp
+          emptyDir: {}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  type: {{ $polaris.service.type }}
+  selector:
+    app: polaris
+  ports:
+    - name: http
+      port: {{ $polaris.ports.http }}
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-management-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  type: {{ $polaris.managementService.type }}
+  {{- if $polaris.managementService.clusterIP }}
+  clusterIP: {{ $polaris.managementService.clusterIP }}
+  {{- end }}
+  selector:
+    app: polaris
+  ports:
+    - name: management
+      port: {{ $polaris.ports.management }}
+      targetPort: management
+      protocol: TCP
+{{- end }}
