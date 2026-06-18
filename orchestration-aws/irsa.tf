@@ -795,6 +795,8 @@ data "aws_iam_policy_document" "flink_compute_assume_role" {
 }
 
 resource "aws_iam_role" "flink_compute_execution" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name               = "${var.name_prefix}-flink-compute-execution"
   assume_role_policy = data.aws_iam_policy_document.flink_compute_assume_role.json
   description        = "IAM role for Flink JM/TM pods submitted via the Crucible gateway (in-cluster compute path)"
@@ -836,31 +838,41 @@ data "aws_iam_policy_document" "flink_compute_s3_policy" {
 }
 
 resource "aws_iam_policy" "flink_compute_s3" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name        = "${var.name_prefix}-flink-compute-s3-policy"
   description = "S3 access policy for Flink compute jobs"
   policy      = data.aws_iam_policy_document.flink_compute_s3_policy.json
 }
 
 resource "aws_iam_role_policy_attachment" "flink_compute_s3" {
-  role       = aws_iam_role.flink_compute_execution.name
-  policy_arn = aws_iam_policy.flink_compute_s3.arn
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
+  role       = aws_iam_role.flink_compute_execution[0].name
+  policy_arn = aws_iam_policy.flink_compute_s3[0].arn
 }
 
 resource "aws_iam_role_policy" "flink_compute_kinesis" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name   = "${var.name_prefix}-flink-compute-kinesis"
-  role   = aws_iam_role.flink_compute_execution.id
+  role   = aws_iam_role.flink_compute_execution[0].id
   policy = data.aws_iam_policy_document.flink_kinesis_policy.json
 }
 
 resource "aws_iam_role_policy" "flink_compute_dynamodb" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name   = "${var.name_prefix}-flink-compute-dynamodb"
-  role   = aws_iam_role.flink_compute_execution.id
+  role   = aws_iam_role.flink_compute_execution[0].id
   policy = data.aws_iam_policy_document.flink_dynamodb_policy.json
 }
 
 resource "aws_iam_role_policy" "flink_compute_glue_schema_registry" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name   = "${var.name_prefix}-flink-compute-glue-schema-registry"
-  role   = aws_iam_role.flink_compute_execution.id
+  role   = aws_iam_role.flink_compute_execution[0].id
   policy = data.aws_iam_policy_document.flink_glue_schema_registry_policy.json
 }
 
@@ -884,14 +896,16 @@ data "aws_iam_policy_document" "flink_compute_glue_catalog_policy" {
 }
 
 resource "aws_iam_role_policy" "flink_compute_glue_catalog" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name   = "${var.name_prefix}-flink-compute-glue-catalog"
-  role   = aws_iam_role.flink_compute_execution.id
+  role   = aws_iam_role.flink_compute_execution[0].id
   policy = data.aws_iam_policy_document.flink_compute_glue_catalog_policy.json
 }
 
 resource "aws_iam_role_policy" "flink_compute_msk" {
-  count  = var.msk_cluster_arn != "" ? 1 : 0
+  count  = var.in_cluster_compute_enabled && var.msk_cluster_arn != "" ? 1 : 0
   name   = "${var.name_prefix}-flink-compute-msk"
-  role   = aws_iam_role.flink_compute_execution.id
+  role   = aws_iam_role.flink_compute_execution[0].id
   policy = data.aws_iam_policy_document.flink_msk_policy[0].json
 }
