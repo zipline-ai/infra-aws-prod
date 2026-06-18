@@ -4,10 +4,22 @@ resource "aws_db_subnet_group" "zipline" {
   description = "A subnet group for the Zipline RDS instance"
 }
 
-# Generate a random password for the RDS instance
+# Generate a random password for the RDS instance.
+# AWS RDS rejects /, @, ", and space in the master password; random_password's
+# default special set includes @, so an unlucky roll trips CreateDBInstance
+# with InvalidParameterValue. Override to the default special chars minus @
+# (/, ", and space are not in random_password's default special set already).
 resource "random_password" "db_password" {
-  length  = 16
-  special = true
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+
+  # Existing deployments already have a generated password in state — adding
+  # override_special would otherwise force a replacement, which rotates the
+  # RDS master password (disruptive: secret refresh + hub pod restart).
+  lifecycle {
+    ignore_changes = [override_special]
+  }
 }
 
 # Store credentials in Secrets Manager with a readable name
