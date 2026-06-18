@@ -94,6 +94,10 @@ compute:
     driverNodeSelector:
       karpenter.sh/capacity-type: on-demand
     driverTolerations: []
+  flinkDefaults:
+    image: "ziplineai/flink:1.20.3"
+    serviceAccount: flink
+    serviceAccountAnnotations: {}
   driverPriorityClass:
     enabled: true
     name: "zipline-spark-driver"

@@ -160,6 +160,16 @@ resource "helm_release" "flink_operator" {
   }
 
   set {
+    name  = "rbac.create"
+    value = "true"
+  }
+
+  set {
+    name  = "rbac.operatorRoleBinding.create"
+    value = "true"
+  }
+
+  set {
     name  = "operatorPod.resources.requests.cpu"
     value = "50m"
   }
@@ -394,6 +404,8 @@ resource "helm_release" "zipline_orchestration" {
       spark_history_server_image = local.spark_history_server_image
       warehouse_bucket           = var.warehouse_bucket
       spark_compute_role_arn     = aws_iam_role.spark_compute_execution.arn
+      flink_compute_role_arn     = try(aws_iam_role.flink_compute_execution[0].arn, "")
+      flink_compute_image        = local.flink_compute_image
 
       # EMR Serverless (execution role ARN derived by naming convention)
       emr_serverless_execution_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/zipline_${var.name_prefix}_emr_serverless_role"

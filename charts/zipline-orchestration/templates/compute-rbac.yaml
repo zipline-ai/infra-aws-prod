@@ -59,7 +59,7 @@ metadata:
   labels:
     {{- include "zipline-orchestration.labels" $root | nindent 4 }}
     app.kubernetes.io/component: flink-job
-  {{- with $root.Values.compute.serviceAccount.annotations }}
+  {{- with $root.Values.compute.flinkDefaults.serviceAccountAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}

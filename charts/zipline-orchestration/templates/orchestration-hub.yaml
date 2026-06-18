@@ -105,6 +105,10 @@ spec:
               value: "http://{{ include "zipline-orchestration.fullname" . }}-loki.{{ include "zipline-orchestration.computeSystemNamespace" . }}.svc.cluster.local:3100"
             - name: CRUCIBLE_DRIVER_PRIORITY_CLASS
               value: "{{ .Values.compute.driverPriorityClass.name }}"
+            - name: CRUCIBLE_FLINK_IMAGE
+              value: "{{ .Values.compute.flinkDefaults.image }}"
+            - name: CRUCIBLE_FLINK_SERVICE_ACCOUNT
+              value: "{{ .Values.compute.flinkDefaults.serviceAccount | default "flink" }}"
             {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
