@@ -82,40 +82,28 @@ spec:
             - name: EMR_CLOUDWATCH_LOG_GROUP
               value: "{{ .Values.aws.emrCloudWatchLogGroup }}"
             {{- if .Values.compute.enabled }}
-            # Gate read by platform's AWSWorkflowExecutionVerticle to switch
-            # the Hub from EmrServerlessSubmitter to K8sSubmitter. See
-            # platform aws/.../AWSWorkflowExecutionVerticle.scala line 36.
+            # Gate read by platform's AWSWorkflowExecutionVerticle to route
+            # the Hub through CrucibleSubmitter (in-cluster fabric8 + SparkApp
+            # CRD) instead of EmrServerlessSubmitter.
             - name: IN_CLUSTER_COMPUTE_ENABLED
               value: "true"
-            - name: K8S_SUBMITTER_NAMESPACE
+            - name: CRUCIBLE_CLOUD_PROVIDER
+              value: "{{ .Values.compute.cloudProvider }}"
+            - name: CRUCIBLE_DEFAULT_NAMESPACE
               value: {{ include "zipline-orchestration.computeJobNamespace" . | quote }}
-            - name: K8S_NAMESPACE
-              value: {{ include "zipline-orchestration.computeJobNamespace" . | quote }}
-            - name: K8S_SPARK_IMAGE
+            - name: CRUCIBLE_SPARK_IMAGE
               value: "{{ .Values.compute.sparkDefaults.image }}"
-            - name: SPARK_IMAGE
-              value: "{{ .Values.compute.sparkDefaults.image }}"
-            - name: SPARK_IMAGE_PULL_POLICY
-              value: "{{ .Values.compute.sparkDefaults.imagePullPolicy }}"
-            - name: CHRONON_JAR_PATH
-              value: "{{ .Values.compute.sparkDefaults.chrononJarPath }}"
-            - name: K8S_SPARK_SERVICE_ACCOUNT
+            - name: CRUCIBLE_SPARK_SERVICE_ACCOUNT
               value: "{{ .Values.compute.serviceAccount.sparkName }}"
-            - name: SPARK_SERVICE_ACCOUNT
-              value: "{{ .Values.compute.serviceAccount.sparkName }}"
-            - name: SPARK_HISTORY_SERVER_URL
+            - name: CRUCIBLE_SPARK_HISTORY_PUBLIC_URL
               value: {{ include "zipline-orchestration.historyServerPublicUrl" . | quote }}
-            - name: K8S_SPARK_EVENT_LOG_DIR
+            - name: CRUCIBLE_SPARK_EVENT_LOG_DIR
               value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
-            - name: SPARK_EVENT_LOG_DIR
-              value: {{ include "zipline-orchestration.sparkEventLogDir" . | quote }}
-            - name: SPARK_EVENT_LOG_ENABLED
-              value: "true"
-            {{- if .Values.compute.loki.enabled }}
             - name: LOKI_URL
               value: "http://{{ include "zipline-orchestration.fullname" . }}-loki.{{ include "zipline-orchestration.computeSystemNamespace" . }}.svc.cluster.local:3100"
-            {{- end }}
-            - name: K8S_SPARK_DRIVER_PRIORITY_CLASS
+            - name: CRUCIBLE_LOKI_URL
+              value: "http://{{ include "zipline-orchestration.fullname" . }}-loki.{{ include "zipline-orchestration.computeSystemNamespace" . }}.svc.cluster.local:3100"
+            - name: CRUCIBLE_DRIVER_PRIORITY_CLASS
               value: "{{ .Values.compute.driverPriorityClass.name }}"
             {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT

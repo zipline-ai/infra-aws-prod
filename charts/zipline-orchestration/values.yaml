@@ -138,7 +138,6 @@ compute:
       storageClass: ""
       size: 10Gi
   loki:
-    enabled: true
     image: "grafana/loki:3.4.2"
     retention: "168h"
     resources:
@@ -381,6 +380,12 @@ promtail:
         - source_labels: [__meta_kubernetes_namespace]
           action: drop
           regex: kube-system|kube-public|kube-node-lease|cert-manager|gke-managed-.*|gmp-.*|default
+        - source_labels: [__meta_kubernetes_pod_label_chronon_job_id]
+          action: replace
+          target_label: chronon_job_id
+        - source_labels: [__meta_kubernetes_pod_label_spark_role]
+          action: replace
+          target_label: spark_role
   tolerations:
     - operator: Exists
   resources:
