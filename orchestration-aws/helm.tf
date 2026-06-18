@@ -160,6 +160,16 @@ resource "helm_release" "flink_operator" {
   }
 
   set {
+    name  = "rbac.create"
+    value = "true"
+  }
+
+  set {
+    name  = "rbac.operatorRoleBinding.create"
+    value = "true"
+  }
+
+  set {
     name  = "operatorPod.resources.requests.cpu"
     value = "50m"
   }
