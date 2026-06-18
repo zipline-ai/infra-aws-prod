@@ -116,6 +116,13 @@ variable "spark_compute_image" {
   nullable    = true
 }
 
+variable "flink_compute_image" {
+  type        = string
+  description = "Flink JM/TM image for Crucible in-cluster Flink jobs."
+  default     = null
+  nullable    = true
+}
+
 # Domain Configuration (optional)
 variable "hub_domain" {
   type        = string

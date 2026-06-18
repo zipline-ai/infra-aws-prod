@@ -38,6 +38,11 @@ compute:
   sparkDefaults:
     image: "${spark_compute_image}"
     eventLogDir: "s3a://${warehouse_bucket}/spark-events"
+  flinkDefaults:
+%{ if flink_compute_image != "" }    image: "${flink_compute_image}"
+%{ endif }    serviceAccount: "flink"
+    serviceAccountAnnotations:
+      eks.amazonaws.com/role-arn: "${flink_compute_role_arn}"
   historyServer:
     image: "${spark_history_server_image}"
   imagePrepull:

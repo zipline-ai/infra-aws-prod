@@ -477,7 +477,6 @@ data "aws_iam_policy_document" "spark_compute_assume_role" {
       variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
       values = [
         "system:serviceaccount:${var.spark_compute_namespace}:spark-operator-spark",
-        "system:serviceaccount:${var.spark_compute_namespace}:flink",
       ]
     }
     condition {
@@ -765,4 +764,134 @@ resource "aws_iam_role_policy" "orchestration_bedrock" {
   name   = "${var.name_prefix}-orchestration-bedrock"
   role   = aws_iam_role.orchestration_irsa.id
   policy = data.aws_iam_policy_document.bedrock_invoke_policy.json
+}
+
+# ===================================================================
+# IRSA Role for Flink Compute Jobs (Crucible in-cluster path)
+# Allows Flink JM/TM pods to access AWS resources without using the
+# spark_compute_execution identity. Separate from flink_job_execution
+# (which is the old EksFlinkSubmitter path, gated on !in_cluster_compute_enabled).
+# ===================================================================
+
+data "aws_iam_policy_document" "flink_compute_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:${var.spark_compute_namespace}:flink"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "flink_compute_execution" {
+  name               = "${var.name_prefix}-flink-compute-execution"
+  assume_role_policy = data.aws_iam_policy_document.flink_compute_assume_role.json
+  description        = "IAM role for Flink JM/TM pods submitted via the Crucible gateway (in-cluster compute path)"
+
+  tags = {
+    Name = "${var.name_prefix}-flink-compute-execution"
+  }
+}
+
+data "aws_iam_policy_document" "flink_compute_s3_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:DeleteObject",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = concat(
+      [
+        "arn:aws:s3:::${var.warehouse_bucket}",
+        "arn:aws:s3:::${var.warehouse_bucket}/*",
+        "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}",
+        "arn:aws:s3:::${trimprefix(var.artifact_prefix, "s3://")}/*",
+        "arn:aws:s3:::zipline-spark-libs",
+        "arn:aws:s3:::zipline-spark-libs/*",
+        "arn:aws:s3:::zipline-logs-${var.name_prefix}",
+        "arn:aws:s3:::zipline-logs-${var.name_prefix}/*",
+      ],
+      flatten([
+        for bucket in var.additional_flink_s3_buckets : [
+          "arn:aws:s3:::${bucket}",
+          "arn:aws:s3:::${bucket}/*",
+        ]
+      ]),
+    )
+  }
+}
+
+resource "aws_iam_policy" "flink_compute_s3" {
+  name        = "${var.name_prefix}-flink-compute-s3-policy"
+  description = "S3 access policy for Flink compute jobs"
+  policy      = data.aws_iam_policy_document.flink_compute_s3_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "flink_compute_s3" {
+  role       = aws_iam_role.flink_compute_execution.name
+  policy_arn = aws_iam_policy.flink_compute_s3.arn
+}
+
+resource "aws_iam_role_policy" "flink_compute_kinesis" {
+  name   = "${var.name_prefix}-flink-compute-kinesis"
+  role   = aws_iam_role.flink_compute_execution.id
+  policy = data.aws_iam_policy_document.flink_kinesis_policy.json
+}
+
+resource "aws_iam_role_policy" "flink_compute_dynamodb" {
+  name   = "${var.name_prefix}-flink-compute-dynamodb"
+  role   = aws_iam_role.flink_compute_execution.id
+  policy = data.aws_iam_policy_document.flink_dynamodb_policy.json
+}
+
+resource "aws_iam_role_policy" "flink_compute_glue_schema_registry" {
+  name   = "${var.name_prefix}-flink-compute-glue-schema-registry"
+  role   = aws_iam_role.flink_compute_execution.id
+  policy = data.aws_iam_policy_document.flink_glue_schema_registry_policy.json
+}
+
+data "aws_iam_policy_document" "flink_compute_glue_catalog_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetPartition",
+      "glue:GetPartitions",
+    ]
+    resources = [
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/*",
+      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "flink_compute_glue_catalog" {
+  name   = "${var.name_prefix}-flink-compute-glue-catalog"
+  role   = aws_iam_role.flink_compute_execution.id
+  policy = data.aws_iam_policy_document.flink_compute_glue_catalog_policy.json
+}
+
+resource "aws_iam_role_policy" "flink_compute_msk" {
+  count  = var.msk_cluster_arn != "" ? 1 : 0
+  name   = "${var.name_prefix}-flink-compute-msk"
+  role   = aws_iam_role.flink_compute_execution.id
+  policy = data.aws_iam_policy_document.flink_msk_policy[0].json
 }

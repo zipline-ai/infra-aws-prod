@@ -1,5 +1,6 @@
 locals {
   spark_compute_image_registry = trimsuffix(trimspace(var.spark_compute_image_registry), "/")
+  flink_compute_image          = try(trimspace(var.flink_compute_image), "")
 
   # ziplineai/spark:nightly is the no-bake generic image (chronon#1919) — chronon jar
   # is pulled at submit time via spark-submit's S3A URL, not baked into the image.
