@@ -1,5 +1,5 @@
 {{- if and .Values.polaris.enabled .Values.ingress.ui.host }}
-{{- $polarisPath := trimSuffix "/" (.Values.ingress.polaris.path | default "/catalog") -}}
+{{- $polarisPath := trimSuffix "/" (.Values.ingress.polaris.path | default "/services/catalog") -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

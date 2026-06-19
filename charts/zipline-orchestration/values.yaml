@@ -404,7 +404,7 @@ ingress:
     annotations: {}
   polaris:
     className: nginx-ui
-    path: "/catalog"
+    path: "/services/catalog"
     pathType: ImplementationSpecific
     annotations:
       nginx.ingress.kubernetes.io/use-regex: "true"
