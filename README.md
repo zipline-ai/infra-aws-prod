@@ -70,7 +70,7 @@ tofu apply
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `environment` | `""` | Optional environment qualifier (e.g. `canary`, `prod`). When set, prepended to S3 bucket names for global-namespace disambiguation (e.g. `zipline-warehouse-canary-yourcompany`). Only needed when you run more than one environment per customer — see [Multi-environment deployments](#multi-environment-deployments). |
-| `zipline_custom_domain` | `""` | Single custom domain for the Zipline stack. UI is exposed at the root, Hub at `/services/hub`, eval at `/services/eval`, and fetcher at `/services/fetcher` when fetcher is deployed. When set, it takes precedence over the per-service domain variables. |
+| `zipline_custom_domain` | `""` | Single custom domain for the Zipline stack. UI is exposed at the root, Hub at `/services/hub`, eval at `/services/eval`, fetcher at `/services/fetcher` when fetcher is deployed, and Polaris at `/catalog` when in-cluster compute is enabled. When set, it takes precedence over the per-service domain variables. |
 | `zipline_custom_domain_cert_arn` | `""` | ARN of an existing ACM certificate for `zipline_custom_domain`. Leave empty to let Terraform create one when `zipline_custom_domain` is set. |
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
