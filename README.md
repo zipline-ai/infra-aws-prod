@@ -70,6 +70,8 @@ tofu apply
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `environment` | `""` | Optional environment qualifier (e.g. `canary`, `prod`). When set, prepended to S3 bucket names for global-namespace disambiguation (e.g. `zipline-warehouse-canary-yourcompany`). Only needed when you run more than one environment per customer — see [Multi-environment deployments](#multi-environment-deployments). |
+| `zipline_custom_domain` | `""` | Single custom domain for the Zipline stack. UI is exposed at the root, Hub at `/services/hub`, eval at `/services/eval`, and fetcher at `/services/fetcher` when fetcher is deployed. When set, it takes precedence over the per-service domain variables. |
+| `zipline_custom_domain_cert_arn` | `""` | ARN of an existing ACM certificate for `zipline_custom_domain`. Leave empty to let Terraform create one when `zipline_custom_domain` is set. |
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
 | `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
@@ -270,6 +272,24 @@ To expose services on your own domain with HTTPS, set the domain variables and f
 
 ### 1. Deploy with domain variables
 
+Use one shared domain for the whole stack:
+
+```bash
+tofu apply \
+  -var 'zipline_custom_domain=zipline.yourcompany.com'
+```
+
+This exposes:
+
+| Service | URL |
+|---------|-----|
+| UI | `https://zipline.yourcompany.com` |
+| Hub | `https://zipline.yourcompany.com/services/hub` |
+| Eval | `https://zipline.yourcompany.com/services/eval` |
+| Fetcher | `https://zipline.yourcompany.com/services/fetcher` |
+
+Or use one domain per service:
+
 ```bash
 tofu apply \
   -var 'ui_domain=zipline.yourcompany.com' \
@@ -278,9 +298,17 @@ tofu apply \
   -var 'eval_domain=zipline-eval.yourcompany.com'
 ```
 
-By default, Terraform creates ACM certificates for each domain (initially in `Pending validation` state).
+By default, Terraform creates ACM certificates for each domain (initially in `Pending validation` state). In shared-domain mode, Terraform creates one certificate for `zipline_custom_domain`; in per-service mode, it creates one certificate per configured service domain.
 
 To attach existing ACM certificates instead, pass the matching certificate ARN alongside each domain:
+
+```bash
+tofu apply \
+  -var 'zipline_custom_domain=zipline.yourcompany.com' \
+  -var 'zipline_custom_domain_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example'
+```
+
+For per-service domains:
 
 ```bash
 tofu apply \
@@ -290,7 +318,7 @@ tofu apply \
   -var 'hub_cert_arn=arn:aws:acm:us-west-2:123456789012:certificate/example'
 ```
 
-For any service with a `*_cert_arn` value, Terraform skips creating the ACM certificate and attaches the supplied certificate to the NLB. The certificate must be in the same AWS region as the NLB and cover the configured domain.
+For any configured domain with a matching certificate ARN, Terraform skips creating the ACM certificate and attaches the supplied certificate to the NLB. The certificate must be in the same AWS region as the NLB and cover the configured domain.
 
 ### 2. Add ACM validation DNS records
 
@@ -314,7 +342,7 @@ Add these CNAME records to your DNS provider. ACM will validate and issue the ce
 
 ### 3. Add CNAME records for traffic routing
 
-After deployment, each service gets its own Network Load Balancer (NLB). Get the NLB hostnames:
+After deployment, shared-domain mode uses the UI Network Load Balancer (NLB) for all service paths. Per-service mode gives each service its own NLB. Get the NLB hostnames:
 
 **Via AWS Console:**
 1. Go to **EC2** > **Load Balancers**
@@ -325,7 +353,13 @@ After deployment, each service gets its own Network Load Balancer (NLB). Get the
 kubectl get svc -A | grep LoadBalancer
 ```
 
-Add CNAME records in your DNS provider pointing each custom domain to its NLB hostname:
+For shared-domain mode, add one CNAME record pointing the custom domain to the UI NLB hostname:
+
+| Type | Name | Target |
+|------|------|--------|
+| CNAME | `zipline` | `<ui-nlb-hostname>.elb.<region>.amazonaws.com` |
+
+For per-service mode, add CNAME records in your DNS provider pointing each custom domain to its NLB hostname:
 
 | Type | Name | Target |
 |------|------|--------|

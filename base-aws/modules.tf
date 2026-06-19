@@ -21,15 +21,17 @@ module "orchestration" {
   encryption_kms_key_arns = var.encryption_kms_key_arns
 
   # Custom domains for HTTPS
-  ui_domain        = var.ui_domain
-  hub_domain       = var.hub_domain
-  hub_external_url = var.hub_external_url
-  fetcher_domain   = var.fetcher_domain
-  eval_domain      = var.eval_domain
-  ui_cert_arn      = var.ui_cert_arn
-  hub_cert_arn     = var.hub_cert_arn
-  fetcher_cert_arn = var.fetcher_cert_arn
-  eval_cert_arn    = var.eval_cert_arn
+  zipline_custom_domain          = var.zipline_custom_domain
+  zipline_custom_domain_cert_arn = var.zipline_custom_domain_cert_arn
+  ui_domain                      = var.ui_domain
+  hub_domain                     = var.hub_domain
+  hub_external_url               = var.hub_external_url
+  fetcher_domain                 = var.fetcher_domain
+  eval_domain                    = var.eval_domain
+  ui_cert_arn                    = var.ui_cert_arn
+  hub_cert_arn                   = var.hub_cert_arn
+  fetcher_cert_arn               = var.fetcher_cert_arn
+  eval_cert_arn                  = var.eval_cert_arn
 
   # EKS Configuration
   eks_version      = var.eks_version
