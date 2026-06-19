@@ -62,7 +62,7 @@ output "polaris_bootstrap_credentials_secret_name" {
 
 output "polaris_catalog_external_url" {
   description = "External Polaris Iceberg REST catalog URL when in-cluster compute exposes Polaris"
-  value       = var.in_cluster_compute_enabled && trimspace(var.ui_domain) != "" ? "https://${trimspace(var.ui_domain)}/catalog" : ""
+  value       = var.in_cluster_compute_enabled && trimspace(local.ui_domain) != "" ? "https://${trimspace(local.ui_domain)}/catalog" : ""
 }
 
 output "orchestration_irsa_role_arn" {
