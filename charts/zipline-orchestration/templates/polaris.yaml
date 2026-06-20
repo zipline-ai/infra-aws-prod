@@ -5,6 +5,7 @@
 {{- $databaseHost := required "database.host is required when Polaris is enabled" .Values.database.host -}}
 {{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
 {{- $psqlAdminUrl := printf "postgresql://%s/%s%s" $databaseHost $polaris.database.adminDatabase $polaris.database.psqlParams -}}
+{{- $psqlPolarisUrl := printf "postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.psqlParams -}}
 {{- if and $polaris.bootstrap.enabled (not $polaris.bootstrap.credentialsSecret.name) -}}
 {{- fail "polaris.bootstrap.credentialsSecret.name is required when Polaris bootstrap is enabled" -}}
 {{- end -}}
@@ -70,9 +71,8 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
-      {{- if $polaris.database.create }}
       initContainers:
-        - name: create-polaris-database
+        - name: prepare-polaris-bootstrap
           image: {{ $polaris.database.initImage | quote }}
           imagePullPolicy: IfNotPresent
           env:
@@ -95,11 +95,24 @@ spec:
               value: {{ $databaseName | quote }}
             - name: PG_ADMIN_URL
               value: {{ $psqlAdminUrl | quote }}
+            - name: PG_POLARIS_URL
+              value: {{ $psqlPolarisUrl | quote }}
           command:
             - /bin/sh
             - -ec
           args:
             - |
+              credential="$(cat /etc/polaris-bootstrap/credentials)"
+              realm="${credential%%,*}"
+              remaining="${credential#*,}"
+              client_id="${remaining%%,*}"
+              if [ "$remaining" = "$credential" ] || [ "$client_id" = "$remaining" ] || [ -z "$realm" ] || [ -z "$client_id" ]; then
+                echo "Invalid Polaris bootstrap credential format" >&2
+                exit 1
+              fi
+              case "$realm" in (*[!A-Za-z0-9_.-]*|"") echo "Invalid Polaris realm: $realm" >&2; exit 1;; esac
+              case "$client_id" in (*[!A-Za-z0-9_.-]*|"") echo "Invalid Polaris client id: $client_id" >&2; exit 1;; esac
+              {{- if $polaris.database.create }}
               case "$POLARIS_DB_NAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database name: $POLARIS_DB_NAME" >&2; exit 1;; esac
               case "$DB_USERNAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database owner: $DB_USERNAME" >&2; exit 1;; esac
               if psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname = '$POLARIS_DB_NAME'" | grep -q 1; then
@@ -107,11 +120,22 @@ spec:
               else
                 psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -c "CREATE DATABASE \"$POLARIS_DB_NAME\" OWNER \"$DB_USERNAME\""
               fi
+              {{- end }}
+              if psql "$PG_POLARIS_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = 'polaris_schema' AND table_name = 'principal_authentication_data'" | grep -q 1; then
+                if psql "$PG_POLARIS_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM polaris_schema.principal_authentication_data WHERE realm_id = '$realm' AND principal_client_id = '$client_id'" | grep -q 1; then
+                  echo "Polaris root principal $client_id already exists in realm $realm; skipping bootstrap"
+                  touch /bootstrap-state/skip-bootstrap
+                fi
+              fi
           volumeMounts:
+            - name: polaris-bootstrap-credentials
+              mountPath: /etc/polaris-bootstrap
+              readOnly: true
+            - name: bootstrap-state
+              mountPath: /bootstrap-state
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
-      {{- end }}
       containers:
         - name: bootstrap-polaris
           image: "{{ $polaris.bootstrap.image.repository }}:{{ default $polaris.image.tag $polaris.bootstrap.image.tag }}"
@@ -136,6 +160,10 @@ spec:
             - -ec
           args:
             - |
+              if [ -f /bootstrap-state/skip-bootstrap ]; then
+                echo "Polaris already bootstrapped; skipping"
+                exit 0
+              fi
               credential="$(cat /etc/polaris-bootstrap/credentials)"
               realm="${credential%%,*}"
               exec java -jar /deployments/polaris-admin-tool.jar bootstrap -r "$realm" -c "$credential"
@@ -143,6 +171,8 @@ spec:
             - name: polaris-bootstrap-credentials
               mountPath: /etc/polaris-bootstrap
               readOnly: true
+            - name: bootstrap-state
+              mountPath: /bootstrap-state
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
               readOnly: true
@@ -155,6 +185,8 @@ spec:
             items:
               - key: {{ $polaris.bootstrap.credentialsSecret.key | quote }}
                 path: credentials
+        - name: bootstrap-state
+          emptyDir: {}
         - name: secrets-store-inline
           csi:
             driver: secrets-store.csi.k8s.io
