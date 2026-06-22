@@ -66,14 +66,11 @@ database:
   name: "${db_name}"
 
 polaris:
-  enabled: ${in_cluster_compute_enabled}
   realm: "${polaris_realm}"
   bootstrap:
-    enabled: ${in_cluster_compute_enabled}
     credentialsSecret:
       name: "${polaris_bootstrap_credentials_secret}"
     rbac:
-      enabled: ${in_cluster_compute_enabled}
       catalog:
         name: "polaris_${polaris_realm}"
         create: true

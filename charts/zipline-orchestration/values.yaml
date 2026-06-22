@@ -159,7 +159,8 @@ database:
   name: "execution_info"
 
 polaris:
-  enabled: false
+  # Polaris is part of the in-cluster compute stack and renders when
+  # compute.enabled is true.
   realm: "POLARIS"
   image:
     repository: "apache/polaris"
@@ -187,7 +188,6 @@ polaris:
   realmContext:
     requireHeader: false
   bootstrap:
-    enabled: false
     image:
       repository: "apache/polaris-admin-tool"
       tag: "1.5.0"
@@ -205,7 +205,6 @@ polaris:
         cpu: "1"
         memory: "1Gi"
     rbac:
-      enabled: false
       image:
         repository: "public.ecr.aws/docker/library/python"
         tag: "3.12-alpine"

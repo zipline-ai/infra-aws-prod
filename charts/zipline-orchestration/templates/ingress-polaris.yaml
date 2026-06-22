@@ -1,4 +1,4 @@
-{{- if and .Values.polaris.enabled .Values.ingress.ui.host }}
+{{- if and .Values.compute.enabled .Values.ingress.ui.host }}
 {{- $polarisPath := default "/" (trimSuffix "/" (.Values.ingress.polaris.path | default "/services/catalog")) -}}
 {{- $polarisPathPattern := ternary "/()(.*)" (printf "%s(/|$)(.*)" $polarisPath) (eq $polarisPath "/") -}}
 apiVersion: networking.k8s.io/v1

@@ -1,13 +1,13 @@
-{{- if .Values.polaris.enabled }}
+{{- if .Values.compute.enabled }}
 {{- $polaris := .Values.polaris -}}
-{{- $realm := required "polaris.realm is required when Polaris is enabled" $polaris.realm -}}
-{{- $databaseName := required "polaris.database.name is required when Polaris is enabled" $polaris.database.name -}}
-{{- $databaseHost := required "database.host is required when Polaris is enabled" .Values.database.host -}}
+{{- $realm := required "polaris.realm is required when compute.enabled is true" $polaris.realm -}}
+{{- $databaseName := required "polaris.database.name is required when compute.enabled is true" $polaris.database.name -}}
+{{- $databaseHost := required "database.host is required when compute.enabled is true" .Values.database.host -}}
 {{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
 {{- $psqlAdminUrl := printf "postgresql://%s/%s%s" $databaseHost $polaris.database.adminDatabase $polaris.database.psqlParams -}}
 {{- $psqlPolarisUrl := printf "postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.psqlParams -}}
-{{- if and $polaris.bootstrap.enabled (not $polaris.bootstrap.credentialsSecret.name) -}}
-{{- fail "polaris.bootstrap.credentialsSecret.name is required when Polaris bootstrap is enabled" -}}
+{{- if not $polaris.bootstrap.credentialsSecret.name -}}
+{{- fail "polaris.bootstrap.credentialsSecret.name is required when compute.enabled is true" -}}
 {{- end -}}
 apiVersion: v1
 kind: ConfigMap
@@ -31,7 +31,6 @@ data:
     {{- range $key, $value := $polaris.extraConfig }}
     {{ $key }}={{ $value }}
     {{- end }}
-{{- if $polaris.bootstrap.enabled }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -178,7 +177,6 @@ spec:
               readOnly: true
           resources:
 {{- toYaml $polaris.bootstrap.resources | nindent 12 }}
-        {{- if $polaris.bootstrap.rbac.enabled }}
         - name: configure-polaris-rbac
           image: "{{ $polaris.bootstrap.rbac.image.repository }}:{{ $polaris.bootstrap.rbac.image.tag }}"
           imagePullPolicy: {{ $polaris.bootstrap.rbac.image.pullPolicy }}
@@ -417,7 +415,6 @@ spec:
               readOnly: true
           resources:
 {{- toYaml $polaris.bootstrap.resources | nindent 12 }}
-        {{- end }}
       volumes:
         - name: polaris-bootstrap-credentials
           secret:
@@ -433,7 +430,6 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "db-secret-provider"
-{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
