@@ -226,7 +226,7 @@ polaris:
       catalogGrants:
         - CATALOG_MANAGE_CONTENT
       namespaces:
-        - name: "data"
+        - name: "default"
           create: true
           grants:
             - NAMESPACE_FULL_METADATA
