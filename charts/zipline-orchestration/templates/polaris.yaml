@@ -34,11 +34,34 @@
 {{- $allowedLocations = list $catalogDefaultBaseLocation -}}
 {{- end -}}
 {{- $bootstrapCredentialsSecretName := default "polaris-bootstrap-credentials" $polaris.bootstrap.credentialsSecret.name -}}
+{{- $bootstrapCredentialsSecretKey := default "credentials" $polaris.bootstrap.credentialsSecret.key -}}
+{{- $existingBootstrapSecret := lookup "v1" "Secret" .Release.Namespace $bootstrapCredentialsSecretName -}}
+{{- $existingBootstrapSecretData := dict -}}
+{{- if $existingBootstrapSecret -}}
+{{- $existingBootstrapSecretData = default dict $existingBootstrapSecret.data -}}
+{{- end -}}
+{{- $bootstrapCredentials := printf "%s,root,%s" $realm (randAlphaNum 48) | b64enc -}}
+{{- if hasKey $existingBootstrapSecretData $bootstrapCredentialsSecretKey -}}
+{{- $bootstrapCredentials = index $existingBootstrapSecretData $bootstrapCredentialsSecretKey -}}
+{{- end -}}
 {{- $databaseName := required "polaris.database.name is required when compute.enabled is true" $polaris.database.name -}}
 {{- $databaseHost := required "database.host is required when compute.enabled is true" .Values.database.host -}}
 {{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
 {{- $psqlAdminUrl := printf "postgresql://%s/%s%s" $databaseHost $polaris.database.adminDatabase $polaris.database.psqlParams -}}
 {{- $psqlPolarisUrl := printf "postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.psqlParams -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $bootstrapCredentialsSecretName | quote }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris-bootstrap
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+type: Opaque
+data:
+  {{ $bootstrapCredentialsSecretKey }}: {{ $bootstrapCredentials | quote }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -483,7 +506,7 @@ spec:
           secret:
             secretName: {{ $bootstrapCredentialsSecretName | quote }}
             items:
-              - key: {{ $polaris.bootstrap.credentialsSecret.key | quote }}
+              - key: {{ $bootstrapCredentialsSecretKey | quote }}
                 path: credentials
         - name: bootstrap-state
           emptyDir: {}

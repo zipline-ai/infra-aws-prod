@@ -469,7 +469,6 @@ resource "helm_release" "zipline_orchestration" {
     aws_acm_certificate.fetcher_cert,
     aws_acm_certificate.eval_cert,
     terraform_data.spark_compute_config_validation,
-    kubernetes_secret_v1.polaris_bootstrap_credentials,
   ]
 }
 

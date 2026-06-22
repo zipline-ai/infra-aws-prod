@@ -11,28 +11,6 @@ locals {
   )))
 }
 
-resource "random_password" "polaris_root_client_secret" {
-  count = var.in_cluster_compute_enabled ? 1 : 0
-
-  length  = 48
-  special = false
-}
-
-resource "kubernetes_secret_v1" "polaris_bootstrap_credentials" {
-  count = var.in_cluster_compute_enabled ? 1 : 0
-
-  metadata {
-    name      = "polaris-bootstrap-credentials"
-    namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
-  }
-
-  type = "Opaque"
-
-  data = {
-    credentials = "${local.polaris_realm},root,${random_password.polaris_root_client_secret[0].result}"
-  }
-}
-
 data "aws_iam_policy_document" "polaris_storage_assume_role" {
   count = var.in_cluster_compute_enabled ? 1 : 0
 
