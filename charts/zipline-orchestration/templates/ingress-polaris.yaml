@@ -1,5 +1,6 @@
 {{- if and .Values.polaris.enabled .Values.ingress.ui.host }}
-{{- $polarisPath := trimSuffix "/" (.Values.ingress.polaris.path | default "/services/catalog") -}}
+{{- $polarisPath := default "/" (trimSuffix "/" (.Values.ingress.polaris.path | default "/services/catalog")) -}}
+{{- $polarisPathPattern := ternary "/()(.*)" (printf "%s(/|$)(.*)" $polarisPath) (eq $polarisPath "/") -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -19,7 +20,7 @@ spec:
     - host: {{ .Values.ingress.ui.host }}
       http:
         paths:
-          - path: {{ printf "%s(/|$)(.*)" $polarisPath | quote }}
+          - path: {{ $polarisPathPattern | quote }}
             pathType: {{ .Values.ingress.polaris.pathType }}
             backend:
               service:

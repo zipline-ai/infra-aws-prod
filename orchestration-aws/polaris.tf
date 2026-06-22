@@ -18,8 +18,4 @@ resource "kubernetes_secret_v1" "polaris_bootstrap_credentials" {
   data = {
     credentials = "${local.polaris_realm},root,${random_password.polaris_root_client_secret.result}"
   }
-
-  lifecycle {
-    ignore_changes = [data]
-  }
 }

@@ -141,19 +141,19 @@ spec:
           image: "{{ $polaris.bootstrap.image.repository }}:{{ default $polaris.image.tag $polaris.bootstrap.image.tag }}"
           imagePullPolicy: {{ default $polaris.image.pullPolicy $polaris.bootstrap.image.pullPolicy }}
           env:
-            - name: polaris.persistence.type
+            - name: POLARIS_PERSISTENCE_TYPE
               value: relational-jdbc
-            - name: quarkus.datasource.username
+            - name: QUARKUS_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: username
-            - name: quarkus.datasource.password
+            - name: QUARKUS_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: password
-            - name: quarkus.datasource.jdbc.url
+            - name: QUARKUS_DATASOURCE_JDBC_URL
               value: {{ $jdbcUrl | quote }}
           command:
             - /bin/sh
@@ -178,6 +178,246 @@ spec:
               readOnly: true
           resources:
 {{- toYaml $polaris.bootstrap.resources | nindent 12 }}
+        {{- if $polaris.bootstrap.rbac.enabled }}
+        - name: configure-polaris-rbac
+          image: "{{ $polaris.bootstrap.rbac.image.repository }}:{{ $polaris.bootstrap.rbac.image.tag }}"
+          imagePullPolicy: {{ $polaris.bootstrap.rbac.image.pullPolicy }}
+          env:
+            - name: POLARIS_BASE_URL
+              value: {{ printf "http://polaris-service:%d" (int $polaris.ports.http) | quote }}
+            - name: POLARIS_CATALOG_NAME
+              value: {{ $polaris.bootstrap.rbac.catalog.name | quote }}
+            - name: POLARIS_CATALOG_CREATE
+              value: {{ ternary "true" "false" $polaris.bootstrap.rbac.catalog.create | quote }}
+            - name: POLARIS_CATALOG_DEFAULT_BASE_LOCATION
+              value: {{ $polaris.bootstrap.rbac.catalog.defaultBaseLocation | quote }}
+            - name: POLARIS_CATALOG_STORAGE_TYPE
+              value: {{ default "S3" $polaris.bootstrap.rbac.catalog.storage.type | quote }}
+            - name: POLARIS_CATALOG_STORAGE_REGION
+              value: {{ default "" $polaris.bootstrap.rbac.catalog.storage.region | quote }}
+            - name: POLARIS_CATALOG_ALLOWED_LOCATIONS
+              value: {{ toJson (default (list) $polaris.bootstrap.rbac.catalog.storage.allowedLocations) | quote }}
+            - name: POLARIS_PRINCIPAL_ROLE
+              value: {{ $polaris.bootstrap.rbac.principalRole | quote }}
+            - name: POLARIS_CATALOG_ROLE
+              value: {{ $polaris.bootstrap.rbac.catalogRole | quote }}
+            - name: POLARIS_CATALOG_GRANTS
+              value: {{ toJson (default (list) $polaris.bootstrap.rbac.catalogGrants) | quote }}
+            - name: POLARIS_NAMESPACES
+              value: {{ toJson (default (list) $polaris.bootstrap.rbac.namespaces) | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              python - <<'PY'
+              import base64
+              import json
+              import os
+              import sys
+              import time
+              import urllib.error
+              import urllib.parse
+              import urllib.request
+
+              def env_bool(name, default=False):
+                  value = os.getenv(name)
+                  if value is None:
+                      return default
+                  return value.lower() in {"1", "true", "yes", "on"}
+
+              def load_json_env(name, default):
+                  raw = os.getenv(name, "")
+                  if not raw:
+                      return default
+                  return json.loads(raw)
+
+              def quote_path(value):
+                  return urllib.parse.quote(value, safe="")
+
+              def namespace_parts(namespace):
+                  if isinstance(namespace, list):
+                      return namespace
+                  return [part for part in str(namespace).split(".") if part]
+
+              def http_json(method, url, token=None, body=None, ok=(200,), retry_conflict=False, retry_not_found=False):
+                  data = None
+                  headers = {"Polaris-Realm": realm, "realm": realm}
+                  if token:
+                      headers["Authorization"] = f"Bearer {token}"
+                  if body is not None:
+                      data = json.dumps(body).encode("utf-8")
+                      headers["Content-Type"] = "application/json"
+                  request = urllib.request.Request(url, data=data, headers=headers, method=method)
+                  try:
+                      with urllib.request.urlopen(request, timeout=30) as response:
+                          payload = response.read().decode("utf-8")
+                          if response.status not in ok:
+                              raise RuntimeError(f"{method} {url} returned {response.status}: {payload}")
+                          return response.status, json.loads(payload) if payload else None
+                  except urllib.error.HTTPError as error:
+                      payload = error.read().decode("utf-8", "replace")
+                      if error.code == 409 and retry_conflict:
+                          return error.code, None
+                      if error.code == 404 and retry_not_found:
+                          return error.code, None
+                      raise RuntimeError(f"{method} {url} returned {error.code}: {payload}") from error
+
+              with open("/etc/polaris-bootstrap/credentials", encoding="utf-8") as credentials_file:
+                  credential_parts = credentials_file.read().strip().split(",", 2)
+              if len(credential_parts) != 3:
+                  raise SystemExit("Invalid Polaris bootstrap credential format")
+              realm, client_id, client_secret = credential_parts
+
+              base_url = os.environ["POLARIS_BASE_URL"].rstrip("/")
+              catalog_api_url = f"{base_url}/api/catalog"
+              management_api_url = f"{base_url}/api/management/v1"
+              catalog_name = os.getenv("POLARIS_CATALOG_NAME") or f"polaris_{realm}"
+              create_catalog = env_bool("POLARIS_CATALOG_CREATE", default=True)
+              principal_role = os.environ["POLARIS_PRINCIPAL_ROLE"]
+              catalog_role = os.environ["POLARIS_CATALOG_ROLE"]
+              catalog_grants = load_json_env("POLARIS_CATALOG_GRANTS", [])
+              namespaces = load_json_env("POLARIS_NAMESPACES", [])
+
+              token_url = f"{catalog_api_url}/v1/oauth/tokens"
+              auth = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("ascii")
+              token_body = urllib.parse.urlencode(
+                  {"grant_type": "client_credentials", "scope": "PRINCIPAL_ROLE:ALL"}
+              ).encode("utf-8")
+              token_headers = {
+                  "Authorization": f"Basic {auth}",
+                  "Content-Type": "application/x-www-form-urlencoded",
+                  "Polaris-Realm": realm,
+                  "realm": realm,
+              }
+
+              last_error = None
+              token = None
+              for attempt in range(60):
+                  try:
+                      request = urllib.request.Request(token_url, data=token_body, headers=token_headers, method="POST")
+                      with urllib.request.urlopen(request, timeout=30) as response:
+                          token = json.loads(response.read().decode("utf-8"))["access_token"]
+                      break
+                  except Exception as error:
+                      last_error = error
+                      time.sleep(5)
+              if not token:
+                  raise RuntimeError(f"Timed out waiting for Polaris token endpoint: {last_error}")
+
+              catalog_url = f"{management_api_url}/catalogs/{quote_path(catalog_name)}"
+              status, _ = http_json("GET", catalog_url, token=token, ok=(200,), retry_not_found=True)
+              if status == 404:
+                  if not create_catalog:
+                      raise RuntimeError(f"Polaris catalog {catalog_name} does not exist")
+                  default_base_location = os.getenv("POLARIS_CATALOG_DEFAULT_BASE_LOCATION", "")
+                  if not default_base_location:
+                      raise RuntimeError("polaris.bootstrap.rbac.catalog.defaultBaseLocation is required to create a catalog")
+                  allowed_locations = load_json_env("POLARIS_CATALOG_ALLOWED_LOCATIONS", []) or [default_base_location]
+                  storage = {
+                      "storageType": os.getenv("POLARIS_CATALOG_STORAGE_TYPE", "S3"),
+                      "allowedLocations": allowed_locations,
+                  }
+                  storage_region = os.getenv("POLARIS_CATALOG_STORAGE_REGION", "")
+                  if storage_region:
+                      storage["region"] = storage_region
+                  http_json(
+                      "POST",
+                      f"{management_api_url}/catalogs",
+                      token=token,
+                      body={
+                          "catalog": {
+                              "type": "INTERNAL",
+                              "name": catalog_name,
+                              "properties": {"default-base-location": default_base_location},
+                              "storageConfigInfo": storage,
+                          }
+                      },
+                      ok=(200, 201),
+                      retry_conflict=True,
+                  )
+
+              principal_role_url = f"{management_api_url}/principal-roles/{quote_path(principal_role)}"
+              status, _ = http_json("GET", principal_role_url, token=token, ok=(200,), retry_not_found=True)
+              if status == 404:
+                  http_json(
+                      "POST",
+                      f"{management_api_url}/principal-roles",
+                      token=token,
+                      body={"principalRole": {"name": principal_role}},
+                      ok=(200, 201),
+                      retry_conflict=True,
+                  )
+
+              catalog_role_url = (
+                  f"{management_api_url}/catalogs/{quote_path(catalog_name)}/catalog-roles/{quote_path(catalog_role)}"
+              )
+              status, _ = http_json("GET", catalog_role_url, token=token, ok=(200,), retry_not_found=True)
+              if status == 404:
+                  http_json(
+                      "POST",
+                      f"{management_api_url}/catalogs/{quote_path(catalog_name)}/catalog-roles",
+                      token=token,
+                      body={"catalogRole": {"name": catalog_role}},
+                      ok=(200, 201),
+                      retry_conflict=True,
+                  )
+
+              http_json(
+                  "PUT",
+                  f"{management_api_url}/principal-roles/{quote_path(principal_role)}/catalog-roles/{quote_path(catalog_name)}",
+                  token=token,
+                  body={"catalogRole": {"name": catalog_role}},
+                  ok=(200, 201, 204),
+                  retry_conflict=True,
+              )
+
+              grants_url = (
+                  f"{management_api_url}/catalogs/{quote_path(catalog_name)}/catalog-roles/{quote_path(catalog_role)}/grants"
+              )
+              for privilege in catalog_grants:
+                  http_json(
+                      "PUT",
+                      grants_url,
+                      token=token,
+                      body={"grant": {"type": "catalog", "privilege": privilege}},
+                      ok=(200, 201, 204),
+                      retry_conflict=True,
+                  )
+
+              for namespace in namespaces:
+                  namespace_name = namespace.get("name")
+                  if not namespace_name:
+                      continue
+                  parts = namespace_parts(namespace_name)
+                  if namespace.get("create", True):
+                      http_json(
+                          "POST",
+                          f"{catalog_api_url}/v1/{quote_path(catalog_name)}/namespaces",
+                          token=token,
+                          body={"namespace": parts, "properties": {}},
+                          ok=(200, 201, 204),
+                          retry_conflict=True,
+                      )
+                  for privilege in namespace.get("grants", []):
+                      http_json(
+                          "PUT",
+                          grants_url,
+                          token=token,
+                          body={"grant": {"type": "namespace", "namespace": parts, "privilege": privilege}},
+                          ok=(200, 201, 204),
+                          retry_conflict=True,
+                      )
+
+              print(f"Polaris RBAC reconciled for catalog {catalog_name}, principal role {principal_role}, catalog role {catalog_role}")
+              PY
+          volumeMounts:
+            - name: polaris-bootstrap-credentials
+              mountPath: /etc/polaris-bootstrap
+              readOnly: true
+          resources:
+{{- toYaml $polaris.bootstrap.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: polaris-bootstrap-credentials
           secret:
@@ -289,17 +529,17 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           env:
-            - name: quarkus.datasource.username
+            - name: QUARKUS_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: username
-            - name: quarkus.datasource.password
+            - name: QUARKUS_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: db-credentials
                   key: password
-            - name: quarkus.datasource.jdbc.url
+            - name: QUARKUS_DATASOURCE_JDBC_URL
               value: {{ $jdbcUrl | quote }}
             - name: AWS_REGION
               value: {{ .Values.aws.region | quote }}

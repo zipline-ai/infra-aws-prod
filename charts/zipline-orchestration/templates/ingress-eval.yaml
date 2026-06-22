@@ -1,6 +1,6 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-{{- $evalPath := trimSuffix "/" (.Values.ingress.eval.path | default "/") }}
+{{- $evalPath := default "/" (trimSuffix "/" (.Values.ingress.eval.path | default "/")) }}
 metadata:
   name: eval-ingress
   namespace: {{ .Release.Namespace }}

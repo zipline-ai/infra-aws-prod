@@ -204,6 +204,36 @@ polaris:
       limits:
         cpu: "1"
         memory: "1Gi"
+    rbac:
+      enabled: false
+      image:
+        repository: "public.ecr.aws/docker/library/python"
+        tag: "3.12-alpine"
+        pullPolicy: IfNotPresent
+      catalog:
+        # Defaults to polaris_<realm> when empty.
+        name: ""
+        create: false
+        defaultBaseLocation: ""
+        storage:
+          type: "S3"
+          region: ""
+          allowedLocations: []
+      # Bootstrap grants this catalog role to the principal role. service_admin is
+      # assigned to the bootstrapped root principal by Polaris.
+      principalRole: "service_admin"
+      catalogRole: "polaris-engine"
+      catalogGrants:
+        - CATALOG_MANAGE_CONTENT
+      namespaces:
+        - name: "data"
+          create: true
+          grants:
+            - NAMESPACE_FULL_METADATA
+            - TABLE_CREATE
+            - TABLE_FULL_METADATA
+            - TABLE_READ_DATA
+            - TABLE_WRITE_DATA
   extraConfig: {}
   extraEnv: []
   resources:

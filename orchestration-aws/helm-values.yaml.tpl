@@ -72,6 +72,16 @@ polaris:
     enabled: ${in_cluster_compute_enabled}
     credentialsSecret:
       name: "${polaris_bootstrap_credentials_secret}"
+    rbac:
+      enabled: ${in_cluster_compute_enabled}
+      catalog:
+        name: "polaris_${polaris_realm}"
+        create: true
+        defaultBaseLocation: "s3://${warehouse_bucket}/polaris/polaris_${polaris_realm}/"
+        storage:
+          region: "${aws_region}"
+          allowedLocations:
+            - "s3://${warehouse_bucket}/polaris/polaris_${polaris_realm}/"
 
 # Service account with IRSA
 serviceAccount:
