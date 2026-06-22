@@ -93,6 +93,8 @@ resource "aws_iam_role_policy" "orchestration_s3" {
 }
 
 resource "aws_iam_role_policy" "orchestration_polaris_storage_assume_role" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name = "${var.name_prefix}-polaris-storage-assume-role"
   role = aws_iam_role.orchestration_irsa.id
   policy = jsonencode({
@@ -101,7 +103,7 @@ resource "aws_iam_role_policy" "orchestration_polaris_storage_assume_role" {
       {
         Effect   = "Allow"
         Action   = "sts:AssumeRole"
-        Resource = aws_iam_role.polaris_storage.arn
+        Resource = aws_iam_role.polaris_storage[0].arn
         Condition = {
           StringEquals = {
             "sts:ExternalId" = local.polaris_storage_external_id

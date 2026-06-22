@@ -382,12 +382,8 @@ resource "helm_release" "zipline_orchestration" {
       db_name     = aws_db_instance.zipline.db_name
       secrets_arn = aws_secretsmanager_secret.db_credentials.arn
 
-      polaris_bootstrap_credentials_secret = kubernetes_secret_v1.polaris_bootstrap_credentials.metadata[0].name
-      polaris_realm                        = local.polaris_realm
-      polaris_storage_role_arn             = aws_iam_role.polaris_storage.arn
-      polaris_storage_external_id          = local.polaris_storage_external_id
-      polaris_storage_allowed_locations    = jsonencode(local.polaris_storage_allowed_locations)
-      polaris_storage_allowed_kms_keys     = jsonencode(local.polaris_storage_allowed_kms_keys)
+      polaris_storage_role_arn         = try(aws_iam_role.polaris_storage[0].arn, "")
+      polaris_storage_allowed_kms_keys = jsonencode(local.polaris_storage_allowed_kms_keys)
 
       irsa_role_arn     = aws_iam_role.orchestration_irsa.arn
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name
@@ -473,6 +469,7 @@ resource "helm_release" "zipline_orchestration" {
     aws_acm_certificate.fetcher_cert,
     aws_acm_certificate.eval_cert,
     terraform_data.spark_compute_config_validation,
+    kubernetes_secret_v1.polaris_bootstrap_credentials,
   ]
 }
 

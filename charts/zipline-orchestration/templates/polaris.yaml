@@ -1,10 +1,17 @@
 {{- if .Values.compute.enabled }}
 {{- $polaris := .Values.polaris -}}
-{{- $realm := required "polaris.realm is required when compute.enabled is true" $polaris.realm -}}
+{{- $realm := default .Values.global.customer_name $polaris.realm -}}
+{{- if not $realm -}}
+{{- fail "global.customer_name or polaris.realm is required when compute.enabled is true" -}}
+{{- end -}}
 {{- $rbacCatalog := default dict $polaris.bootstrap.rbac.catalog -}}
 {{- $defaultCatalogName := printf "polaris_%s" $realm -}}
 {{- $catalogName := default $defaultCatalogName $rbacCatalog.name -}}
 {{- $objectStoreBucket := trimSuffix "/" (default "" .Values.compute.objectStore.bucket) -}}
+{{- $objectStoreLocation := "" -}}
+{{- if $objectStoreBucket -}}
+{{- $objectStoreLocation = printf "%s/" $objectStoreBucket -}}
+{{- end -}}
 {{- $derivedBaseLocation := "" -}}
 {{- if $objectStoreBucket -}}
 {{- $derivedBaseLocation = printf "%s/polaris/%s/" $objectStoreBucket $catalogName -}}
@@ -16,19 +23,22 @@
 {{- $storageRegion = default $storageRegion $rbacStorage.region -}}
 {{- $roleArn := default "" $rbacStorage.roleArn -}}
 {{- $externalId := default "" $rbacStorage.externalId -}}
+{{- if and $roleArn (not $externalId) -}}
+{{- $externalId = printf "zipline:%s:polaris-storage" $realm -}}
+{{- end -}}
 {{- $allowedKmsKeys := default (list) $rbacStorage.allowedKmsKeys -}}
 {{- $allowedLocations := default (list) $rbacStorage.allowedLocations -}}
-{{- if and (eq (len $allowedLocations) 0) $catalogDefaultBaseLocation -}}
+{{- if and (eq (len $allowedLocations) 0) $roleArn $objectStoreLocation -}}
+{{- $allowedLocations = list $objectStoreLocation -}}
+{{- else if and (eq (len $allowedLocations) 0) $catalogDefaultBaseLocation -}}
 {{- $allowedLocations = list $catalogDefaultBaseLocation -}}
 {{- end -}}
+{{- $bootstrapCredentialsSecretName := default "polaris-bootstrap-credentials" $polaris.bootstrap.credentialsSecret.name -}}
 {{- $databaseName := required "polaris.database.name is required when compute.enabled is true" $polaris.database.name -}}
 {{- $databaseHost := required "database.host is required when compute.enabled is true" .Values.database.host -}}
 {{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
 {{- $psqlAdminUrl := printf "postgresql://%s/%s%s" $databaseHost $polaris.database.adminDatabase $polaris.database.psqlParams -}}
 {{- $psqlPolarisUrl := printf "postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.psqlParams -}}
-{{- if not $polaris.bootstrap.credentialsSecret.name -}}
-{{- fail "polaris.bootstrap.credentialsSecret.name is required when compute.enabled is true" -}}
-{{- end -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -471,7 +481,7 @@ spec:
       volumes:
         - name: polaris-bootstrap-credentials
           secret:
-            secretName: {{ $polaris.bootstrap.credentialsSecret.name | quote }}
+            secretName: {{ $bootstrapCredentialsSecretName | quote }}
             items:
               - key: {{ $polaris.bootstrap.credentialsSecret.key | quote }}
                 path: credentials

@@ -1,13 +1,10 @@
 locals {
-  polaris_realm               = trimspace(var.polaris_realm) != "" ? trimspace(var.polaris_realm) : var.name_prefix
+  polaris_realm               = var.name_prefix
   polaris_storage_external_id = "zipline:${local.polaris_realm}:polaris-storage"
   polaris_storage_allowed_buckets = distinct(compact([
     for bucket in [var.warehouse_bucket] :
     trimsuffix(trimprefix(trimprefix(trimspace(bucket), "s3://"), "s3a://"), "/")
   ]))
-  polaris_storage_allowed_locations = [
-    for bucket in local.polaris_storage_allowed_buckets : "s3://${bucket}/"
-  ]
   polaris_storage_allowed_kms_keys = distinct(compact(concat(
     [var.encryption_kms_key_arn],
     values(var.encryption_kms_key_arns),
@@ -15,11 +12,15 @@ locals {
 }
 
 resource "random_password" "polaris_root_client_secret" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   length  = 48
   special = false
 }
 
 resource "kubernetes_secret_v1" "polaris_bootstrap_credentials" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   metadata {
     name      = "polaris-bootstrap-credentials"
     namespace = kubernetes_namespace_v1.zipline_system.metadata[0].name
@@ -28,11 +29,13 @@ resource "kubernetes_secret_v1" "polaris_bootstrap_credentials" {
   type = "Opaque"
 
   data = {
-    credentials = "${local.polaris_realm},root,${random_password.polaris_root_client_secret.result}"
+    credentials = "${local.polaris_realm},root,${random_password.polaris_root_client_secret[0].result}"
   }
 }
 
 data "aws_iam_policy_document" "polaris_storage_assume_role" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   statement {
     effect = "Allow"
     principals {
@@ -49,8 +52,10 @@ data "aws_iam_policy_document" "polaris_storage_assume_role" {
 }
 
 resource "aws_iam_role" "polaris_storage" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name               = "${var.name_prefix}-polaris-storage"
-  assume_role_policy = data.aws_iam_policy_document.polaris_storage_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.polaris_storage_assume_role[0].json
   description        = "Storage credential vending role for the Polaris catalog"
 
   tags = {
@@ -59,6 +64,8 @@ resource "aws_iam_role" "polaris_storage" {
 }
 
 data "aws_iam_policy_document" "polaris_storage" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   statement {
     effect = "Allow"
     actions = [
@@ -102,7 +109,9 @@ data "aws_iam_policy_document" "polaris_storage" {
 }
 
 resource "aws_iam_role_policy" "polaris_storage" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
   name   = "${var.name_prefix}-polaris-storage"
-  role   = aws_iam_role.polaris_storage.id
-  policy = data.aws_iam_policy_document.polaris_storage.json
+  role   = aws_iam_role.polaris_storage[0].id
+  policy = data.aws_iam_policy_document.polaris_storage[0].json
 }
