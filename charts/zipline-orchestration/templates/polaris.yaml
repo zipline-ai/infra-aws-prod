@@ -1,15 +1,26 @@
 {{- if .Values.compute.enabled }}
 {{- $polaris := .Values.polaris -}}
-{{- $rbacStorage := default dict $polaris.bootstrap.rbac.catalog.storage -}}
-{{- $stsUnavailable := true -}}
-{{- if hasKey $rbacStorage "stsUnavailable" -}}
-{{- $stsUnavailable = $rbacStorage.stsUnavailable -}}
-{{- end -}}
-{{- $kmsUnavailable := true -}}
-{{- if hasKey $rbacStorage "kmsUnavailable" -}}
-{{- $kmsUnavailable = $rbacStorage.kmsUnavailable -}}
-{{- end -}}
 {{- $realm := required "polaris.realm is required when compute.enabled is true" $polaris.realm -}}
+{{- $rbacCatalog := default dict $polaris.bootstrap.rbac.catalog -}}
+{{- $defaultCatalogName := printf "polaris_%s" $realm -}}
+{{- $catalogName := default $defaultCatalogName $rbacCatalog.name -}}
+{{- $objectStoreBucket := trimSuffix "/" (default "" .Values.compute.objectStore.bucket) -}}
+{{- $derivedBaseLocation := "" -}}
+{{- if $objectStoreBucket -}}
+{{- $derivedBaseLocation = printf "%s/polaris/%s/" $objectStoreBucket $catalogName -}}
+{{- end -}}
+{{- $catalogDefaultBaseLocation := default $derivedBaseLocation $rbacCatalog.defaultBaseLocation -}}
+{{- $rbacStorage := default dict $rbacCatalog.storage -}}
+{{- $storageRegion := default "" .Values.aws.region -}}
+{{- $storageRegion = default $storageRegion .Values.compute.objectStore.region -}}
+{{- $storageRegion = default $storageRegion $rbacStorage.region -}}
+{{- $roleArn := default "" $rbacStorage.roleArn -}}
+{{- $externalId := default "" $rbacStorage.externalId -}}
+{{- $allowedKmsKeys := default (list) $rbacStorage.allowedKmsKeys -}}
+{{- $allowedLocations := default (list) $rbacStorage.allowedLocations -}}
+{{- if and (eq (len $allowedLocations) 0) $catalogDefaultBaseLocation -}}
+{{- $allowedLocations = list $catalogDefaultBaseLocation -}}
+{{- end -}}
 {{- $databaseName := required "polaris.database.name is required when compute.enabled is true" $polaris.database.name -}}
 {{- $databaseHost := required "database.host is required when compute.enabled is true" .Values.database.host -}}
 {{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
@@ -193,21 +204,21 @@ spec:
             - name: POLARIS_BASE_URL
               value: {{ printf "http://polaris-service:%d" (int $polaris.ports.http) | quote }}
             - name: POLARIS_CATALOG_NAME
-              value: {{ $polaris.bootstrap.rbac.catalog.name | quote }}
-            - name: POLARIS_CATALOG_CREATE
-              value: {{ ternary "true" "false" $polaris.bootstrap.rbac.catalog.create | quote }}
+              value: {{ $catalogName | quote }}
             - name: POLARIS_CATALOG_DEFAULT_BASE_LOCATION
-              value: {{ $polaris.bootstrap.rbac.catalog.defaultBaseLocation | quote }}
+              value: {{ $catalogDefaultBaseLocation | quote }}
             - name: POLARIS_CATALOG_STORAGE_TYPE
               value: {{ default "S3" $rbacStorage.type | quote }}
             - name: POLARIS_CATALOG_STORAGE_REGION
-              value: {{ default "" $rbacStorage.region | quote }}
-            - name: POLARIS_CATALOG_STORAGE_STS_UNAVAILABLE
-              value: {{ ternary "true" "false" $stsUnavailable | quote }}
-            - name: POLARIS_CATALOG_STORAGE_KMS_UNAVAILABLE
-              value: {{ ternary "true" "false" $kmsUnavailable | quote }}
+              value: {{ $storageRegion | quote }}
+            - name: POLARIS_CATALOG_STORAGE_ROLE_ARN
+              value: {{ $roleArn | quote }}
+            - name: POLARIS_CATALOG_STORAGE_EXTERNAL_ID
+              value: {{ $externalId | quote }}
+            - name: POLARIS_CATALOG_ALLOWED_KMS_KEYS
+              value: {{ toJson $allowedKmsKeys | quote }}
             - name: POLARIS_CATALOG_ALLOWED_LOCATIONS
-              value: {{ toJson (default (list) $rbacStorage.allowedLocations) | quote }}
+              value: {{ toJson $allowedLocations | quote }}
             - name: POLARIS_PRINCIPAL_ROLE
               value: {{ $polaris.bootstrap.rbac.principalRole | quote }}
             - name: POLARIS_CATALOG_ROLE
@@ -230,12 +241,6 @@ spec:
               import urllib.error
               import urllib.parse
               import urllib.request
-
-              def env_bool(name, default=False):
-                  value = os.getenv(name)
-                  if value is None:
-                      return default
-                  return value.lower() in {"1", "true", "yes", "on"}
 
               def load_json_env(name, default):
                   raw = os.getenv(name, "")
@@ -262,8 +267,20 @@ spec:
                   storage_region = os.getenv("POLARIS_CATALOG_STORAGE_REGION", "")
                   if storage_region:
                       storage["region"] = storage_region
-                  storage["stsUnavailable"] = env_bool("POLARIS_CATALOG_STORAGE_STS_UNAVAILABLE", default=True)
-                  storage["kmsUnavailable"] = env_bool("POLARIS_CATALOG_STORAGE_KMS_UNAVAILABLE", default=True)
+                  storage_role_arn = os.getenv("POLARIS_CATALOG_STORAGE_ROLE_ARN", "")
+                  if storage_role_arn:
+                      storage["roleArn"] = storage_role_arn
+                  else:
+                      storage.pop("roleArn", None)
+                  storage_external_id = os.getenv("POLARIS_CATALOG_STORAGE_EXTERNAL_ID", "")
+                  if storage_external_id:
+                      storage["externalId"] = storage_external_id
+                  else:
+                      storage.pop("externalId", None)
+                  storage["stsUnavailable"] = not bool(storage_role_arn)
+                  allowed_kms_keys = load_json_env("POLARIS_CATALOG_ALLOWED_KMS_KEYS", [])
+                  storage["allowedKmsKeys"] = allowed_kms_keys
+                  storage["kmsUnavailable"] = len(allowed_kms_keys) == 0
                   return storage
 
               def http_json(method, url, token=None, body=None, ok=(200,), retry_conflict=False, retry_not_found=False):
@@ -299,7 +316,6 @@ spec:
               catalog_api_url = f"{base_url}/api/catalog"
               management_api_url = f"{base_url}/api/management/v1"
               catalog_name = os.getenv("POLARIS_CATALOG_NAME") or f"polaris_{realm}"
-              create_catalog = env_bool("POLARIS_CATALOG_CREATE", default=True)
               principal_role = os.environ["POLARIS_PRINCIPAL_ROLE"]
               catalog_role = os.environ["POLARIS_CATALOG_ROLE"]
               catalog_grants = load_json_env("POLARIS_CATALOG_GRANTS", [])
@@ -335,8 +351,6 @@ spec:
               status, catalog = http_json("GET", catalog_url, token=token, ok=(200,), retry_not_found=True)
               default_base_location = os.getenv("POLARIS_CATALOG_DEFAULT_BASE_LOCATION", "")
               if status == 404:
-                  if not create_catalog:
-                      raise RuntimeError(f"Polaris catalog {catalog_name} does not exist")
                   if not default_base_location:
                       raise RuntimeError("polaris.bootstrap.rbac.catalog.defaultBaseLocation is required to create a catalog")
                   http_json(

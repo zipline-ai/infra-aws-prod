@@ -210,15 +210,21 @@ polaris:
         tag: "3.12-alpine"
         pullPolicy: IfNotPresent
       catalog:
-        # Defaults to polaris_<realm> when empty.
+        # Defaults to polaris_<realm>. The chart seeds this default customer
+        # catalog/namespace; Hub reconciles team/namespace RBAC.
         name: ""
-        create: false
+        # Defaults to <compute.objectStore.bucket>/polaris/<catalog-name>/.
         defaultBaseLocation: ""
         storage:
           type: "S3"
+          # Defaults to compute.objectStore.region, then aws.region.
           region: ""
-          stsUnavailable: true
-          kmsUnavailable: true
+          # Optional Polaris storage role for catalog credential vending.
+          # Hub should reconcile team/namespace-specific storage bindings.
+          roleArn: ""
+          externalId: ""
+          allowedKmsKeys: []
+          # Defaults to the catalog defaultBaseLocation.
           allowedLocations: []
       # Bootstrap grants this catalog role to the principal role. service_admin is
       # assigned to the bootstrapped root principal by Polaris.
