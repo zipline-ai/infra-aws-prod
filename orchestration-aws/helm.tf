@@ -384,6 +384,10 @@ resource "helm_release" "zipline_orchestration" {
 
       polaris_bootstrap_credentials_secret = kubernetes_secret_v1.polaris_bootstrap_credentials.metadata[0].name
       polaris_realm                        = local.polaris_realm
+      polaris_storage_role_arn             = aws_iam_role.polaris_storage.arn
+      polaris_storage_external_id          = local.polaris_storage_external_id
+      polaris_storage_allowed_locations    = jsonencode(local.polaris_storage_allowed_locations)
+      polaris_storage_allowed_kms_keys     = jsonencode(local.polaris_storage_allowed_kms_keys)
 
       irsa_role_arn     = aws_iam_role.orchestration_irsa.arn
       image_pull_secret = kubernetes_secret_v1.docker_hub_creds.metadata[0].name

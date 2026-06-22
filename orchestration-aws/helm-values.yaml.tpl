@@ -70,6 +70,13 @@ polaris:
   bootstrap:
     credentialsSecret:
       name: "${polaris_bootstrap_credentials_secret}"
+    rbac:
+      catalog:
+        storage:
+          roleArn: "${polaris_storage_role_arn}"
+          externalId: "${polaris_storage_external_id}"
+          allowedLocations: ${polaris_storage_allowed_locations}
+          allowedKmsKeys: ${polaris_storage_allowed_kms_keys}
 
 # Service account with IRSA
 serviceAccount:

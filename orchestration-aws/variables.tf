@@ -247,7 +247,7 @@ variable "additional_flink_s3_buckets" {
 
 variable "additional_data_buckets" {
   type        = list(string)
-  description = "Additional S3 bucket names (without arn prefix) to grant the orchestration IRSA read-only access to. Use this for external data lake buckets (e.g. Iceberg metadata paths) that the orchestration role needs to read."
+  description = "Additional S3 bucket names (without arn prefix) for source data or Iceberg metadata outside warehouse_bucket. The orchestration IRSA gets read access, and Spark compute gets data-plane access."
   default     = []
 }
 

@@ -219,8 +219,9 @@ polaris:
           type: "S3"
           # Defaults to compute.objectStore.region, then aws.region.
           region: ""
-          # Optional Polaris storage role for catalog credential vending.
-          # Hub should reconcile team/namespace-specific storage bindings.
+          # Optional customer pre-authorized storage role for catalog credential
+          # vending. Hub should reconcile team/namespace-specific storage
+          # bindings inside this allowed location boundary.
           roleArn: ""
           externalId: ""
           allowedKmsKeys: []

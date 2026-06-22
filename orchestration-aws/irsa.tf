@@ -92,6 +92,26 @@ resource "aws_iam_role_policy" "orchestration_s3" {
   policy = data.aws_iam_policy_document.orchestration_s3_policy.json
 }
 
+resource "aws_iam_role_policy" "orchestration_polaris_storage_assume_role" {
+  name = "${var.name_prefix}-polaris-storage-assume-role"
+  role = aws_iam_role.orchestration_irsa.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "sts:AssumeRole"
+        Resource = aws_iam_role.polaris_storage.arn
+        Condition = {
+          StringEquals = {
+            "sts:ExternalId" = local.polaris_storage_external_id
+          }
+        }
+      }
+    ]
+  })
+}
+
 # DynamoDB access policy for orchestration pods (Chronon metadata)
 data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
   statement {
