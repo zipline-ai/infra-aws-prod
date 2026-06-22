@@ -217,6 +217,8 @@ polaris:
         storage:
           type: "S3"
           region: ""
+          stsUnavailable: true
+          kmsUnavailable: true
           allowedLocations: []
       # Bootstrap grants this catalog role to the principal role. service_admin is
       # assigned to the bootstrapped root principal by Polaris.

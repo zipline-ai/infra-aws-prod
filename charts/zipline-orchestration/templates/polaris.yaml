@@ -1,5 +1,14 @@
 {{- if .Values.compute.enabled }}
 {{- $polaris := .Values.polaris -}}
+{{- $rbacStorage := default dict $polaris.bootstrap.rbac.catalog.storage -}}
+{{- $stsUnavailable := true -}}
+{{- if hasKey $rbacStorage "stsUnavailable" -}}
+{{- $stsUnavailable = $rbacStorage.stsUnavailable -}}
+{{- end -}}
+{{- $kmsUnavailable := true -}}
+{{- if hasKey $rbacStorage "kmsUnavailable" -}}
+{{- $kmsUnavailable = $rbacStorage.kmsUnavailable -}}
+{{- end -}}
 {{- $realm := required "polaris.realm is required when compute.enabled is true" $polaris.realm -}}
 {{- $databaseName := required "polaris.database.name is required when compute.enabled is true" $polaris.database.name -}}
 {{- $databaseHost := required "database.host is required when compute.enabled is true" .Values.database.host -}}
@@ -190,11 +199,15 @@ spec:
             - name: POLARIS_CATALOG_DEFAULT_BASE_LOCATION
               value: {{ $polaris.bootstrap.rbac.catalog.defaultBaseLocation | quote }}
             - name: POLARIS_CATALOG_STORAGE_TYPE
-              value: {{ default "S3" $polaris.bootstrap.rbac.catalog.storage.type | quote }}
+              value: {{ default "S3" $rbacStorage.type | quote }}
             - name: POLARIS_CATALOG_STORAGE_REGION
-              value: {{ default "" $polaris.bootstrap.rbac.catalog.storage.region | quote }}
+              value: {{ default "" $rbacStorage.region | quote }}
+            - name: POLARIS_CATALOG_STORAGE_STS_UNAVAILABLE
+              value: {{ ternary "true" "false" $stsUnavailable | quote }}
+            - name: POLARIS_CATALOG_STORAGE_KMS_UNAVAILABLE
+              value: {{ ternary "true" "false" $kmsUnavailable | quote }}
             - name: POLARIS_CATALOG_ALLOWED_LOCATIONS
-              value: {{ toJson (default (list) $polaris.bootstrap.rbac.catalog.storage.allowedLocations) | quote }}
+              value: {{ toJson (default (list) $rbacStorage.allowedLocations) | quote }}
             - name: POLARIS_PRINCIPAL_ROLE
               value: {{ $polaris.bootstrap.rbac.principalRole | quote }}
             - name: POLARIS_CATALOG_ROLE
@@ -237,6 +250,21 @@ spec:
                   if isinstance(namespace, list):
                       return namespace
                   return [part for part in str(namespace).split(".") if part]
+
+              def catalog_storage_config(default_base_location, existing=None):
+                  storage = dict(existing or {})
+                  storage["storageType"] = os.getenv("POLARIS_CATALOG_STORAGE_TYPE", storage.get("storageType", "S3"))
+                  allowed_locations = load_json_env("POLARIS_CATALOG_ALLOWED_LOCATIONS", [])
+                  if allowed_locations:
+                      storage["allowedLocations"] = allowed_locations
+                  elif default_base_location and not storage.get("allowedLocations"):
+                      storage["allowedLocations"] = [default_base_location]
+                  storage_region = os.getenv("POLARIS_CATALOG_STORAGE_REGION", "")
+                  if storage_region:
+                      storage["region"] = storage_region
+                  storage["stsUnavailable"] = env_bool("POLARIS_CATALOG_STORAGE_STS_UNAVAILABLE", default=True)
+                  storage["kmsUnavailable"] = env_bool("POLARIS_CATALOG_STORAGE_KMS_UNAVAILABLE", default=True)
+                  return storage
 
               def http_json(method, url, token=None, body=None, ok=(200,), retry_conflict=False, retry_not_found=False):
                   data = None
@@ -304,21 +332,13 @@ spec:
                   raise RuntimeError(f"Timed out waiting for Polaris token endpoint: {last_error}")
 
               catalog_url = f"{management_api_url}/catalogs/{quote_path(catalog_name)}"
-              status, _ = http_json("GET", catalog_url, token=token, ok=(200,), retry_not_found=True)
+              status, catalog = http_json("GET", catalog_url, token=token, ok=(200,), retry_not_found=True)
+              default_base_location = os.getenv("POLARIS_CATALOG_DEFAULT_BASE_LOCATION", "")
               if status == 404:
                   if not create_catalog:
                       raise RuntimeError(f"Polaris catalog {catalog_name} does not exist")
-                  default_base_location = os.getenv("POLARIS_CATALOG_DEFAULT_BASE_LOCATION", "")
                   if not default_base_location:
                       raise RuntimeError("polaris.bootstrap.rbac.catalog.defaultBaseLocation is required to create a catalog")
-                  allowed_locations = load_json_env("POLARIS_CATALOG_ALLOWED_LOCATIONS", []) or [default_base_location]
-                  storage = {
-                      "storageType": os.getenv("POLARIS_CATALOG_STORAGE_TYPE", "S3"),
-                      "allowedLocations": allowed_locations,
-                  }
-                  storage_region = os.getenv("POLARIS_CATALOG_STORAGE_REGION", "")
-                  if storage_region:
-                      storage["region"] = storage_region
                   http_json(
                       "POST",
                       f"{management_api_url}/catalogs",
@@ -328,12 +348,31 @@ spec:
                               "type": "INTERNAL",
                               "name": catalog_name,
                               "properties": {"default-base-location": default_base_location},
-                              "storageConfigInfo": storage,
+                              "storageConfigInfo": catalog_storage_config(default_base_location),
                           }
                       },
                       ok=(200, 201),
                       retry_conflict=True,
                   )
+              else:
+                  current_properties = catalog.get("properties") or {}
+                  desired_properties = dict(current_properties)
+                  if default_base_location:
+                      desired_properties["default-base-location"] = default_base_location
+                  current_storage = catalog.get("storageConfigInfo") or {}
+                  desired_storage = catalog_storage_config(default_base_location, current_storage)
+                  if desired_properties != current_properties or desired_storage != current_storage:
+                      http_json(
+                          "PUT",
+                          catalog_url,
+                          token=token,
+                          body={
+                              "currentEntityVersion": catalog["entityVersion"],
+                              "properties": desired_properties,
+                              "storageConfigInfo": desired_storage,
+                          },
+                          ok=(200,),
+                      )
 
               principal_role_url = f"{management_api_url}/principal-roles/{quote_path(principal_role)}"
               status, _ = http_json("GET", principal_role_url, token=token, ok=(200,), retry_not_found=True)

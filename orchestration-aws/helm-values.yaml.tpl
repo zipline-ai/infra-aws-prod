@@ -77,6 +77,8 @@ polaris:
         defaultBaseLocation: "s3://${warehouse_bucket}/polaris/polaris_${polaris_realm}/"
         storage:
           region: "${aws_region}"
+          stsUnavailable: true
+          kmsUnavailable: true
           allowedLocations:
             - "s3://${warehouse_bucket}/polaris/polaris_${polaris_realm}/"
 
