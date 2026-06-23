@@ -1,6 +1,7 @@
 {{ if .Values.global.deploy_fetcher }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
+{{- $fetcherPath := default "/" (trimSuffix "/" (.Values.ingress.fetcher.path | default "/")) }}
 metadata:
   name: fetcher-ingress
   namespace: {{ .Release.Namespace }}
@@ -20,9 +21,13 @@ spec:
     - http:
     {{- end }}
         paths:
-          {{- $path := .Values.ingress.fetcher.path | default "/" }}
-          - path: {{ if eq $path "/" }}/{{ else }}{{ printf "%s(/|$)(.*)" $path }}{{ end }}
-            pathType: {{ if eq $path "/" }}Prefix{{ else }}ImplementationSpecific{{ end }}
+          {{- if eq $fetcherPath "/" }}
+          - path: /
+            pathType: Prefix
+          {{- else }}
+          - path: {{ printf "%s(/|$)(.*)" $fetcherPath | quote }}
+            pathType: ImplementationSpecific
+          {{- end }}
             backend:
               service:
                 name: fetcher-service

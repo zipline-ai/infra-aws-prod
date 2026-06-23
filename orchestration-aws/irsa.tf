@@ -92,6 +92,28 @@ resource "aws_iam_role_policy" "orchestration_s3" {
   policy = data.aws_iam_policy_document.orchestration_s3_policy.json
 }
 
+resource "aws_iam_role_policy" "orchestration_polaris_storage_assume_role" {
+  count = var.in_cluster_compute_enabled ? 1 : 0
+
+  name = "${var.name_prefix}-polaris-storage-assume-role"
+  role = aws_iam_role.orchestration_irsa.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "sts:AssumeRole"
+        Resource = aws_iam_role.polaris_storage[0].arn
+        Condition = {
+          StringEquals = {
+            "sts:ExternalId" = local.polaris_storage_external_id
+          }
+        }
+      }
+    ]
+  })
+}
+
 # DynamoDB access policy for orchestration pods (Chronon metadata)
 data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
   statement {
@@ -601,26 +623,13 @@ resource "aws_iam_role_policy" "spark_compute_glue" {
   policy = data.aws_iam_policy_document.spark_compute_glue_policy.json
 }
 
-data "aws_iam_policy_document" "spark_compute_cloudwatch_policy" {
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents",
-      "logs:DescribeLogGroups",
-      "logs:DescribeLogStreams",
-      "cloudwatch:PutMetricData",
-    ]
-    resources = ["*"]
-  }
-}
-
-resource "aws_iam_role_policy" "spark_compute_cloudwatch" {
-  name   = "${var.name_prefix}-spark-compute-cloudwatch"
-  role   = aws_iam_role.spark_compute_execution.id
-  policy = data.aws_iam_policy_document.spark_compute_cloudwatch_policy.json
-}
+# NOTE: Spark compute pods do NOT need direct CloudWatch Logs / Metrics IAM
+# permissions on EKS. fluent-bit (helm_release.fluent_bit in eks.tf) runs as
+# a DaemonSet on every node and ships container logs to CloudWatch using the
+# node role's CW perms (aws_iam_role_policy.eks_node_cloudwatch). Spark logs
+# additionally land in in-cluster Loki via promtail. Metrics flow through
+# Prometheus/AMP. Removing the EMR-Serverless-style spark_compute_cloudwatch
+# policy that this used to grant; it was redundant with the DaemonSet path.
 
 # Glue Data Catalog access for orchestration pods (staging queries / exports)
 data "aws_iam_policy_document" "orchestration_glue_policy" {

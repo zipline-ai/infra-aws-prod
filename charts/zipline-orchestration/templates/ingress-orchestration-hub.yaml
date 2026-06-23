@@ -1,5 +1,6 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
+{{- $hubPath := default "/" (trimSuffix "/" (.Values.ingress.hub.path | default "/")) }}
 metadata:
   name: orchestration-hub-ingress
   namespace: {{ .Release.Namespace }}
@@ -20,9 +21,13 @@ spec:
     - http:
     {{- end }}
         paths:
-          {{- $path := .Values.ingress.hub.path | default "/" }}
-          - path: {{ if eq $path "/" }}/{{ else }}{{ printf "%s(/|$)(.*)" $path }}{{ end }}
-            pathType: {{ if eq $path "/" }}Prefix{{ else }}ImplementationSpecific{{ end }}
+          {{- if eq $hubPath "/" }}
+          - path: /
+            pathType: Prefix
+          {{- else }}
+          - path: {{ printf "%s(/|$)(.*)" $hubPath | quote }}
+            pathType: ImplementationSpecific
+          {{- end }}
             backend:
               service:
                 name: orchestration-hub-service

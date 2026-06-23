@@ -1,5 +1,6 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
+{{- $evalPath := default "/" (trimSuffix "/" (.Values.ingress.eval.path | default "/")) }}
 metadata:
   name: eval-ingress
   namespace: {{ .Release.Namespace }}
@@ -19,9 +20,13 @@ spec:
     - http:
     {{- end }}
         paths:
-          {{- $path := .Values.ingress.eval.path | default "/" }}
-          - path: {{ if eq $path "/" }}/{{ else }}{{ printf "%s(/|$)(.*)" $path }}{{ end }}
-            pathType: {{ if eq $path "/" }}Prefix{{ else }}ImplementationSpecific{{ end }}
+          {{- if eq $evalPath "/" }}
+          - path: /
+            pathType: Prefix
+          {{- else }}
+          - path: {{ printf "%s(/|$)(.*)" $evalPath | quote }}
+            pathType: ImplementationSpecific
+          {{- end }}
             backend:
               service:
                 name: eval-service

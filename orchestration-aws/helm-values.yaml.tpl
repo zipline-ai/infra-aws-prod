@@ -65,6 +65,14 @@ database:
   host: "${db_host}"
   name: "${db_name}"
 
+polaris:
+  bootstrap:
+    rbac:
+      catalog:
+        storage:
+          roleArn: "${polaris_storage_role_arn}"
+          allowedKmsKeys: ${polaris_storage_allowed_kms_keys}
+
 # Service account with IRSA
 serviceAccount:
   create: true

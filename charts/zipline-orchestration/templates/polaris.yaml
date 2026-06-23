@@ -1,0 +1,716 @@
+{{- if .Values.compute.enabled }}
+{{- $polaris := .Values.polaris -}}
+{{- $realm := default .Values.global.customer_name $polaris.realm -}}
+{{- if not $realm -}}
+{{- fail "global.customer_name or polaris.realm is required when compute.enabled is true" -}}
+{{- end -}}
+{{- $rbacCatalog := default dict $polaris.bootstrap.rbac.catalog -}}
+{{- $defaultCatalogName := printf "polaris_%s" $realm -}}
+{{- $catalogName := default $defaultCatalogName $rbacCatalog.name -}}
+{{- $objectStoreBucket := trimSuffix "/" (default "" .Values.compute.objectStore.bucket) -}}
+{{- $objectStoreLocation := "" -}}
+{{- if $objectStoreBucket -}}
+{{- $objectStoreLocation = printf "%s/" $objectStoreBucket -}}
+{{- end -}}
+{{- $derivedBaseLocation := "" -}}
+{{- if $objectStoreBucket -}}
+{{- $derivedBaseLocation = printf "%s/polaris/%s/" $objectStoreBucket $catalogName -}}
+{{- end -}}
+{{- $catalogDefaultBaseLocation := default $derivedBaseLocation $rbacCatalog.defaultBaseLocation -}}
+{{- $rbacStorage := default dict $rbacCatalog.storage -}}
+{{- $storageRegion := default "" .Values.aws.region -}}
+{{- $storageRegion = default $storageRegion .Values.compute.objectStore.region -}}
+{{- $storageRegion = default $storageRegion $rbacStorage.region -}}
+{{- $roleArn := default "" $rbacStorage.roleArn -}}
+{{- $externalId := default "" $rbacStorage.externalId -}}
+{{- if and $roleArn (not $externalId) -}}
+{{- $externalId = printf "zipline:%s:polaris-storage" $realm -}}
+{{- end -}}
+{{- $allowedKmsKeys := default (list) $rbacStorage.allowedKmsKeys -}}
+{{- $allowedLocations := default (list) $rbacStorage.allowedLocations -}}
+{{- if and (eq (len $allowedLocations) 0) $roleArn $objectStoreLocation -}}
+{{- $allowedLocations = list $objectStoreLocation -}}
+{{- else if and (eq (len $allowedLocations) 0) $catalogDefaultBaseLocation -}}
+{{- $allowedLocations = list $catalogDefaultBaseLocation -}}
+{{- end -}}
+{{- $bootstrapCredentialsSecretName := default "polaris-bootstrap-credentials" $polaris.bootstrap.credentialsSecret.name -}}
+{{- $bootstrapCredentialsSecretKey := default "credentials" $polaris.bootstrap.credentialsSecret.key -}}
+{{- $existingBootstrapSecret := lookup "v1" "Secret" .Release.Namespace $bootstrapCredentialsSecretName -}}
+{{- $existingBootstrapSecretData := dict -}}
+{{- if $existingBootstrapSecret -}}
+{{- $existingBootstrapSecretData = default dict $existingBootstrapSecret.data -}}
+{{- end -}}
+{{- $bootstrapCredentials := printf "%s,root,%s" $realm (randAlphaNum 48) | b64enc -}}
+{{- if hasKey $existingBootstrapSecretData $bootstrapCredentialsSecretKey -}}
+{{- $bootstrapCredentials = index $existingBootstrapSecretData $bootstrapCredentialsSecretKey -}}
+{{- end -}}
+{{- $databaseName := required "polaris.database.name is required when compute.enabled is true" $polaris.database.name -}}
+{{- $databaseHost := required "database.host is required when compute.enabled is true" .Values.database.host -}}
+{{- $jdbcUrl := printf "jdbc:postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.jdbcParams -}}
+{{- $psqlAdminUrl := printf "postgresql://%s/%s%s" $databaseHost $polaris.database.adminDatabase $polaris.database.psqlParams -}}
+{{- $psqlPolarisUrl := printf "postgresql://%s/%s%s" $databaseHost $databaseName $polaris.database.psqlParams -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $bootstrapCredentialsSecretName | quote }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris-bootstrap
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+type: Opaque
+data:
+  {{ $bootstrapCredentialsSecretKey }}: {{ $bootstrapCredentials | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+data:
+  application.properties: |-
+    quarkus.http.port={{ $polaris.ports.http }}
+    quarkus.management.port={{ $polaris.ports.management }}
+    quarkus.log.file.enabled=false
+    quarkus.otel.sdk.disabled=true
+    polaris.persistence.type=relational-jdbc
+    polaris.realm-context.type=default
+    polaris.realm-context.realms={{ $realm }}
+    polaris.realm-context.require-header={{ $polaris.realmContext.requireHeader }}
+    {{- range $key, $value := $polaris.extraConfig }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: polaris-bootstrap
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris-bootstrap
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: polaris
+        app.kubernetes.io/component: polaris-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if hasKey $polaris "imagePullSecrets" }}
+      {{- with $polaris.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      securityContext:
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: prepare-polaris-bootstrap
+          image: {{ $polaris.database.initImage | quote }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: POLARIS_DB_NAME
+              value: {{ $databaseName | quote }}
+            - name: PG_ADMIN_URL
+              value: {{ $psqlAdminUrl | quote }}
+            - name: PG_POLARIS_URL
+              value: {{ $psqlPolarisUrl | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              credential="$(cat /etc/polaris-bootstrap/credentials)"
+              realm="${credential%%,*}"
+              remaining="${credential#*,}"
+              client_id="${remaining%%,*}"
+              if [ "$remaining" = "$credential" ] || [ "$client_id" = "$remaining" ] || [ -z "$realm" ] || [ -z "$client_id" ]; then
+                echo "Invalid Polaris bootstrap credential format" >&2
+                exit 1
+              fi
+              case "$realm" in (*[!A-Za-z0-9_.-]*|"") echo "Invalid Polaris realm: $realm" >&2; exit 1;; esac
+              case "$client_id" in (*[!A-Za-z0-9_.-]*|"") echo "Invalid Polaris client id: $client_id" >&2; exit 1;; esac
+              {{- if $polaris.database.create }}
+              case "$POLARIS_DB_NAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database name: $POLARIS_DB_NAME" >&2; exit 1;; esac
+              case "$DB_USERNAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database owner: $DB_USERNAME" >&2; exit 1;; esac
+              if psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname = '$POLARIS_DB_NAME'" | grep -q 1; then
+                echo "Database $POLARIS_DB_NAME already exists"
+              else
+                psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -c "CREATE DATABASE \"$POLARIS_DB_NAME\" OWNER \"$DB_USERNAME\""
+              fi
+              {{- end }}
+              if psql "$PG_POLARIS_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = 'polaris_schema' AND table_name = 'principal_authentication_data'" | grep -q 1; then
+                if psql "$PG_POLARIS_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM polaris_schema.principal_authentication_data WHERE realm_id = '$realm' AND principal_client_id = '$client_id'" | grep -q 1; then
+                  echo "Polaris root principal $client_id already exists in realm $realm; skipping bootstrap"
+                  touch /bootstrap-state/skip-bootstrap
+                fi
+              fi
+          volumeMounts:
+            - name: polaris-bootstrap-credentials
+              mountPath: /etc/polaris-bootstrap
+              readOnly: true
+            - name: bootstrap-state
+              mountPath: /bootstrap-state
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      containers:
+        - name: bootstrap-polaris
+          image: "{{ $polaris.bootstrap.image.repository }}:{{ default $polaris.image.tag $polaris.bootstrap.image.tag }}"
+          imagePullPolicy: {{ default $polaris.image.pullPolicy $polaris.bootstrap.image.pullPolicy }}
+          env:
+            - name: POLARIS_PERSISTENCE_TYPE
+              value: relational-jdbc
+            - name: QUARKUS_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              value: {{ $jdbcUrl | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              if [ -f /bootstrap-state/skip-bootstrap ]; then
+                echo "Polaris already bootstrapped; skipping"
+                exit 0
+              fi
+              credential="$(cat /etc/polaris-bootstrap/credentials)"
+              realm="${credential%%,*}"
+              exec java -jar /deployments/polaris-admin-tool.jar bootstrap -r "$realm" -c "$credential"
+          volumeMounts:
+            - name: polaris-bootstrap-credentials
+              mountPath: /etc/polaris-bootstrap
+              readOnly: true
+            - name: bootstrap-state
+              mountPath: /bootstrap-state
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          resources:
+{{- toYaml $polaris.bootstrap.resources | nindent 12 }}
+        - name: configure-polaris-rbac
+          image: "{{ $polaris.bootstrap.rbac.image.repository }}:{{ $polaris.bootstrap.rbac.image.tag }}"
+          imagePullPolicy: {{ $polaris.bootstrap.rbac.image.pullPolicy }}
+          env:
+            - name: POLARIS_BASE_URL
+              value: {{ printf "http://polaris-service:%d" (int $polaris.ports.http) | quote }}
+            - name: POLARIS_CATALOG_NAME
+              value: {{ $catalogName | quote }}
+            - name: POLARIS_CATALOG_DEFAULT_BASE_LOCATION
+              value: {{ $catalogDefaultBaseLocation | quote }}
+            - name: POLARIS_CATALOG_STORAGE_TYPE
+              value: {{ default "S3" $rbacStorage.type | quote }}
+            - name: POLARIS_CATALOG_STORAGE_REGION
+              value: {{ $storageRegion | quote }}
+            - name: POLARIS_CATALOG_STORAGE_ROLE_ARN
+              value: {{ $roleArn | quote }}
+            - name: POLARIS_CATALOG_STORAGE_EXTERNAL_ID
+              value: {{ $externalId | quote }}
+            - name: POLARIS_CATALOG_ALLOWED_KMS_KEYS
+              value: {{ toJson $allowedKmsKeys | quote }}
+            - name: POLARIS_CATALOG_ALLOWED_LOCATIONS
+              value: {{ toJson $allowedLocations | quote }}
+            - name: POLARIS_PRINCIPAL_ROLE
+              value: {{ $polaris.bootstrap.rbac.principalRole | quote }}
+            - name: POLARIS_CATALOG_ROLE
+              value: {{ $polaris.bootstrap.rbac.catalogRole | quote }}
+            - name: POLARIS_CATALOG_GRANTS
+              value: {{ toJson (default (list) $polaris.bootstrap.rbac.catalogGrants) | quote }}
+            - name: POLARIS_NAMESPACES
+              value: {{ toJson (default (list) $polaris.bootstrap.rbac.namespaces) | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              python - <<'PY'
+              import base64
+              import json
+              import os
+              import sys
+              import time
+              import urllib.error
+              import urllib.parse
+              import urllib.request
+
+              def load_json_env(name, default):
+                  raw = os.getenv(name, "")
+                  if not raw:
+                      return default
+                  return json.loads(raw)
+
+              def quote_path(value):
+                  return urllib.parse.quote(value, safe="")
+
+              def namespace_parts(namespace):
+                  if isinstance(namespace, list):
+                      return namespace
+                  return [part for part in str(namespace).split(".") if part]
+
+              def catalog_storage_config(default_base_location, existing=None):
+                  storage = dict(existing or {})
+                  storage["storageType"] = os.getenv("POLARIS_CATALOG_STORAGE_TYPE", storage.get("storageType", "S3"))
+                  allowed_locations = load_json_env("POLARIS_CATALOG_ALLOWED_LOCATIONS", [])
+                  if allowed_locations:
+                      storage["allowedLocations"] = allowed_locations
+                  elif default_base_location and not storage.get("allowedLocations"):
+                      storage["allowedLocations"] = [default_base_location]
+                  storage_region = os.getenv("POLARIS_CATALOG_STORAGE_REGION", "")
+                  if storage_region:
+                      storage["region"] = storage_region
+                  storage_role_arn = os.getenv("POLARIS_CATALOG_STORAGE_ROLE_ARN", "")
+                  if storage_role_arn:
+                      storage["roleArn"] = storage_role_arn
+                  else:
+                      storage.pop("roleArn", None)
+                  storage_external_id = os.getenv("POLARIS_CATALOG_STORAGE_EXTERNAL_ID", "")
+                  if storage_external_id:
+                      storage["externalId"] = storage_external_id
+                  else:
+                      storage.pop("externalId", None)
+                  storage["stsUnavailable"] = not bool(storage_role_arn)
+                  allowed_kms_keys = load_json_env("POLARIS_CATALOG_ALLOWED_KMS_KEYS", [])
+                  storage["allowedKmsKeys"] = allowed_kms_keys
+                  storage["kmsUnavailable"] = len(allowed_kms_keys) == 0
+                  return storage
+
+              def http_json(method, url, token=None, body=None, ok=(200,), retry_conflict=False, retry_not_found=False):
+                  data = None
+                  headers = {"Polaris-Realm": realm, "realm": realm}
+                  if token:
+                      headers["Authorization"] = f"Bearer {token}"
+                  if body is not None:
+                      data = json.dumps(body).encode("utf-8")
+                      headers["Content-Type"] = "application/json"
+                  request = urllib.request.Request(url, data=data, headers=headers, method=method)
+                  try:
+                      with urllib.request.urlopen(request, timeout=30) as response:
+                          payload = response.read().decode("utf-8")
+                          if response.status not in ok:
+                              raise RuntimeError(f"{method} {url} returned {response.status}: {payload}")
+                          return response.status, json.loads(payload) if payload else None
+                  except urllib.error.HTTPError as error:
+                      payload = error.read().decode("utf-8", "replace")
+                      if error.code == 409 and retry_conflict:
+                          return error.code, None
+                      if error.code == 404 and retry_not_found:
+                          return error.code, None
+                      raise RuntimeError(f"{method} {url} returned {error.code}: {payload}") from error
+
+              with open("/etc/polaris-bootstrap/credentials", encoding="utf-8") as credentials_file:
+                  credential_parts = credentials_file.read().strip().split(",", 2)
+              if len(credential_parts) != 3:
+                  raise SystemExit("Invalid Polaris bootstrap credential format")
+              realm, client_id, client_secret = credential_parts
+
+              base_url = os.environ["POLARIS_BASE_URL"].rstrip("/")
+              catalog_api_url = f"{base_url}/api/catalog"
+              management_api_url = f"{base_url}/api/management/v1"
+              catalog_name = os.getenv("POLARIS_CATALOG_NAME") or f"polaris_{realm}"
+              principal_role = os.environ["POLARIS_PRINCIPAL_ROLE"]
+              catalog_role = os.environ["POLARIS_CATALOG_ROLE"]
+              catalog_grants = load_json_env("POLARIS_CATALOG_GRANTS", [])
+              namespaces = load_json_env("POLARIS_NAMESPACES", [])
+
+              token_url = f"{catalog_api_url}/v1/oauth/tokens"
+              auth = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("ascii")
+              token_body = urllib.parse.urlencode(
+                  {"grant_type": "client_credentials", "scope": "PRINCIPAL_ROLE:ALL"}
+              ).encode("utf-8")
+              token_headers = {
+                  "Authorization": f"Basic {auth}",
+                  "Content-Type": "application/x-www-form-urlencoded",
+                  "Polaris-Realm": realm,
+                  "realm": realm,
+              }
+
+              last_error = None
+              token = None
+              for attempt in range(60):
+                  try:
+                      request = urllib.request.Request(token_url, data=token_body, headers=token_headers, method="POST")
+                      with urllib.request.urlopen(request, timeout=30) as response:
+                          token = json.loads(response.read().decode("utf-8"))["access_token"]
+                      break
+                  except Exception as error:
+                      last_error = error
+                      time.sleep(5)
+              if not token:
+                  raise RuntimeError(f"Timed out waiting for Polaris token endpoint: {last_error}")
+
+              catalog_url = f"{management_api_url}/catalogs/{quote_path(catalog_name)}"
+              status, catalog = http_json("GET", catalog_url, token=token, ok=(200,), retry_not_found=True)
+              default_base_location = os.getenv("POLARIS_CATALOG_DEFAULT_BASE_LOCATION", "")
+              if status == 404:
+                  if not default_base_location:
+                      raise RuntimeError("polaris.bootstrap.rbac.catalog.defaultBaseLocation is required to create a catalog")
+                  http_json(
+                      "POST",
+                      f"{management_api_url}/catalogs",
+                      token=token,
+                      body={
+                          "catalog": {
+                              "type": "INTERNAL",
+                              "name": catalog_name,
+                              "properties": {"default-base-location": default_base_location},
+                              "storageConfigInfo": catalog_storage_config(default_base_location),
+                          }
+                      },
+                      ok=(200, 201),
+                      retry_conflict=True,
+                  )
+              else:
+                  current_properties = catalog.get("properties") or {}
+                  desired_properties = dict(current_properties)
+                  if default_base_location:
+                      desired_properties["default-base-location"] = default_base_location
+                  current_storage = catalog.get("storageConfigInfo") or {}
+                  desired_storage = catalog_storage_config(default_base_location, current_storage)
+                  if desired_properties != current_properties or desired_storage != current_storage:
+                      http_json(
+                          "PUT",
+                          catalog_url,
+                          token=token,
+                          body={
+                              "currentEntityVersion": catalog["entityVersion"],
+                              "properties": desired_properties,
+                              "storageConfigInfo": desired_storage,
+                          },
+                          ok=(200,),
+                      )
+
+              principal_role_url = f"{management_api_url}/principal-roles/{quote_path(principal_role)}"
+              status, _ = http_json("GET", principal_role_url, token=token, ok=(200,), retry_not_found=True)
+              if status == 404:
+                  http_json(
+                      "POST",
+                      f"{management_api_url}/principal-roles",
+                      token=token,
+                      body={"principalRole": {"name": principal_role}},
+                      ok=(200, 201),
+                      retry_conflict=True,
+                  )
+
+              catalog_role_url = (
+                  f"{management_api_url}/catalogs/{quote_path(catalog_name)}/catalog-roles/{quote_path(catalog_role)}"
+              )
+              status, _ = http_json("GET", catalog_role_url, token=token, ok=(200,), retry_not_found=True)
+              if status == 404:
+                  http_json(
+                      "POST",
+                      f"{management_api_url}/catalogs/{quote_path(catalog_name)}/catalog-roles",
+                      token=token,
+                      body={"catalogRole": {"name": catalog_role}},
+                      ok=(200, 201),
+                      retry_conflict=True,
+                  )
+
+              http_json(
+                  "PUT",
+                  f"{management_api_url}/principal-roles/{quote_path(principal_role)}/catalog-roles/{quote_path(catalog_name)}",
+                  token=token,
+                  body={"catalogRole": {"name": catalog_role}},
+                  ok=(200, 201, 204),
+                  retry_conflict=True,
+              )
+
+              grants_url = (
+                  f"{management_api_url}/catalogs/{quote_path(catalog_name)}/catalog-roles/{quote_path(catalog_role)}/grants"
+              )
+              for privilege in catalog_grants:
+                  http_json(
+                      "PUT",
+                      grants_url,
+                      token=token,
+                      body={"grant": {"type": "catalog", "privilege": privilege}},
+                      ok=(200, 201, 204),
+                      retry_conflict=True,
+                  )
+
+              for namespace in namespaces:
+                  namespace_name = namespace.get("name")
+                  if not namespace_name:
+                      continue
+                  parts = namespace_parts(namespace_name)
+                  if namespace.get("create", True):
+                      http_json(
+                          "POST",
+                          f"{catalog_api_url}/v1/{quote_path(catalog_name)}/namespaces",
+                          token=token,
+                          body={"namespace": parts, "properties": {}},
+                          ok=(200, 201, 204),
+                          retry_conflict=True,
+                      )
+                  for privilege in namespace.get("grants", []):
+                      http_json(
+                          "PUT",
+                          grants_url,
+                          token=token,
+                          body={"grant": {"type": "namespace", "namespace": parts, "privilege": privilege}},
+                          ok=(200, 201, 204),
+                          retry_conflict=True,
+                      )
+
+              print(f"Polaris RBAC reconciled for catalog {catalog_name}, principal role {principal_role}, catalog role {catalog_role}")
+              PY
+          volumeMounts:
+            - name: polaris-bootstrap-credentials
+              mountPath: /etc/polaris-bootstrap
+              readOnly: true
+          resources:
+{{- toYaml $polaris.bootstrap.resources | nindent 12 }}
+      volumes:
+        - name: polaris-bootstrap-credentials
+          secret:
+            secretName: {{ $bootstrapCredentialsSecretName | quote }}
+            items:
+              - key: {{ $bootstrapCredentialsSecretKey | quote }}
+                path: credentials
+        - name: bootstrap-state
+          emptyDir: {}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipline-polaris
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $polaris.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: polaris
+  template:
+    metadata:
+      labels:
+        app: polaris
+        app.kubernetes.io/component: polaris
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if hasKey $polaris "imagePullSecrets" }}
+      {{- with $polaris.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- else }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      securityContext:
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if $polaris.database.create }}
+      initContainers:
+        - name: create-polaris-database
+          image: {{ $polaris.database.initImage | quote }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: POLARIS_DB_NAME
+              value: {{ $databaseName | quote }}
+            - name: PG_ADMIN_URL
+              value: {{ $psqlAdminUrl | quote }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              case "$POLARIS_DB_NAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database name: $POLARIS_DB_NAME" >&2; exit 1;; esac
+              case "$DB_USERNAME" in (*[!A-Za-z0-9_]*|"") echo "Invalid database owner: $DB_USERNAME" >&2; exit 1;; esac
+              if psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -tAc "SELECT 1 FROM pg_database WHERE datname = '$POLARIS_DB_NAME'" | grep -q 1; then
+                echo "Database $POLARIS_DB_NAME already exists"
+              else
+                psql "$PG_ADMIN_URL" --set=ON_ERROR_STOP=1 -c "CREATE DATABASE \"$POLARIS_DB_NAME\" OWNER \"$DB_USERNAME\""
+              fi
+          volumeMounts:
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      {{- end }}
+      containers:
+        - name: polaris
+          image: "{{ $polaris.image.repository }}:{{ $polaris.image.tag }}"
+          imagePullPolicy: {{ $polaris.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10000
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: QUARKUS_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              value: {{ $jdbcUrl | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.aws.region | quote }}
+            {{- with $polaris.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: polaris-config
+              mountPath: /deployments/config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: secrets-store-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: {{ $polaris.ports.http }}
+              protocol: TCP
+            - name: management
+              containerPort: {{ $polaris.ports.management }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: management
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+{{- toYaml $polaris.resources | nindent 12 }}
+      volumes:
+        - name: polaris-config
+          configMap:
+            name: polaris-config
+        - name: tmp
+          emptyDir: {}
+        - name: secrets-store-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "db-secret-provider"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  type: {{ $polaris.service.type }}
+  selector:
+    app: polaris
+  ports:
+    - name: http
+      port: {{ $polaris.ports.http }}
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-management-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: polaris
+    app.kubernetes.io/component: polaris
+    {{- include "zipline-orchestration.labels" . | nindent 4 }}
+spec:
+  type: {{ $polaris.managementService.type }}
+  {{- if $polaris.managementService.clusterIP }}
+  clusterIP: {{ $polaris.managementService.clusterIP }}
+  {{- end }}
+  selector:
+    app: polaris
+  ports:
+    - name: management
+      port: {{ $polaris.ports.management }}
+      targetPort: management
+      protocol: TCP
+{{- end }}
