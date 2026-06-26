@@ -92,6 +92,38 @@ resource "aws_iam_role_policy" "orchestration_s3" {
   policy = data.aws_iam_policy_document.orchestration_s3_policy.json
 }
 
+# KMS permissions for orchestration pods writing to customer-managed encrypted buckets
+locals {
+  orchestration_irsa_allowed_kms_keys = distinct(compact(concat(
+    [var.encryption_kms_key_arn],
+    values(var.encryption_kms_key_arns),
+  )))
+}
+
+data "aws_iam_policy_document" "orchestration_kms_policy" {
+  count = length(local.orchestration_irsa_allowed_kms_keys) > 0 ? 1 : 0
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:GenerateDataKey*",
+      "kms:ReEncrypt*",
+    ]
+    resources = local.orchestration_irsa_allowed_kms_keys
+  }
+}
+
+resource "aws_iam_role_policy" "orchestration_kms" {
+  count = length(local.orchestration_irsa_allowed_kms_keys) > 0 ? 1 : 0
+
+  name   = "${var.name_prefix}-orchestration-kms"
+  role   = aws_iam_role.orchestration_irsa.id
+  policy = data.aws_iam_policy_document.orchestration_kms_policy[0].json
+}
+
 resource "aws_iam_role_policy" "orchestration_polaris_storage_assume_role" {
   count = var.in_cluster_compute_enabled ? 1 : 0
 
