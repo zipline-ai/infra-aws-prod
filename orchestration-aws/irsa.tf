@@ -566,7 +566,12 @@ data "aws_iam_policy_document" "spark_compute_dynamodb_policy" {
     effect = "Allow"
     actions = [
       "dynamodb:CreateTable",
+      "dynamodb:CreateTableReplica",
+      "dynamodb:DeleteTable",
+      "dynamodb:DescribeImport",
       "dynamodb:DescribeTable",
+      "dynamodb:ImportTable",
+      "dynamodb:ListTables",
       "dynamodb:UpdateTable",
       "dynamodb:UpdateTimeToLive",
       "dynamodb:GetItem",
