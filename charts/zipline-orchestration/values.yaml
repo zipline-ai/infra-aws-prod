@@ -432,6 +432,16 @@ ingress:
     annotations:
       nginx.ingress.kubernetes.io/health-check-path: "/ping"
       nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    # Browser auth gating on the Hub ingress. Sends unauthenticated browser
+    # requests through an nginx subrequest to the UI's /auth/forward endpoint
+    # which redirects to login when there's no session. Set forwardUrl /
+    # signinUrl to the UI service in your deployment.
+    browserAuth:
+      enabled: false
+      forwardUrl: ""
+      signinUrl: ""
+      cacheKey: "$http_authorization|$cookie_better_auth_session_token"
+      cacheDuration: "200 60s"
   fetcher:
     className: nginx-fetcher
     host: ""
