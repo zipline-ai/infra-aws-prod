@@ -148,6 +148,12 @@ variable "hub_external_url" {
   default     = ""
 }
 
+variable "hub_browser_auth_enabled" {
+  type        = bool
+  description = "Enable browser auth on the Hub ingress so unauthenticated users opening Hub URLs (e.g. Spark UI) are redirected to the UI login page. CLI clients sending an Authorization header are unaffected."
+  default     = false
+}
+
 variable "ui_domain" {
   type        = string
   description = "Custom domain for orchestration UI (e.g., zipline.yourcompany.com). Leave empty to use the default load balancer DNS."

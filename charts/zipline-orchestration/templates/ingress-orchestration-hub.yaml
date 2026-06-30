@@ -11,6 +11,15 @@ metadata:
     {{- with .Values.ingress.hub.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+    {{- $ba := .Values.ingress.hub.browserAuth }}
+    {{- if $ba.enabled }}
+    nginx.ingress.kubernetes.io/auth-url: {{ $ba.forwardUrl | quote }}
+    nginx.ingress.kubernetes.io/auth-method: "GET"
+    nginx.ingress.kubernetes.io/auth-response-headers: "Authorization"
+    nginx.ingress.kubernetes.io/auth-signin: {{ $ba.signinUrl | quote }}
+    nginx.ingress.kubernetes.io/auth-cache-key: {{ $ba.cacheKey | quote }}
+    nginx.ingress.kubernetes.io/auth-cache-duration: {{ $ba.cacheDuration | quote }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.hub.className }}
   rules:

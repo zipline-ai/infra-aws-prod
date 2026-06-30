@@ -402,6 +402,10 @@ resource "helm_release" "zipline_orchestration" {
       fetcher_path              = local.fetcher_path
       eval_path                 = local.eval_path
       use_zipline_custom_domain = local.use_zipline_custom_domain
+
+      hub_browser_auth_enabled     = var.hub_browser_auth_enabled
+      hub_browser_auth_forward_url = local.hub_browser_auth_forward_url
+      hub_browser_auth_signin_url  = local.hub_browser_auth_signin_url
       kv_table_prefix           = module.dynamodb_tables.table_prefix
       kv_enable_ttl             = var.dynamodb_enable_ttl
       kv_replica_regions        = join(",", var.dynamodb_replica_regions)
