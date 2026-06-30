@@ -1,4 +1,5 @@
 #!/bin/bash
+# FOR INTERNAL USE ONLY
 # Push local config for the crucible deployment back to S3.
 #
 # Inverse of pull_crucible_config.sh.

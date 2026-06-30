@@ -1,4 +1,5 @@
 #!/bin/bash
+# FOR INTERNAL USE ONLY
 # Pull config for the crucible deployment from S3.
 #
 # Drives the parallel "crucible" zipline-aws deployment (separate state from
@@ -6,6 +7,12 @@
 #
 # Inverse of push_crucible_config.sh.
 set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+rm -f .terraform.lock.hcl terraform.tfvars github.tf cloudflare.tf
+rm -rf .terraform/
+rm -rf crucible-config
 
 aws s3 cp s3://zipline-crucible-vars/terraform.tfvars       ./terraform.tfvars
 aws s3 cp s3://zipline-crucible-vars/github.tf              ./github.tf

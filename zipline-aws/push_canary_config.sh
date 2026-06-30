@@ -1,4 +1,5 @@
 #!/bin/bash
+# FOR INTERNAL USE ONLY
 
 aws s3 cp ./.terraform.lock.hcl s3://zipline-canary-vars/
 aws s3 cp ./terraform.tfvars s3://zipline-canary-vars/
