@@ -81,8 +81,12 @@ serviceAccount:
     eks.amazonaws.com/role-arn: "${irsa_role_arn}"
 
 domains:
+%{ if ui_domain != "" }
     ziplineUI: "https://${ui_domain}${ui_path}"
-    hub: "https://${hub_domain}${hub_path}"
+%{ else }
+    ziplineUI: ""
+%{ endif }
+    hub: ${ hub_external_url }
 
 # Ingress NGINX Controller for UI
 ingress-nginx-ui:
