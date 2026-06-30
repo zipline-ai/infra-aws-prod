@@ -86,7 +86,7 @@ domains:
 %{ else }
     ziplineUI: ""
 %{ endif }
-    hub: ${ hub_external_url }
+    hub: "${ hub_external_url }"
 
 # Ingress NGINX Controller for UI
 ingress-nginx-ui:
