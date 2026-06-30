@@ -60,6 +60,108 @@ output "kubeconfig_command" {
   value       = "aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}"
 }
 
+output "zipline_custom_domain_dns_setup" {
+  description = "DNS setup instructions for shared or per-service custom domains. Null when no custom domains are configured."
+  value = local.use_zipline_custom_domain || local.ui_domain != "" || local.hub_domain != "" || local.eval_domain != "" || local.fetcher_domain != "" ? {
+    mode = local.use_zipline_custom_domain ? "shared_domain" : "per_service_domains"
+    certificate_validation_records = local.use_zipline_custom_domain && local.provided_zipline_custom_domain_cert_arn == "" ? [
+      for dvo in aws_acm_certificate.zipline_custom_domain_cert[0].domain_validation_options : {
+        name   = dvo.resource_record_name
+        type   = dvo.resource_record_type
+        value  = dvo.resource_record_value
+        domain = local.zipline_custom_domain_host
+      }
+      ] : concat(
+      !local.use_zipline_custom_domain && local.ui_domain != "" && var.ui_cert_arn == "" ? [
+        for dvo in aws_acm_certificate.ui_cert[0].domain_validation_options : {
+          name   = dvo.resource_record_name
+          type   = dvo.resource_record_type
+          value  = dvo.resource_record_value
+          domain = local.ui_domain
+        }
+      ] : [],
+      !local.use_zipline_custom_domain && local.hub_domain != "" && var.hub_cert_arn == "" ? [
+        for dvo in aws_acm_certificate.hub_cert[0].domain_validation_options : {
+          name   = dvo.resource_record_name
+          type   = dvo.resource_record_type
+          value  = dvo.resource_record_value
+          domain = local.hub_domain
+        }
+      ] : [],
+      !local.use_zipline_custom_domain && local.eval_domain != "" && var.eval_cert_arn == "" ? [
+        for dvo in aws_acm_certificate.eval_cert[0].domain_validation_options : {
+          name   = dvo.resource_record_name
+          type   = dvo.resource_record_type
+          value  = dvo.resource_record_value
+          domain = local.eval_domain
+        }
+      ] : [],
+      !local.use_zipline_custom_domain && local.fetcher_domain != "" && var.fetcher_cert_arn == "" ? [
+        for dvo in aws_acm_certificate.fetcher_cert[0].domain_validation_options : {
+          name   = dvo.resource_record_name
+          type   = dvo.resource_record_type
+          value  = dvo.resource_record_value
+          domain = local.fetcher_domain
+        }
+      ] : [],
+    )
+    certificate_validation_note = local.use_zipline_custom_domain ? (local.provided_zipline_custom_domain_cert_arn == "" ? "Add these CNAME records to your DNS provider to validate the ACM certificate." : "Using provided zipline_custom_domain_cert_arn; no Terraform-created ACM validation records are required.") : "Add any listed CNAME records to your DNS provider to validate Terraform-created ACM certificates. Services using provided certificate ARNs do not need Terraform-created ACM validation records."
+    traffic_records = local.use_zipline_custom_domain ? [
+      {
+        service = "zipline"
+        type    = "CNAME"
+        name    = local.zipline_custom_domain_host
+        target  = "Run: kubectl get svc zipline-orchestration-ingress-nginx-ui-controller -n zipline-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+        note    = "Point ${local.zipline_custom_domain_host} to the returned UI NLB hostname."
+      }
+      ] : concat(
+      local.ui_domain != "" ? [
+        {
+          service = "ui"
+          type    = "CNAME"
+          name    = local.ui_domain
+          target  = "Run: kubectl get svc zipline-orchestration-ingress-nginx-ui-controller -n zipline-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+          note    = "Point ${local.ui_domain} to the returned UI NLB hostname."
+        }
+      ] : [],
+      local.hub_domain != "" ? [
+        {
+          service = "hub"
+          type    = "CNAME"
+          name    = local.hub_domain
+          target  = "Run: kubectl get svc zipline-orchestration-ingress-nginx-hub-controller -n zipline-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+          note    = "Point ${local.hub_domain} to the returned Hub NLB hostname."
+        }
+      ] : [],
+      local.eval_domain != "" ? [
+        {
+          service = "eval"
+          type    = "CNAME"
+          name    = local.eval_domain
+          target  = "Run: kubectl get svc zipline-orchestration-ingress-nginx-eval-controller -n zipline-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+          note    = "Point ${local.eval_domain} to the returned Eval NLB hostname."
+        }
+      ] : [],
+      local.fetcher_domain != "" ? [
+        {
+          service = "fetcher"
+          type    = "CNAME"
+          name    = local.fetcher_domain
+          target  = "Run: kubectl get svc nginx-fetcher-controller -n zipline-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+          note    = "Point ${local.fetcher_domain} to the returned Fetcher NLB hostname."
+        }
+      ] : [],
+    )
+    service_urls = {
+      ui      = local.ui_domain != "" ? "https://${local.ui_domain}${local.ui_path}" : ""
+      hub     = local.hub_domain != "" ? "https://${local.hub_domain}${local.hub_path}" : ""
+      eval    = local.eval_domain != "" ? "https://${local.eval_domain}${local.eval_path}" : ""
+      fetcher = local.fetcher_domain != "" ? "https://${local.fetcher_domain}${local.fetcher_path}" : ""
+      polaris = local.ui_domain != "" ? "https://${local.ui_domain}/services/catalog" : ""
+    }
+  } : null
+}
+
 output "chronon_metadata_table_name" {
   description = "Full name of the Chronon metadata DynamoDB table (with prefix)"
   value       = module.dynamodb_tables.chronon_metadata_table_name

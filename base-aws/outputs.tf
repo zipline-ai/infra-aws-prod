@@ -24,3 +24,8 @@ output "kubeconfig_command" {
   description = "Command to update kubeconfig"
   value       = module.orchestration.kubeconfig_command
 }
+
+output "zipline_custom_domain_dns_setup" {
+  description = "DNS setup instructions for shared or per-service custom domains. Null when no custom domains are configured."
+  value       = module.orchestration.zipline_custom_domain_dns_setup
+}
