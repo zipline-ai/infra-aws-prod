@@ -32,6 +32,10 @@ spec:
             - name: FETCHER_BASE_URL
               value: "http://fetcher-service"
             {{- end }}
+            - name: EVAL_URL
+              value: "http://eval-service"
+            - name: ORIGIN
+              value: {{ .Values.domains.ziplineUI | quote }}
             - name: DB_HOST
               value: {{ .Values.database.host | quote }}
             - name: DB_NAME

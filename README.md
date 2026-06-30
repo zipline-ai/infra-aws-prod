@@ -344,6 +344,8 @@ Add these CNAME records to your DNS provider. ACM will validate and issue the ce
 
 After deployment, shared-domain mode uses the UI Network Load Balancer (NLB) for all service paths. Per-service mode gives each service its own NLB. Get the NLB hostnames:
 
+The `zipline_custom_domain_dns_setup` output includes `traffic_records` for either shared-domain or per-service mode. Each record has a `target_hostname` populated from the Kubernetes ingress controller Service when AWS has assigned the NLB hostname. If `target_hostname` is empty on the first apply, wait a minute or two for AWS to provision the NLB, then run `tofu apply` or `tofu refresh` again and re-check the output. The `target_command` field is a kubectl fallback for the same hostname.
+
 **Via AWS Console:**
 1. Go to **EC2** > **Load Balancers**
 2. Each NLB's **DNS name** is shown in the Description tab
@@ -367,6 +369,8 @@ For per-service mode, add CNAME records in your DNS provider pointing each custo
 | CNAME | `zipline-hub` | `<hub-nlb-hostname>.elb.<region>.amazonaws.com` |
 | CNAME | `zipline-fetcher` | `<fetcher-nlb-hostname>.elb.<region>.amazonaws.com` |
 | CNAME | `zipline-eval` | `<eval-nlb-hostname>.elb.<region>.amazonaws.com` |
+
+For example, if the configured domain is `canary-aws.zipline.ai` and the DNS zone is `zipline.ai`, create a CNAME record with **Name** `canary-aws` and **Target** set to the UI NLB hostname. If your DNS provider asks for the full record name instead, use `canary-aws.zipline.ai`.
 
 Both sets of DNS records (ACM validation and traffic routing) can be added at the same time — they are independent of each other.
 
