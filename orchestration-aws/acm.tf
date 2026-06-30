@@ -31,6 +31,15 @@ locals {
 
   zipline_auth_url      = local.ui_domain != "" ? "https://${local.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
   zipline_auth_jwks_url = "${local.zipline_auth_url}/api/auth/jwks"
+
+  # Forward-auth URLs derived from the existing ingress topology — customers
+  # only flip hub_browser_auth_enabled, the URLs follow from their domain
+  # config. $host works in shared-domain mode (UI and Hub share a host);
+  # multi-domain uses the explicit UI hostname so login resolves correctly.
+  hub_browser_auth_forward_url = "http://orchestration-ui-service.zipline-system.svc.cluster.local/auth/forward"
+  hub_browser_auth_signin_url = local.use_zipline_custom_domain ? "https://$host/auth/login?redirect=$escaped_request_uri" : (
+    local.ui_domain != "" ? "https://${local.ui_domain}/auth/login?redirect=$escaped_request_uri" : ""
+  )
 }
 
 resource "aws_acm_certificate" "zipline_custom_domain_cert" {

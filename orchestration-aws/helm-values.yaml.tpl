@@ -302,6 +302,12 @@ ingress:
 %{ if hub_path != "/" }
       nginx.ingress.kubernetes.io/rewrite-target: "/$2"
 %{ endif }
+%{ if hub_browser_auth_enabled }
+    browserAuth:
+      enabled: true
+      forwardUrl: "${hub_browser_auth_forward_url}"
+      signinUrl: "${hub_browser_auth_signin_url}"
+%{ endif }
   fetcher:
     className: ${fetcher_ingress_class}
 %{ if fetcher_domain != "" }
