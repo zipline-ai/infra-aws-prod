@@ -113,6 +113,14 @@ data "aws_iam_policy_document" "orchestration_kms_policy" {
       "kms:ReEncrypt*",
     ]
     resources = local.orchestration_irsa_allowed_kms_keys
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values = [
+        "s3.${data.aws_region.current.name}.amazonaws.com",
+        "dynamodb.${data.aws_region.current.name}.amazonaws.com",
+      ]
+    }
   }
 }
 
