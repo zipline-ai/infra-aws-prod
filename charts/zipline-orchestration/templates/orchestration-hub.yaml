@@ -73,6 +73,8 @@ spec:
               value: "{{ .Values.aws.flinkEksServiceAccount }}"
             - name: FLINK_EKS_NAMESPACE
               value: "{{ .Values.aws.flinkEksNamespace }}"
+            - name: INGRESS_CLASS
+              value: "{{ .Values.ingress.hub.className }}"
             - name: EKS_CLUSTER_NAME
               value: "{{ .Values.aws.eksClusterName }}"
             - name: EMR_EXECUTION_ROLE_ARN
