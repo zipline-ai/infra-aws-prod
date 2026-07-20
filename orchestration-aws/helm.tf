@@ -186,6 +186,12 @@ resource "helm_release" "flink_operator" {
     value = "512Mi"
   }
 
+  values = [yamlencode({
+    defaultConfiguration = {
+      "flink-conf.yaml" = "kubernetes.operator.jm-deployment.shutdown-ttl: 5 m\n"
+    }
+  })]
+
   depends_on = [
     aws_eks_node_group.default,
   ]
