@@ -17,12 +17,6 @@ spec:
     metadata:
       labels:
         app: fetcher
-      annotations:
-        # Scraped by the AMP managed scraper (pod_exporter job) — pull model gives
-        # each pod its own series via kubernetes_pod_name, avoiding the multi-writer
-        # collision of pushing OTLP from all replicas into one identical series.
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8905"
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- with .Values.imagePullSecrets }}
@@ -52,8 +46,12 @@ spec:
               value: "true"
           ports:
             - containerPort: {{ .Values.orchestration.fetcher.port }}
+            # Scraped by the AMP managed scraper's zipline_fetcher jobs (amp.tf),
+            # selected by the app=fetcher pod label.
             - name: metrics
               containerPort: 8905
+            - name: vertx-metrics
+              containerPort: 8906
           resources:
           {{- toYaml .Values.orchestration.fetcher.resources | nindent 12 }}
           livenessProbe:

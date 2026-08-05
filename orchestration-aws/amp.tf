@@ -50,9 +50,46 @@ scrape_configs:
       - source_labels: [__meta_kubernetes_namespace]
         action: replace
         target_label: kubernetes_namespace
-      # Keep the plain `namespace` label for continuity with OTLP-pushed series
-      # (the ADOT collector upserts namespace="zipline-system"), so existing
-      # dashboards that filter on `namespace` keep working for scraped pods.
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+  # Zipline fetcher exposes two Prometheus endpoints (see chronon
+  # docker/fetcher/start.sh and ChrononServiceLauncher): Chronon/OTel metrics on
+  # 8905 and Vert.x HTTP/JVM metrics on 8906. Scrape both per pod so each replica
+  # gets its own series (kubernetes_pod_name), which the previous OTLP push path
+  # could not distinguish. The `namespace` label matches what the ADOT collector
+  # used to upsert, keeping existing dashboards working; it is scoped to fetcher
+  # pods only so it can't clobber other apps' own `namespace` labels.
+  - job_name: zipline_fetcher
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: fetcher
+      - source_labels: [__address__]
+        action: replace
+        regex: ([^:]+)(?::\d+)?
+        replacement: $1:8905
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+  - job_name: zipline_fetcher_vertx
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: fetcher
+      - source_labels: [__address__]
+        action: replace
+        regex: ([^:]+)(?::\d+)?
+        replacement: $1:8906
+        target_label: __address__
       - source_labels: [__meta_kubernetes_namespace]
         action: replace
         target_label: namespace
