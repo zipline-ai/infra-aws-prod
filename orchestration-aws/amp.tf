@@ -50,6 +50,12 @@ scrape_configs:
       - source_labels: [__meta_kubernetes_namespace]
         action: replace
         target_label: kubernetes_namespace
+      # Keep the plain `namespace` label for continuity with OTLP-pushed series
+      # (the ADOT collector upserts namespace="zipline-system"), so existing
+      # dashboards that filter on `namespace` keep working for scraped pods.
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
       - source_labels: [__meta_kubernetes_pod_name]
         action: replace
         target_label: kubernetes_pod_name
