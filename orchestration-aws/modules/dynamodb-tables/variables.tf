@@ -58,3 +58,9 @@ variable "encryption_kms_key_arns" {
   description = "Optional customer managed KMS key ARNs keyed by DynamoDB replica region. Use this when replica regions need region-specific keys."
   default     = {}
 }
+
+variable "chronon_metadata_enable_ttl" {
+  type        = bool
+  description = "Enable DynamoDB TTL on the CHRONON_METADATA table. Items carry a 'ttl' attribute (epoch seconds) written by the chronon KV client."
+  default     = false
+}
