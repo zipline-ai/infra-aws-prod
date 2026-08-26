@@ -29,7 +29,7 @@ spec:
           imagePullPolicy: Always
           env:
             - name: VERTICLE_CLASS
-              value: "ai.chronon.hub.AWSOrchestrationVerticle,ai.chronon.hub.AWSWorkflowExecutionVerticle"
+              value: "ai.chronon.hub.AWSOrchestrationVerticle,ai.chronon.hub.AWSWorkflowExecutionVerticle,ai.chronon.hub.cleanup.AWSCleanupVerticle"
             - name: DB_URL
               value: "jdbc:postgresql://{{ .Values.database.host }}/{{ .Values.database.name }}"
             - name: DB_USERNAME
