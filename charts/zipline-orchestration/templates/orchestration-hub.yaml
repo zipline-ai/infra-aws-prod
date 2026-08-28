@@ -130,6 +130,14 @@ spec:
               value: "{{ .Values.auth.enabled }}"
             - name: AUTH_JWKS_URL
               value: "{{ .Values.auth.jwksUrl }}"
+            - name: AUTH_FORWARD_URL
+              value: "{{ .Values.ingress.hub.browserAuth.forwardUrl }}"
+            - name: AUTH_SIGNIN_URL
+              value: "{{ .Values.ingress.hub.browserAuth.signinUrl }}"
+            - name: AUTH_CACHE_KEY
+              value: "{{ .Values.ingress.hub.browserAuth.cacheKey }}"
+            - name: AUTH_CACHE_DURATION
+              value: "{{ .Values.ingress.hub.browserAuth.cacheDuration }}"
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets-store"
