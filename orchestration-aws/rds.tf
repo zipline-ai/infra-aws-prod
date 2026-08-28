@@ -48,7 +48,8 @@ resource "aws_db_instance" "zipline" {
 
   storage_encrypted = var.encrypt_at_rest
   kms_key_id        = var.encrypt_at_rest && var.encryption_kms_key_arn != "" ? var.encryption_kms_key_arn : null
-
+  backup_retention_period = 7
+  
   db_subnet_group_name   = aws_db_subnet_group.zipline.name
   vpc_security_group_ids = [var.security_group_id]
   publicly_accessible    = false
