@@ -42,13 +42,17 @@ spec:
             - name: KV_REPLICA_REGIONS
               value: "{{ .Values.aws.kvReplicaRegions }}"
             - name: CHRONON_METRICS_READER
-              value: "http"
-            - name: EXPORTER_OTLP_ENDPOINT
-              value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
+              value: "prometheus"
             - name: USE_ZGC
               value: "true"
           ports:
             - containerPort: {{ .Values.orchestration.fetcher.port }}
+            # Scraped by the AMP managed scraper's zipline_fetcher jobs (amp.tf),
+            # selected by the app=fetcher pod label.
+            - name: metrics
+              containerPort: 8905
+            - name: vertx-metrics
+              containerPort: 8906
           resources:
           {{- toYaml .Values.orchestration.fetcher.resources | nindent 12 }}
           livenessProbe:

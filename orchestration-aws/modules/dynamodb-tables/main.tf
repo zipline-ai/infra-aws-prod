@@ -17,7 +17,7 @@ resource "aws_dynamodb_table" "chronon_metadata" {
 
   ttl {
     attribute_name = "ttl"
-    enabled        = false
+    enabled        = var.chronon_metadata_enable_ttl
   }
 
   server_side_encryption {
