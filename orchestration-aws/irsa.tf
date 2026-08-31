@@ -161,6 +161,9 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
     actions = [
       "dynamodb:CreateTable",
       "dynamodb:DescribeTable",
+      "dynamodb:UpdateTable",
+      "dynamodb:DeleteTable",
+      "dynamodb:DeleteTableReplica",
       "dynamodb:UpdateTimeToLive",
       "dynamodb:GetItem",
       "dynamodb:PutItem",
@@ -171,11 +174,21 @@ data "aws_iam_policy_document" "orchestration_dynamodb_policy" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
     ]
+    # Wildcard the region so replica-region ARNs (see KV_REPLICA_REGIONS) are
+    # covered — CreateTableReplica / DeleteTableReplica act on the replica's ARN,
+    # not the primary's.
     resources = [
-      "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.current.account_id}:table/*",
     ]
   }
 
+  # ListTables is a service-level action and requires resource "*". Used by
+  # AWSCleanupVerticle to enumerate stale batch KV tables for GC.
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:ListTables"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "orchestration_dynamodb" {
