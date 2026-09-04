@@ -63,6 +63,7 @@ data "aws_iam_policy_document" "iam_emr_policy" {
       "dynamodb:UpdateItem",
       "dynamodb:UpdateTable",
       "dynamodb:CreateTableReplica",
+      "dynamodb:DeleteTableReplica",
       "dynamodb:UpdateTimeToLive",
       "dynamodb:DeleteItem",
       "dynamodb:DeleteTable",
