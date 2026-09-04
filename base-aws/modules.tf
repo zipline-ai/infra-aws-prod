@@ -12,10 +12,11 @@ module "orchestration" {
   warehouse_bucket    = aws_s3_bucket.zipline_warehouse_bucket.id
 
   # DynamoDB Configuration
-  dynamodb_table_prefix    = var.dynamodb_table_prefix
-  dynamodb_read_capacity   = var.dynamodb_read_capacity
-  dynamodb_write_capacity  = var.dynamodb_write_capacity
-  dynamodb_replica_regions = var.dynamodb_replica_regions
+  dynamodb_table_prefix            = var.dynamodb_table_prefix
+  dynamodb_read_capacity           = var.dynamodb_read_capacity
+  dynamodb_write_capacity          = var.dynamodb_write_capacity
+  dynamodb_replica_regions         = var.dynamodb_replica_regions
+  dynamodb_batch_table_gc_age_days = var.dynamodb_batch_table_gc_age_days
 
   encryption_kms_key_arn  = var.encryption_kms_key_arn
   encryption_kms_key_arns = var.encryption_kms_key_arns
