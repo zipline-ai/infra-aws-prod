@@ -69,6 +69,8 @@ spec:
               value: "{{ .Values.aws.kvEnableTtl }}"
             - name: KV_REPLICA_REGIONS
               value: "{{ .Values.aws.kvReplicaRegions }}"
+            - name: KV_BATCH_TABLE_GC_AGE_DAYS
+              value: "{{ .Values.aws.kvBatchTableGcAgeDays }}"
             - name: FLINK_EKS_SERVICE_ACCOUNT
               value: "{{ .Values.aws.flinkEksServiceAccount }}"
             - name: FLINK_EKS_NAMESPACE

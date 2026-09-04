@@ -237,6 +237,17 @@ variable "dynamodb_replica_regions" {
   }
 }
 
+variable "dynamodb_batch_table_gc_age_days" {
+  type        = string
+  description = "Override (in days) for DynamoDB batch-table GC age used by AWSCleanupVerticle. Empty string uses the platform default (30 days). Must be a positive integer or empty."
+  default     = ""
+
+  validation {
+    condition     = var.dynamodb_batch_table_gc_age_days == "" || can(regex("^[1-9][0-9]*$", var.dynamodb_batch_table_gc_age_days))
+    error_message = "dynamodb_batch_table_gc_age_days must be empty or a positive integer (e.g. \"7\", \"30\")."
+  }
+}
+
 # Zipline Authentication
 variable "zipline_auth_enabled" {
   type        = bool

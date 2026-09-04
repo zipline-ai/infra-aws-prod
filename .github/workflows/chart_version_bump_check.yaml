@@ -1,0 +1,122 @@
+name: Chart Version Bump Check
+
+# Guards against a class of bug users have hit repeatedly: TF/Helm changes that
+# require a rolling restart of Hub/EKS services ship without a Chart.yaml
+# version bump, so the Terraform helm_release provider sees the chart version
+# as unchanged, skips `helm upgrade`, and the Deployment pod keeps running
+# with the old PodSpec / env vars.
+#
+# Rule: if this PR touches anything that flows into the rendered chart
+# (templates, values.yaml, helpers, or the Terraform files that render into
+# helm values), it MUST also bump `version:` in
+# charts/zipline-orchestration/Chart.yaml.
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'charts/zipline-orchestration/**'
+      - 'orchestration-aws/helm.tf'
+      - 'orchestration-aws/helm-values.yaml.tpl'
+
+jobs:
+  chart-version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the PR base commit locally to diff against.
+          fetch-depth: 0
+
+      - name: Check Chart.yaml version was bumped
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          CHART_FILE="charts/zipline-orchestration/Chart.yaml"
+
+          # Files that, if touched, require a chart-version bump. Chart.yaml
+          # itself and the chart README are intentionally excluded — bumping
+          # the version *is* a Chart.yaml edit, and README-only changes don't
+          # affect the rendered manifest.
+          MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          echo "Diffing $MERGE_BASE..$HEAD_SHA"
+
+          CHANGED=$(git diff --name-only "$MERGE_BASE" "$HEAD_SHA")
+          echo "Changed files in PR:"
+          echo "$CHANGED" | sed 's/^/  /'
+
+          # Anything under the chart tree except Chart.yaml/README, plus the
+          # two Terraform files that render into helm values.
+          RENDER_AFFECTING=$(echo "$CHANGED" | grep -E \
+              -e '^charts/zipline-orchestration/(templates|values\.yaml|\.helmignore)' \
+              -e '^charts/zipline-orchestration/templates/' \
+              -e '^orchestration-aws/helm\.tf$' \
+              -e '^orchestration-aws/helm-values\.yaml\.tpl$' \
+              || true)
+
+          if [[ -z "$RENDER_AFFECTING" ]]; then
+            echo "No render-affecting files changed — chart bump not required."
+            exit 0
+          fi
+
+          echo ""
+          echo "Render-affecting files touched:"
+          echo "$RENDER_AFFECTING" | sed 's/^/  /'
+
+          # Extract the version field before and after. yq isn't installed by
+          # default, but Chart.yaml is trivially grep-parseable.
+          OLD_VERSION=$(git show "$MERGE_BASE:$CHART_FILE" 2>/dev/null | awk '/^version:/ {print $2; exit}' || true)
+          NEW_VERSION=$(awk '/^version:/ {print $2; exit}' "$CHART_FILE" || true)
+
+          echo ""
+          echo "Chart.yaml version: old=${OLD_VERSION:-<missing>} new=${NEW_VERSION:-<missing>}"
+
+          if [[ -z "$OLD_VERSION" || -z "$NEW_VERSION" ]]; then
+            echo "::error file=$CHART_FILE::Could not read chart version from $CHART_FILE"
+            exit 1
+          fi
+
+          if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+            echo "::error file=$CHART_FILE::Chart version was NOT bumped ($OLD_VERSION) despite render-affecting changes."
+            cat <<EOF
+          ================================================================
+          This PR modifies chart templates, values, or the Terraform files
+          that render into helm values, but Chart.yaml version is still
+          $OLD_VERSION.
+
+          Without a version bump, the Terraform helm_release provider (which
+          tracks the local-path chart by Chart.yaml metadata.version) will
+          treat the release as unchanged and skip 'helm upgrade' on the next
+          tofu apply. The Deployment PodSpec won't be re-rendered, and the
+          Hub / other services will keep running with the old env vars,
+          images, or manifests.
+
+          Fix: bump 'version:' in charts/zipline-orchestration/Chart.yaml
+          (patch bump for additive/backwards-compatible changes, minor for
+          breaking). Then push again.
+
+          If you believe this check is a false positive for your change,
+          post in #eng-infra before overriding.
+          ================================================================
+          EOF
+            exit 1
+          fi
+
+          # Sanity: new > old, both parseable as semver-ish x.y.z
+          if ! [[ "$OLD_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning file=$CHART_FILE::Non-semver chart version ($OLD_VERSION -> $NEW_VERSION); skipping ordering check."
+            exit 0
+          fi
+
+          # Compare version tuples with sort -V.
+          HIGHER=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -n1)
+          if [[ "$HIGHER" != "$NEW_VERSION" || "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+            echo "::error file=$CHART_FILE::New chart version ($NEW_VERSION) is not greater than previous ($OLD_VERSION)."
+            exit 1
+          fi
+
+          echo "Chart version bumped: $OLD_VERSION -> $NEW_VERSION"

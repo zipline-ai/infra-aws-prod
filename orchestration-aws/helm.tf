@@ -412,12 +412,13 @@ resource "helm_release" "zipline_orchestration" {
       hub_browser_auth_enabled     = var.hub_browser_auth_enabled
       hub_browser_auth_forward_url = local.hub_browser_auth_forward_url
       hub_browser_auth_signin_url  = local.hub_browser_auth_signin_url
-      kv_table_prefix           = module.dynamodb_tables.table_prefix
-      kv_enable_ttl             = var.dynamodb_enable_ttl
-      kv_replica_regions        = join(",", var.dynamodb_replica_regions)
-      eks_cluster_name          = aws_eks_cluster.main.name
-      flink_eks_service_account = try(kubernetes_service_account_v1.flink_job[0].metadata[0].name, "")
-      flink_eks_namespace       = try(kubernetes_namespace_v1.zipline_flink[0].metadata[0].name, "")
+      kv_table_prefix              = module.dynamodb_tables.table_prefix
+      kv_enable_ttl                = var.dynamodb_enable_ttl
+      kv_replica_regions           = join(",", var.dynamodb_replica_regions)
+      kv_batch_table_gc_age_days   = var.dynamodb_batch_table_gc_age_days
+      eks_cluster_name             = aws_eks_cluster.main.name
+      flink_eks_service_account    = try(kubernetes_service_account_v1.flink_job[0].metadata[0].name, "")
+      flink_eks_namespace          = try(kubernetes_namespace_v1.zipline_flink[0].metadata[0].name, "")
 
       # Optional Kubernetes Spark compute configuration
       in_cluster_compute_enabled = var.in_cluster_compute_enabled

@@ -220,6 +220,12 @@ variable "dynamodb_replica_regions" {
   default     = []
 }
 
+variable "dynamodb_batch_table_gc_age_days" {
+  type        = string
+  description = "Override (in days) for DynamoDB batch-table GC age used by AWSCleanupVerticle. Empty string uses the platform default (30 days)."
+  default     = ""
+}
+
 variable "dynamodb_write_capacity" {
   type        = number
   description = "Write capacity units for DynamoDB tables"
