@@ -14,6 +14,7 @@ aws:
   kvTablePrefix: "${kv_table_prefix}"
   kvEnableTtl: "${kv_enable_ttl}"
   kvReplicaRegions: "${kv_replica_regions}"
+  kvBatchTableGcAgeDays: "${kv_batch_table_gc_age_days}"
   eksClusterName: "${eks_cluster_name}"
   flinkEksServiceAccount: "${flink_eks_service_account}"
   flinkEksNamespace: "${flink_eks_namespace}"

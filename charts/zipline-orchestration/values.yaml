@@ -11,6 +11,7 @@ aws:
   region: ""
   secretsArn: ""
   kvEnableTtl: "true"
+  kvBatchTableGcAgeDays: ""
   databricksSpSecretArn: ""
   eksClusterName: ""
   flinkEksServiceAccount: ""
