@@ -114,18 +114,8 @@ spec:
             {{- end }}
             - name: EXPORTER_OTLP_ENDPOINT
               value: "http://adot-prometheus-collector.opentelemetry-operator-system.svc.cluster.local:4318"
-            {{- if .Values.aws.databricksSpSecretArn }}
-            - name: DATABRICKS_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: databricks-sp-credentials
-                  key: client_id
-            - name: DATABRICKS_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: databricks-sp-credentials
-                  key: client_secret
-            {{- end }}
+            # No Databricks credentials: the hub fills {NAME} placeholders from its env into submitted
+            # job specs, which GetJobRun returns verbatim. Jobs read them via *_VAULT_URI refs instead.
             - name: AUTH_ENABLED
               value: "{{ .Values.auth.enabled }}"
             - name: AUTH_JWKS_URL

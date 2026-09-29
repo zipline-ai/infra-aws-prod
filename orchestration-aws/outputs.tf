@@ -293,3 +293,13 @@ output "databricks_sp_secret_name" {
   description = "Name of the Databricks service principal credentials secret (empty if not configured)"
   value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].name : ""
 }
+
+output "databricks_client_secret_vault_uri" {
+  description = "Set as DATABRICKS_CLIENT_SECRET_VAULT_URI in the team env (empty if not configured)"
+  value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_client_secret[0].arn : ""
+}
+
+output "databricks_credential_vault_uri" {
+  description = "Set as DATABRICKS_CREDENTIAL_VAULT_URI in the team env (empty if not configured)"
+  value       = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_credential[0].arn : ""
+}
