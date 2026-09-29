@@ -441,8 +441,9 @@ resource "helm_release" "zipline_orchestration" {
       fetcher_cert_arn = local.fetcher_cert_arn
       eval_cert_arn    = local.eval_cert_arn
 
-      # Databricks service principal secret ARN (empty if not configured)
-      databricks_sp_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_sp[0].arn : ""
+      # Databricks service principal (empty if not configured)
+      databricks_client_id         = var.databricks_client_id
+      databricks_client_secret_arn = var.databricks_client_id != "" ? aws_secretsmanager_secret.databricks_client_secret[0].arn : ""
 
       # Prometheus configuration
       prometheus_query_endpoint = trimsuffix(aws_prometheus_workspace.main.prometheus_endpoint, "/")
