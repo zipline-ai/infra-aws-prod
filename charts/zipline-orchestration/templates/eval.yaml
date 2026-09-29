@@ -52,16 +52,15 @@ spec:
               value: "{{ .Values.aws.region }}"
             - name: KV_TABLE_PREFIX
               value: "{{ .Values.aws.kvTablePrefix }}"
-            {{- if .Values.aws.databricksSpSecretArn }}
+            {{- if .Values.aws.databricksClientId }}
             - name: DATABRICKS_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: databricks-sp-credentials
-                  key: client_id
+              value: {{ .Values.aws.databricksClientId | quote }}
+            {{- end }}
+            {{- if .Values.aws.databricksClientSecretArn }}
             - name: DATABRICKS_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: databricks-sp-credentials
+                  name: databricks-client-secret
                   key: client_secret
             {{- end }}
             - name: AUTH_ENABLED
