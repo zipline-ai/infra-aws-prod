@@ -118,7 +118,7 @@ data "aws_iam_policy_document" "emr_bedrock_policy" {
       "bedrock:InvokeModelWithResponseStream",
     ]
     resources = [
-      "arn:aws:bedrock:${data.aws_region.current.name}::foundation-model/*",
+      "arn:aws:bedrock:${data.aws_region.current.region}::foundation-model/*",
     ]
   }
 }
@@ -174,6 +174,13 @@ resource "aws_emrserverless_application" "spark" {
     subnet_ids         = [var.emr_subnetwork != "" ? var.emr_subnetwork : (var.existing_vpc_id != "" ? var.existing_vpc_primary_subnet_id : aws_subnet.main[0].id)]
     security_group_ids = [aws_security_group.emr_sg.id]
   }
+
+  # Always set: AWS enables the scheduler on EMR 7.x apps by default, so omitting the block would
+  # make the provider remove it.
+  scheduler_configuration {
+    max_concurrent_runs   = var.emr_max_concurrent_runs
+    queue_timeout_minutes = var.emr_queue_timeout_minutes
+  }
 }
 
 ###
@@ -209,6 +216,13 @@ resource "aws_emrserverless_application" "spark_custom_image" {
 
   image_configuration {
     image_uri = local.emr_custom_image_uri
+  }
+
+  # Always set: AWS enables the scheduler on EMR 7.x apps by default, so omitting the block would
+  # make the provider remove it.
+  scheduler_configuration {
+    max_concurrent_runs   = var.emr_max_concurrent_runs
+    queue_timeout_minutes = var.emr_queue_timeout_minutes
   }
 }
 

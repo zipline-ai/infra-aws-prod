@@ -290,7 +290,7 @@ resource "kubectl_manifest" "adot_collector" {
               },
               {
                 key    = "region"
-                value  = data.aws_region.current.name
+                value  = data.aws_region.current.region
                 action = "insert"
               },
               {
@@ -311,7 +311,7 @@ resource "kubectl_manifest" "adot_collector" {
               },
               {
                 key    = "aws_region"
-                value  = data.aws_region.current.name
+                value  = data.aws_region.current.region
                 action = "upsert"
               },
               {
@@ -337,7 +337,7 @@ resource "kubectl_manifest" "adot_collector" {
         }
         extensions = {
           sigv4auth = {
-            region = data.aws_region.current.name
+            region = data.aws_region.current.region
           }
           health_check = {}
         }
@@ -377,7 +377,7 @@ resource "helm_release" "zipline_orchestration" {
   values = [
     templatefile("${path.module}/helm-values.yaml.tpl", {
       customer_name    = var.name_prefix
-      aws_region       = data.aws_region.current.name
+      aws_region       = data.aws_region.current.region
       artifact_prefix  = var.artifact_prefix
       version          = var.zipline_version
       deploy_fetcher   = var.deploy_fetcher

@@ -38,6 +38,18 @@ variable "emr_custom_image_version" {
   default     = ""
 }
 
+variable "emr_max_concurrent_runs" {
+  type        = number
+  description = "EMR Serverless scheduler max concurrent runs; see zipline-aws/variables.tf."
+  default     = 15
+}
+
+variable "emr_queue_timeout_minutes" {
+  type        = number
+  description = "EMR Serverless scheduler queue timeout in minutes; see zipline-aws/variables.tf."
+  default     = 360
+}
+
 variable "emr_log_uri" {
   type        = string
   description = "S3 URI for EMR job logs. Defaults to s3://zipline-logs-{customer_name}/emr/"

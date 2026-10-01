@@ -57,7 +57,7 @@ output "eks_cluster_ca_certificate" {
 
 output "kubeconfig_command" {
   description = "Command to update kubeconfig"
-  value       = "aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}"
+  value       = "aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${aws_eks_cluster.main.name}"
 }
 
 data "kubernetes_service_v1" "ui_ingress_controller" {

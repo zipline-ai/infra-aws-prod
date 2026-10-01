@@ -117,8 +117,8 @@ data "aws_iam_policy_document" "orchestration_kms_policy" {
       test     = "StringEquals"
       variable = "kms:ViaService"
       values = [
-        "s3.${data.aws_region.current.name}.amazonaws.com",
-        "dynamodb.${data.aws_region.current.name}.amazonaws.com",
+        "s3.${data.aws_region.current.region}.amazonaws.com",
+        "dynamodb.${data.aws_region.current.region}.amazonaws.com",
       ]
     }
   }
@@ -663,9 +663,9 @@ data "aws_iam_policy_document" "spark_compute_glue_policy" {
       "glue:BatchDeletePartition",
     ]
     resources = [
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/*",
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*/*",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:database/*",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/*/*",
     ]
   }
 }
@@ -717,8 +717,8 @@ data "aws_iam_policy_document" "flink_glue_schema_registry_policy" {
       "glue:ListSchemaVersions",
     ]
     resources = [
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:registry/${local.glue_registry_name}",
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:schema/${local.glue_registry_name}/*",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:registry/${local.glue_registry_name}",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:schema/${local.glue_registry_name}/*",
     ]
   }
 }
@@ -816,7 +816,7 @@ data "aws_iam_policy_document" "bedrock_invoke_policy" {
       "bedrock:InvokeModelWithResponseStream",
     ]
     resources = [
-      "arn:aws:bedrock:${data.aws_region.current.name}::foundation-model/*",
+      "arn:aws:bedrock:${data.aws_region.current.region}::foundation-model/*",
     ]
   }
 }
@@ -950,9 +950,9 @@ data "aws_iam_policy_document" "flink_compute_glue_catalog_policy" {
       "glue:GetPartitions",
     ]
     resources = [
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog",
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:database/*",
-      "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/*/*",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:catalog",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:database/*",
+      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:table/*/*",
     ]
   }
 }
