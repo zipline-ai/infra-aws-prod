@@ -189,6 +189,18 @@ variable "emr_custom_image_version" {
   default     = ""
 }
 
+variable "emr_max_concurrent_runs" {
+  type        = number
+  description = "Maximum concurrent job runs per EMR Serverless Spark application (AWS allows 1-1000). Runs beyond the limit wait in QUEUED state for up to emr_queue_timeout_minutes. Defaults to AWS's value."
+  default     = 15
+}
+
+variable "emr_queue_timeout_minutes" {
+  type        = number
+  description = "Minutes an EMR Serverless job run may stay QUEUED before it is cancelled (AWS allows 15-720). Defaults to AWS's value."
+  default     = 360
+}
+
 variable "msk_cluster_arn" {
   type        = string
   description = "ARN of the MSK cluster for Flink IAM access. Leave empty to skip MSK permissions."

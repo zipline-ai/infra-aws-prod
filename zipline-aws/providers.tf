@@ -4,7 +4,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.16"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -117,7 +117,9 @@ module "base_setup" {
   databricks_client_id     = var.databricks_client_id
   databricks_client_secret = var.databricks_client_secret
 
-  emr_custom_image_version = var.emr_custom_image_version
+  emr_custom_image_version  = var.emr_custom_image_version
+  emr_max_concurrent_runs   = var.emr_max_concurrent_runs
+  emr_queue_timeout_minutes = var.emr_queue_timeout_minutes
 
   msk_cluster_arn = var.msk_cluster_arn
 

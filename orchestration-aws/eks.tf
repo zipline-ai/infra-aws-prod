@@ -649,7 +649,7 @@ config:
     [OUTPUT]
         Name              cloudwatch_logs
         Match             kube.*
-        region            ${data.aws_region.current.name}
+        region            ${data.aws_region.current.region}
         log_group_name    /aws/eks/${var.name_prefix}-eks/containers
         log_stream_prefix from-fluent-bit-
         auto_create_group true
@@ -693,7 +693,7 @@ resource "helm_release" "aws_load_balancer_controller" {
 
   set {
     name  = "region"
-    value = data.aws_region.current.name
+    value = data.aws_region.current.region
   }
 
   set {
