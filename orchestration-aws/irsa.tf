@@ -716,10 +716,18 @@ data "aws_iam_policy_document" "flink_glue_schema_registry_policy" {
       "glue:GetRegistry",
       "glue:ListSchemaVersions",
     ]
-    resources = [
-      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:registry/${local.glue_registry_name}",
-      "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:schema/${local.glue_registry_name}/*",
-    ]
+    resources = concat(
+      [
+        "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:registry/${local.glue_registry_name}",
+        "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:schema/${local.glue_registry_name}/*",
+      ],
+      flatten([
+        for reg in var.additional_glue_schema_registries : [
+          "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:registry/${reg}",
+          "arn:aws:glue:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:schema/${reg}/*",
+        ]
+      ]),
+    )
   }
 }
 
@@ -729,6 +737,17 @@ resource "aws_iam_role_policy" "flink_glue_schema_registry" {
   name   = "${var.name_prefix}-flink-glue-schema-registry"
   role   = aws_iam_role.flink_job_execution[0].id
   policy = data.aws_iam_policy_document.flink_glue_schema_registry_policy.json
+}
+
+# Glue Data Catalog read access for Flink jobs that read Iceberg tables via Glue
+# (giga tile / BatchIrSourceBuilder with iceberg.catalog.type=glue). Reuses the
+# same policy document as the in-cluster compute role on the other submit path.
+resource "aws_iam_role_policy" "flink_glue_catalog" {
+  count = var.in_cluster_compute_enabled ? 0 : 1
+
+  name   = "${var.name_prefix}-flink-glue-catalog"
+  role   = aws_iam_role.flink_job_execution[0].id
+  policy = data.aws_iam_policy_document.flink_compute_glue_catalog_policy.json
 }
 
 # MSK access policy for Flink jobs (connect, describe, read/write topics)

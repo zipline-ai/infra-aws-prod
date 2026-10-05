@@ -61,8 +61,9 @@ module "orchestration" {
 
   msk_cluster_arn = var.msk_cluster_arn
 
-  additional_flink_s3_buckets = var.additional_flink_s3_buckets
-  additional_data_buckets     = var.additional_data_buckets
+  additional_flink_s3_buckets       = var.additional_flink_s3_buckets
+  additional_data_buckets           = var.additional_data_buckets
+  additional_glue_schema_registries = var.additional_glue_schema_registries
 
   zipline_auth_enabled                = var.zipline_auth_enabled
   google_oauth_client_id              = var.google_oauth_client_id

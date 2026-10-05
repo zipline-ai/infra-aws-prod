@@ -67,3 +67,22 @@ resource "aws_iam_role_policy_attachment" "emr_databricks_secrets" {
   role       = "zipline_${var.name_prefix}_emr_serverless_role"
   policy_arn = aws_iam_policy.databricks_secrets_policy[0].arn
 }
+
+# Flink pods on EKS resolve DATABRICKS_CREDENTIAL_VAULT_URI (and friends) at job startup
+# via JobSecrets → VaultSecretProvider → AWS Secrets Manager, so the Flink IRSA role needs
+# GetSecretValue on the same ARNs that the hub + EMR Serverless already read. Attached on
+# whichever role the active submit route uses (EKS Flink via EksFlinkSubmitter vs. the
+# in-cluster compute path), gated on in_cluster_compute_enabled to match the role itself.
+resource "aws_iam_role_policy_attachment" "flink_job_databricks_secrets" {
+  count = var.databricks_client_id != "" && !var.in_cluster_compute_enabled ? 1 : 0
+
+  role       = aws_iam_role.flink_job_execution[0].name
+  policy_arn = aws_iam_policy.databricks_secrets_policy[0].arn
+}
+
+resource "aws_iam_role_policy_attachment" "flink_compute_databricks_secrets" {
+  count = var.databricks_client_id != "" && var.in_cluster_compute_enabled ? 1 : 0
+
+  role       = aws_iam_role.flink_compute_execution[0].name
+  policy_arn = aws_iam_policy.databricks_secrets_policy[0].arn
+}
