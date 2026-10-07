@@ -250,6 +250,12 @@ variable "additional_flink_s3_buckets" {
   default     = []
 }
 
+variable "additional_glue_schema_registries" {
+  type        = list(string)
+  description = "Additional Glue Schema Registry names to grant Flink job execution roles read access to (glue:GetSchemaVersion etc.). Use this when Flink jobs consume schemas from a shared/platform registry (e.g. zipline-crucible) separate from the per-customer registry."
+  default     = []
+}
+
 variable "additional_data_buckets" {
   type        = list(string)
   description = "Additional S3 bucket names (without arn prefix) for source data or Iceberg metadata outside warehouse_bucket. The orchestration IRSA gets read access, and Spark compute gets data-plane access."
