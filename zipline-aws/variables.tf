@@ -63,13 +63,61 @@ variable "deploy_fetcher" {
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"
-  default     = 3
+  default     = 1
+}
+
+variable "fetcher_cpu_request" {
+  type        = string
+  description = "CPU request for the fetcher container"
+  default     = "8"
+}
+
+variable "fetcher_memory_request" {
+  type        = string
+  description = "Memory request for the fetcher container"
+  default     = "32Gi"
+}
+
+variable "fetcher_cpu_limit" {
+  type        = string
+  description = "CPU limit for the fetcher container"
+  default     = "8"
+}
+
+variable "fetcher_memory_limit" {
+  type        = string
+  description = "Memory limit for the fetcher container"
+  default     = "32Gi"
 }
 
 variable "eks_version" {
   type        = string
   description = "Kubernetes version for EKS cluster"
   default     = "1.31"
+}
+
+variable "eks_instance_type" {
+  type        = string
+  description = "Instance type for the EKS managed node group"
+  default     = "m8a.4xlarge"
+}
+
+variable "eks_desired_size" {
+  type        = number
+  description = "Desired number of nodes in the EKS managed node group"
+  default     = 3
+}
+
+variable "eks_min_size" {
+  type        = number
+  description = "Minimum number of nodes in the EKS managed node group"
+  default     = 3
+}
+
+variable "eks_max_size" {
+  type        = number
+  description = "Maximum number of nodes in the EKS managed node group"
+  default     = 8
 }
 
 variable "in_cluster_compute_enabled" {
