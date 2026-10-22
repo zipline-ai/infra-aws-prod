@@ -29,7 +29,11 @@ locals {
   fetcher_cert_arn = local.use_zipline_custom_domain ? local.zipline_custom_domain_cert_arn : (local.fetcher_domain != "" ? (var.fetcher_cert_arn != "" ? var.fetcher_cert_arn : aws_acm_certificate.fetcher_cert[0].arn) : "")
   eval_cert_arn    = local.use_zipline_custom_domain ? local.zipline_custom_domain_cert_arn : (local.eval_domain != "" ? (var.eval_cert_arn != "" ? var.eval_cert_arn : aws_acm_certificate.eval_cert[0].arn) : "")
 
-  zipline_auth_url      = local.ui_domain != "" ? "https://${local.ui_domain}" : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
+  # Public UI origin shared by authentication, CORS, and webhook links.
+  # Leave empty without a custom domain so notifications omit unreachable links.
+  frontend_external_url = local.ui_domain != "" ? "https://${local.ui_domain}" : ""
+
+  zipline_auth_url      = local.frontend_external_url != "" ? local.frontend_external_url : "http://zipline-orchestration-ui.zipline-system.svc.cluster.local:3000"
   zipline_auth_jwks_url = "${local.zipline_auth_url}/api/auth/jwks"
 
   # Forward-auth URLs derived from the existing ingress topology — customers

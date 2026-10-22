@@ -395,6 +395,8 @@ If you have your own load balancer or proxy in front of the hub nginx ELB and do
 hub_external_url = "http://my-hub-foo"
 ```
 
+The public frontend URL used for webhook links and Hub CORS is derived from the resolved UI domain (`zipline_custom_domain`, or `ui_domain` in per-service mode). Terraform passes the same public origin used by authentication to Helm as `ingress.ui.externalUrl`. Without a custom domain, webhook notifications show workflow IDs without links. Direct Helm installations can set `ingress.ui.externalUrl` to their public UI origin.
+
 ### Option 3: No custom domain (ELB hostname only)
 
 If neither `hub_domain` nor `hub_external_url` is set, a Helm post-install/upgrade Job automatically looks up the hub NLB hostname and sets `HUB_BASE_URL=http://<elb-hostname>`. No extra configuration needed.
