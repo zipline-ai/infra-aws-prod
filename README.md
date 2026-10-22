@@ -75,7 +75,15 @@ tofu apply
 | `ui_domain` | `""` | Custom domain for the UI (e.g., `zipline.yourcompany.com`) |
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
 | `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
-| `fetcher_replicas` | `3` | Number of fetcher pod replicas |
+| `fetcher_replicas` | `1` | Number of fetcher pod replicas |
+| `fetcher_cpu_request` | `"8"` | CPU request for the fetcher pod. The current fetcher defaults to 8 CPU / 32Gi because its JVM sizes its heap from the container limit — size it against your own workload before lowering it. |
+| `fetcher_memory_request` | `"32Gi"` | Memory request for the fetcher pod |
+| `fetcher_cpu_limit` | `"8"` | CPU limit for the fetcher pod |
+| `fetcher_memory_limit` | `"32Gi"` | Memory limit for the fetcher pod. The JVM heap follows this value, so lowering it shrinks the heap. |
+| `eks_instance_type` | `m8a.4xlarge` | Instance type for the EKS managed node group. Changing it, `eks_disk_size`, or the node subnets creates the replacement node group and waits for it to be ACTIVE before deleting the old one, so a swap never leaves the cluster with zero schedulable workers. |
+| `eks_desired_size` | `3` | Desired node count for the EKS managed node group |
+| `eks_min_size` | `3` | Minimum node count for the EKS managed node group |
+| `eks_max_size` | `8` | Maximum node count for the EKS managed node group |
 | `fetcher_domain` | `""` | Custom domain for the Chronon fetcher service |
 | `eval_domain` | `""` | Custom domain for the eval service |
 | `ui_cert_arn` | `""` | ARN of an existing ACM certificate for the UI domain. Leave empty to let Terraform create a certificate when `ui_domain` is set. |
