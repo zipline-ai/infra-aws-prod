@@ -87,9 +87,18 @@ module "base_setup" {
   personnel_arns  = var.personnel_arns
 
   # EKS Configuration
-  eks_version      = var.eks_version
-  deploy_fetcher   = var.deploy_fetcher
-  fetcher_replicas = var.fetcher_replicas
+  eks_version       = var.eks_version
+  eks_instance_type = var.eks_instance_type
+  eks_desired_size  = var.eks_desired_size
+  eks_min_size      = var.eks_min_size
+  eks_max_size      = var.eks_max_size
+  deploy_fetcher    = var.deploy_fetcher
+  fetcher_replicas  = var.fetcher_replicas
+
+  fetcher_cpu_request    = var.fetcher_cpu_request
+  fetcher_memory_request = var.fetcher_memory_request
+  fetcher_cpu_limit      = var.fetcher_cpu_limit
+  fetcher_memory_limit   = var.fetcher_memory_limit
 
   # Optional Kubernetes Spark compute configuration
   in_cluster_compute_enabled   = var.in_cluster_compute_enabled

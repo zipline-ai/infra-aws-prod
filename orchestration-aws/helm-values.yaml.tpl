@@ -271,11 +271,11 @@ orchestration:
     port: 9000
     resources:
       limits:
-        cpu: "8"
-        memory: "32Gi"
+        cpu: "${fetcher_cpu_limit}"
+        memory: "${fetcher_memory_limit}"
       requests:
-        cpu: "8"
-        memory: "32Gi"
+        cpu: "${fetcher_cpu_request}"
+        memory: "${fetcher_memory_request}"
 
 # Ingress configuration
 ingress:

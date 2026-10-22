@@ -345,9 +345,27 @@ resource "aws_launch_template" "eks_nodes" {
 }
 
 # EKS Node Group
+locals {
+  # EKS requires node group names to be unique within a cluster, so
+  # create_before_destroy only works if the replacement gets a different name. Embedding a
+  # digest of the replacement-triggering inputs keeps the name stable across in-place
+  # updates (scaling, labels) while changing it for instance type / launch template /
+  # subnet swaps.
+  eks_node_group_name = format("%s-default-%s-%s",
+    var.name_prefix,
+    replace(var.eks_instance_type, ".", ""),
+    substr(sha256(join("-", [
+      var.eks_instance_type,
+      aws_launch_template.eks_nodes.id,
+      var.main_subnet_id,
+      var.secondary_subnet_id,
+    ])), 0, 4),
+  )
+}
+
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${var.name_prefix}-default"
+  node_group_name = local.eks_node_group_name
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = [var.main_subnet_id, var.secondary_subnet_id]
   instance_types  = [var.eks_instance_type]
@@ -376,6 +394,13 @@ resource "aws_eks_node_group" "default" {
 
   tags = {
     Name = "${var.name_prefix}-eks-node"
+  }
+
+  # The replacement node group is created (and becomes ACTIVE) before the old one is torn
+  # down, so an instance type or launch template swap never leaves the cluster with zero
+  # schedulable workers. local.eks_node_group_name carries the matching name digest.
+  lifecycle {
+    create_before_destroy = true
   }
 
   depends_on = [

@@ -63,7 +63,31 @@ variable "deploy_fetcher" {
 variable "fetcher_replicas" {
   type        = number
   description = "Number of fetcher replicas"
-  default     = 3
+  default     = 1
+}
+
+variable "fetcher_cpu_request" {
+  type        = string
+  description = "CPU request for the fetcher container"
+  default     = "8"
+}
+
+variable "fetcher_memory_request" {
+  type        = string
+  description = "Memory request for the fetcher container"
+  default     = "32Gi"
+}
+
+variable "fetcher_cpu_limit" {
+  type        = string
+  description = "CPU limit for the fetcher container"
+  default     = "8"
+}
+
+variable "fetcher_memory_limit" {
+  type        = string
+  description = "Memory limit for the fetcher container"
+  default     = "32Gi"
 }
 
 variable "eks_desired_size" {
