@@ -422,6 +422,8 @@ ingress-nginx-hub:
 # Ingress configuration
 ingress:
   ui:
+    # Public UI origin for Hub CORS and webhook links; empty omits webhook links.
+    externalUrl: ""
     className: nginx-ui
     host: ""
     path: "/"

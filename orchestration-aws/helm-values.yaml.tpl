@@ -280,6 +280,7 @@ orchestration:
 # Ingress configuration
 ingress:
   ui:
+    externalUrl: ${jsonencode(frontend_external_url)}
     className: ${ui_ingress_class}
 %{ if ui_domain != "" }
     host: "${ui_domain}"
