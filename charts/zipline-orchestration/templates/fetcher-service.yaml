@@ -45,6 +45,10 @@ spec:
               value: "prometheus"
             - name: USE_ZGC
               value: "true"
+            # Rendered unconditionally so the effective cache state is visible
+            # on the pod; start.sh only maps it to the JVM flag when true.
+            - name: DISABLE_FETCHER_BATCH_IR_CACHE
+              value: "{{ .Values.orchestration.fetcher.batchIrCacheDisabled }}"
           ports:
             - containerPort: {{ .Values.orchestration.fetcher.port }}
             # Scraped by the AMP managed scraper's zipline_fetcher jobs (amp.tf),

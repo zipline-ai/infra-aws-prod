@@ -383,10 +383,11 @@ resource "helm_release" "zipline_orchestration" {
       deploy_fetcher   = var.deploy_fetcher
       fetcher_replicas = var.fetcher_replicas
 
-      fetcher_cpu_request    = var.fetcher_cpu_request
-      fetcher_memory_request = var.fetcher_memory_request
-      fetcher_cpu_limit      = var.fetcher_cpu_limit
-      fetcher_memory_limit   = var.fetcher_memory_limit
+      fetcher_batch_ir_cache_disabled = var.fetcher_batch_ir_cache_disabled
+      fetcher_cpu_request             = var.fetcher_cpu_request
+      fetcher_memory_request          = var.fetcher_memory_request
+      fetcher_cpu_limit               = var.fetcher_cpu_limit
+      fetcher_memory_limit            = var.fetcher_memory_limit
 
       # RDS instance + self-managed secret
       db_host     = aws_db_instance.zipline.endpoint

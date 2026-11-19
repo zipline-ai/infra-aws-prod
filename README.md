@@ -76,6 +76,7 @@ tofu apply
 | `hub_domain` | `""` | Custom domain for the Hub API (e.g., `zipline-hub.yourcompany.com`) |
 | `hub_external_url` | `""` | Override `HUB_BASE_URL` directly (e.g., `http://my-hub-foo`). Use when a custom ALB or proxy sits in front of the hub nginx ELB and `hub_domain` is not set. |
 | `fetcher_replicas` | `1` | Number of fetcher pod replicas |
+| `fetcher_batch_ir_cache_disabled` | `false` | Set to `true` to turn off the fetcher's batch IR cache by rendering `DISABLE_FETCHER_BATCH_IR_CACHE=true` (the image's `start.sh` maps it to `-Dai.chronon.fetcher.batch_ir_cache_disabled=true`). Requires a `chronon-fetcher` image that supports the flag (1.29.0+); older images ignore the env var. |
 | `fetcher_cpu_request` | `"8"` | CPU request for the fetcher pod. The current fetcher defaults to 8 CPU / 32Gi because its JVM sizes its heap from the container limit — size it against your own workload before lowering it. |
 | `fetcher_memory_request` | `"32Gi"` | Memory request for the fetcher pod |
 | `fetcher_cpu_limit` | `"8"` | CPU limit for the fetcher pod |
