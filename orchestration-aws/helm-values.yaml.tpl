@@ -269,6 +269,7 @@ orchestration:
     tag: "dev"
     replicas: ${fetcher_replicas}
     port: 9000
+    batchIrCacheDisabled: ${fetcher_batch_ir_cache_disabled}
     resources:
       limits:
         cpu: "${fetcher_cpu_limit}"

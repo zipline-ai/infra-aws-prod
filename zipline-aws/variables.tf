@@ -66,6 +66,12 @@ variable "fetcher_replicas" {
   default     = 1
 }
 
+variable "fetcher_batch_ir_cache_disabled" {
+  type        = bool
+  description = "Set to true to disable the fetcher's batch IR cache (renders DISABLE_FETCHER_BATCH_IR_CACHE=true). Requires a chronon-fetcher image that supports the flag (1.29.0+)."
+  default     = false
+}
+
 variable "fetcher_cpu_request" {
   type        = string
   description = "CPU request for the fetcher container"

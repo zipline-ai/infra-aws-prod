@@ -299,6 +299,12 @@ orchestration:
     image: "ziplineai/chronon-fetcher"
     replicas: 1
     port: 9000
+    # Set to true to turn off the fetcher's batch IR cache (renders
+    # DISABLE_FETCHER_BATCH_IR_CACHE=true, which the image's start.sh maps to
+    # -Dai.chronon.fetcher.batch_ir_cache_disabled=true). Requires an image
+    # that supports the flag (chronon-fetcher 1.29.0+); older images ignore the
+    # env var. Left false so existing installs keep the cache on.
+    batchIrCacheDisabled: false
     resources:
       limits:
         cpu: "8"
